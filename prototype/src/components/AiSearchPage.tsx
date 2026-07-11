@@ -34,11 +34,15 @@ function makeMsg(role: ChatMsg['role'], content: string): ChatMsg {
   return { id: `msg-${Date.now()}-${msgSeq}`, role, content, timestamp: new Date().toISOString() };
 }
 
-function assistantSummary(res: SearchResponse): string {
+function assistantSummary(res: SearchResponse, searchedHotelName?: string | null): string {
   const groups = groupByHotel(res.results);
   switch (res.status) {
     case 'ok': {
-      const base = `조건에 맞는 호텔 ${groups.length}곳, 요금제 ${res.results.length}건을 찾았습니다. 금액·취소조건 등 모든 숫자는 우측 결과 카드/표에서 확인해 주세요. [${res.search_id}]`;
+      const recCount = groupByHotel(res.recommended_results ?? []).length;
+      const base =
+        searchedHotelName && recCount > 0
+          ? `요청하신 '${searchedHotelName}'의 요금제 ${res.results.length}건을 찾았고, 같은 도시의 추천 호텔 ${recCount}곳을 함께 제안합니다. 금액·취소조건 등 모든 숫자는 우측 결과 카드/표에서 확인해 주세요. [${res.search_id}]`
+          : `조건에 맞는 호텔 ${groups.length}곳, 요금제 ${res.results.length}건을 찾았습니다. 금액·취소조건 등 모든 숫자는 우측 결과 카드/표에서 확인해 주세요. [${res.search_id}]`;
       return res.is_stale
         ? `${base}\n\n⚠ 이 결과는 조회 후 30분이 지난 캐시(STALE)입니다. 확정 전 재검색을 권장합니다.`
         : base;
@@ -95,13 +99,22 @@ export default function AiSearchPage() {
     () => (response ? groupByHotel(response.results) : []),
     [response],
   );
+  const recommendedGroups = useMemo(
+    () => (response?.recommended_results ? groupByHotel(response.recommended_results) : []),
+    [response],
+  );
+  /** 비교·상세는 검색 호텔 + 추천 호텔 모두에서 선택 가능 */
+  const allGroups = useMemo(
+    () => [...groups, ...recommendedGroups],
+    [groups, recommendedGroups],
+  );
   const comparedGroups = useMemo(
-    () => groups.filter((g) => comparedIds.includes(g.hotel_id)),
-    [groups, comparedIds],
+    () => allGroups.filter((g) => comparedIds.includes(g.hotel_id)),
+    [allGroups, comparedIds],
   );
   const detailGroup = useMemo(
-    () => groups.find((g) => g.hotel_id === detailHotelId) ?? null,
-    [groups, detailHotelId],
+    () => allGroups.find((g) => g.hotel_id === detailHotelId) ?? null,
+    [allGroups, detailHotelId],
   );
 
   const runSearch = useCallback(
@@ -132,7 +145,7 @@ export default function AiSearchPage() {
           const res = runMockSearch(scenario, searchId, parsed);
           setResponse(res);
           setPhase('done');
-          setMessages((prev) => [...prev, makeMsg('assistant', assistantSummary(res))]);
+          setMessages((prev) => [...prev, makeMsg('assistant', assistantSummary(res, parsed.hotel_name))]);
           setHistory((prev) =>
             [
               {
@@ -307,6 +320,8 @@ export default function AiSearchPage() {
                   <HotelResultList
                     response={response}
                     groups={groups}
+                    recommendedGroups={recommendedGroups}
+                    searchedHotelName={conditions?.hotel_name}
                     viewMode={viewMode}
                     comparedIds={comparedIds}
                     internalView={internalView}

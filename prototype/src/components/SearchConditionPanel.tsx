@@ -14,6 +14,7 @@ interface Chip {
 
 function buildChips(c: SearchConditions): Chip[] {
   const chips: Chip[] = [];
+  if (c.hotel_name) chips.push({ key: 'hotel', label: '호텔', value: c.hotel_name, tone: 'brand' });
   if (c.destination) chips.push({ key: 'dest', label: '목적지', value: c.destination, tone: 'brand' });
   if (c.check_in && c.check_out) {
     chips.push({

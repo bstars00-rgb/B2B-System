@@ -42,6 +42,8 @@ export interface RateResult {
 export interface SearchConditions {
   raw_query: string;
   destination: string | null;
+  /** 특정 호텔 지목 검색 시 매칭된 호텔명 (예: "마리나 베이 샌즈") */
+  hotel_name: string | null;
   check_in: string | null;
   check_out: string | null;
   nights: number | null;
@@ -85,6 +87,8 @@ export interface SearchResponse {
   is_stale?: boolean;
   searched_at: string;
   results: RateResult[];
+  /** 특정 호텔 검색 시 함께 제안하는 추천 호텔 요금 (동일 도시·유사 성급) */
+  recommended_results?: RateResult[];
 }
 
 export type ChatRole = 'user' | 'assistant' | 'system';

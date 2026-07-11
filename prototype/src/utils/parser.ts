@@ -1,4 +1,5 @@
 import type { SearchConditions } from '../types';
+import { matchHotelName } from '../mocks/hotelDb';
 
 /**
  * 규칙 기반 mock 자연어 파서 (한국어 기준).
@@ -110,6 +111,9 @@ function parseDates(q: string): DateRange {
 export function parseQuery(query: string): SearchConditions {
   const q = query.trim();
 
+  // 특정 호텔 지목 (예: "마리나 베이 샌즈", "마리나베이샌즈")
+  const hotel_name = matchHotelName(q);
+
   // 목적지
   const destination = KNOWN_DESTINATIONS.find((d) => q.includes(d)) ?? null;
 
@@ -156,6 +160,7 @@ export function parseQuery(query: string): SearchConditions {
   return {
     raw_query: query,
     destination,
+    hotel_name,
     check_in,
     check_out,
     nights,

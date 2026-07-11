@@ -9,6 +9,10 @@ export type ViewMode = 'card' | 'table';
 interface Props {
   response: SearchResponse;
   groups: HotelGroup[];
+  /** 특정 호텔 지목 검색 시 함께 표시할 추천 호텔 그룹 */
+  recommendedGroups?: HotelGroup[];
+  /** 지목된 호텔명 (섹션 라벨 표시용) */
+  searchedHotelName?: string | null;
   viewMode: ViewMode;
   comparedIds: string[];
   internalView: boolean;
@@ -21,6 +25,8 @@ interface Props {
 export default function HotelResultList({
   response,
   groups,
+  recommendedGroups = [],
+  searchedHotelName,
   viewMode,
   comparedIds,
   internalView,
@@ -30,6 +36,33 @@ export default function HotelResultList({
 }: Props) {
   const compareDisabled = comparedIds.length >= 3;
   const rateCount = response.results.length;
+  const hasRecommended = recommendedGroups.length > 0;
+
+  const renderGroups = (list: HotelGroup[]) =>
+    viewMode === 'card' ? (
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+        {list.map((g) => (
+          <HotelResultCard
+            key={g.hotel_id}
+            group={g}
+            compared={comparedIds.includes(g.hotel_id)}
+            compareDisabled={compareDisabled}
+            internalView={internalView}
+            onToggleCompare={onToggleCompare}
+            onOpenDetail={onOpenDetail}
+          />
+        ))}
+      </div>
+    ) : (
+      <HotelResultTable
+        groups={list}
+        comparedIds={comparedIds}
+        compareDisabled={compareDisabled}
+        internalView={internalView}
+        onToggleCompare={onToggleCompare}
+        onOpenDetail={onOpenDetail}
+      />
+    );
 
   return (
     <div className="space-y-3">
@@ -63,6 +96,12 @@ export default function HotelResultList({
         <div className="text-xs text-slate-500">
           호텔 <b className="text-slate-800">{groups.length}</b>곳 · 요금제{' '}
           <b className="text-slate-800">{rateCount}</b>건
+          {hasRecommended && (
+            <>
+              {' '}
+              · 추천 <b className="text-slate-800">{recommendedGroups.length}</b>곳
+            </>
+          )}
           <span className="ml-2 text-[10px] text-slate-400">
             조회 {formatDateTime(response.searched_at)} · {response.search_id}
           </span>
@@ -85,29 +124,32 @@ export default function HotelResultList({
         </div>
       </div>
 
-      {viewMode === 'card' ? (
-        <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-          {groups.map((g) => (
-            <HotelResultCard
-              key={g.hotel_id}
-              group={g}
-              compared={comparedIds.includes(g.hotel_id)}
-              compareDisabled={compareDisabled}
-              internalView={internalView}
-              onToggleCompare={onToggleCompare}
-              onOpenDetail={onOpenDetail}
-            />
-          ))}
+      {/* 지목 호텔 섹션 라벨 */}
+      {hasRecommended && searchedHotelName && (
+        <div className="flex items-center gap-2">
+          <span className="rounded bg-brand-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+            검색한 호텔
+          </span>
+          <span className="text-xs font-semibold text-slate-700">{searchedHotelName}</span>
+          <span className="text-[10px] text-slate-400">요금제 {rateCount}건</span>
         </div>
-      ) : (
-        <HotelResultTable
-          groups={groups}
-          comparedIds={comparedIds}
-          compareDisabled={compareDisabled}
-          internalView={internalView}
-          onToggleCompare={onToggleCompare}
-          onOpenDetail={onOpenDetail}
-        />
+      )}
+
+      {renderGroups(groups)}
+
+      {/* 추천 호텔 섹션 */}
+      {hasRecommended && (
+        <>
+          <div className="mt-4 flex items-center gap-2 border-t border-slate-200 pt-3">
+            <span className="rounded bg-slate-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+              추천 호텔
+            </span>
+            <span className="text-xs text-slate-500">
+              동일 도시 · 유사 성급 — 호텔당 최저가 기준 {recommendedGroups.length}곳
+            </span>
+          </div>
+          {renderGroups(recommendedGroups)}
+        </>
       )}
     </div>
   );

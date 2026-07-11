@@ -255,6 +255,32 @@ function cityFor(destination: string | null): CityDef | null {
   return CITIES.find((c) => c.aliases.some((a) => destination.includes(a))) ?? null;
 }
 
+function norm(s: string): string {
+  return s.replace(/\s+/g, '').toLowerCase();
+}
+
+/** 자연어 질문에서 특정 호텔명 매칭 (공백 무시) — 매칭 시 대표 호텔명 반환 */
+export function matchHotelName(query: string): string | null {
+  const q = norm(query);
+  for (const city of CITIES) {
+    for (const h of city.hotels) {
+      if (q.includes(norm(h.name))) return h.name;
+    }
+  }
+  // 부분 표기 매칭 (예: "마리나베이샌즈" ⊂ "마리나 베이 샌즈" 전체 일치 외 관용 표기)
+  const KNOWN_PARTIALS: Array<[string, string]> = [
+    ['마리나베이샌즈', '마리나 베이 샌즈'],
+    ['만다린오리엔탈방콕', '만다린 오리엔탈 방콕'],
+    ['롯데호텔서울', '롯데호텔 서울'],
+    ['파크하얏트부산', '파크 하얏트 부산'],
+    ['인터컨티넨탈다낭', '인터컨티넨탈 다낭 선 페닌슐라'],
+  ];
+  for (const [alias, name] of KNOWN_PARTIALS) {
+    if (q.includes(alias)) return name;
+  }
+  return null;
+}
+
 /** 미등록 도시용 제네릭 호텔 세트 (KRW) */
 function genericCity(destination: string): CityDef {
   const seeds: Array<[string, number, number]> = [
@@ -293,18 +319,31 @@ function deadlineFor(checkIn: string | null, tzOffset: string): string {
 
 const MAX_HOTELS = 9;
 const MAX_RATES = 14;
+const MAX_RECOMMENDED_HOTELS = 4;
+
+export interface CityResults {
+  results: RateResult[];
+  /** 특정 호텔 검색 시 함께 제안하는 동일 도시 추천 호텔 */
+  recommended: RateResult[];
+}
 
 /**
  * 목적지·조건 기반 요금 결과 생성.
- * 성급(이상)·조식·무료취소 필터를 적용하고, 필터로 전부 걸러지면 필터 없이 반환한다.
- * (예산 필터는 통화 혼동 방지를 위해 KRW 도시에만 적용 — 임의 환율 환산 금지 원칙)
+ * - 특정 호텔 지목 시: 해당 호텔의 요금제만 results로, 동일 도시 유사 성급 호텔을 recommended로 반환
+ * - 성급(이상)·조식·무료취소 필터를 적용하고, 필터로 전부 걸러지면 필터 없이 반환한다.
+ * - 예산 필터는 통화 혼동 방지를 위해 KRW 도시에만 적용 (임의 환율 환산 금지 원칙)
  */
 export function buildCityResults(
   searchId: string,
   conditions?: SearchConditions | null,
-): RateResult[] {
+): CityResults {
   resetRateSeq();
+  const targetHotelName = conditions?.hotel_name ?? null;
+  const cityOfHotel = targetHotelName
+    ? (CITIES.find((c) => c.hotels.some((h) => h.name === targetHotelName)) ?? null)
+    : null;
   const city =
+    cityOfHotel ??
     cityFor(conditions?.destination ?? null) ??
     (conditions?.destination ? genericCity(conditions.destination) : CITIES[0]);
 
@@ -370,10 +409,7 @@ export function buildCityResults(
     return plans;
   };
 
-  let seeds = city.hotels.flatMap(buildForHotel);
-
-  // ── 조건 필터 ──
-  const filtered = seeds.filter((s) => {
+  const passes = (s: RateSeed): boolean => {
     if (conditions?.star_rating && (s.star_rating ?? 0) < conditions.star_rating) return false;
     if (conditions?.breakfast_included === true && s.meal_plan !== '조식 포함') return false;
     if (conditions?.breakfast_included === false && s.meal_plan === '조식 포함') return false;
@@ -386,14 +422,99 @@ export function buildCityResults(
     )
       return false;
     return true;
-  });
-  if (filtered.length > 0) seeds = filtered;
+  };
+  /** 필터 적용 — 전부 걸러지면 필터 없이 반환 (정상 시나리오에서 빈 결과 방지) */
+  const applyFilters = (list: RateSeed[]): RateSeed[] => {
+    const filtered = list.filter(passes);
+    return filtered.length > 0 ? filtered : list;
+  };
+
+  // ── 특정 호텔 지목 검색: 해당 호텔 요금제 + 동일 도시 추천 ──
+  const target = targetHotelName
+    ? (city.hotels.find((h) => h.name === targetHotelName) ?? null)
+    : null;
+  if (target) {
+    const common = {
+      hotel_id: target.id,
+      hotel_name: target.name,
+      destination: city.destination,
+      star_rating: target.star,
+      latitude: target.lat,
+      longitude: target.lng,
+      currency: city.currency,
+      total_nights: nights,
+      cancellation_deadline: deadline,
+    };
+    const base = target.base * nights;
+    const targetSeeds: RateSeed[] = [
+      {
+        ...common,
+        room_type_name: '스탠다드 트윈',
+        rate_plan_name: '베스트 플렉시블',
+        meal_plan: '조식 불포함',
+        cancellation_type: 'free_cancellation',
+        net_price: base,
+        supplier_id: 'SUP-ELLIS-01',
+      },
+      {
+        ...common,
+        room_type_name: '스탠다드 트윈',
+        rate_plan_name: '논리펀더블 특가',
+        meal_plan: '조식 불포함',
+        cancellation_type: 'non_refundable',
+        net_price: Math.round(base * 0.85),
+        supplier_id: 'SUP-EPS-02',
+      },
+      {
+        ...common,
+        room_type_name: '디럭스 킹',
+        rate_plan_name: '조식 포함 플렉시블',
+        meal_plan: '조식 포함',
+        cancellation_type: 'free_cancellation',
+        net_price: Math.round(base * 1.28),
+        supplier_id: 'SUP-ELLIS-01',
+      },
+      {
+        ...common,
+        room_type_name: '이그제큐티브 스위트',
+        rate_plan_name: '스위트 조식 포함',
+        meal_plan: '조식 포함',
+        cancellation_type: 'free_cancellation',
+        net_price: Math.round(base * 1.9),
+        supplier_id: 'SUP-HB-03',
+      },
+    ];
+    const results = applyFilters(targetSeeds).map((s) => makeRate(searchId, s));
+
+    // 추천: 동일 도시, 성급 근접 순 — 호텔당 최저가 1건
+    const others = city.hotels
+      .filter((h) => h.id !== target.id)
+      .sort((a, b) => Math.abs(a.star - target.star) - Math.abs(b.star - target.star));
+    const recSeeds = applyFilters(
+      others.flatMap((h) => buildForHotel(h, city.hotels.indexOf(h))),
+    );
+    const cheapestByHotel = new Map<string, RateSeed>();
+    for (const s of recSeeds) {
+      const prev = cheapestByHotel.get(s.hotel_id);
+      if (!prev || (s.net_price ?? 0) < (prev.net_price ?? 0)) cheapestByHotel.set(s.hotel_id, s);
+    }
+    const recommended = others
+      .map((h) => cheapestByHotel.get(h.id))
+      .filter((s): s is RateSeed => Boolean(s))
+      .slice(0, MAX_RECOMMENDED_HOTELS)
+      .map((s) => makeRate(searchId, s));
+
+    return { results, recommended };
+  }
+
+  // ── 일반 목적지 검색 ──
+  let seeds = applyFilters(city.hotels.flatMap(buildForHotel));
 
   // 호텔 수·요금제 수 상한
   const hotelIds = [...new Set(seeds.map((s) => s.hotel_id))].slice(0, MAX_HOTELS);
   seeds = seeds.filter((s) => hotelIds.includes(s.hotel_id)).slice(0, MAX_RATES);
 
-  return seeds.map((s) => makeRate(searchId, s));
+  return { results: seeds.map((s) => makeRate(searchId, s)), recommended: [] };
 }
 
 /** 등록된 도시 대표명 목록 (파서 사전과 동기화용) */
