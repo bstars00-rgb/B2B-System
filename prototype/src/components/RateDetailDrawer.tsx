@@ -6,6 +6,8 @@ interface Props {
   group: HotelGroup | null;
   internalView: boolean;
   onClose: () => void;
+  /** "기존 검색 화면에서 확인" 클릭 — 선택 요금을 기존 Create Booking 플로우로 전달 */
+  onProceedBooking: (rate: RateResult) => void;
 }
 
 function RateBlock({ rate, internalView }: { rate: RateResult; internalView: boolean }) {
@@ -131,8 +133,14 @@ function RateBlock({ rate, internalView }: { rate: RateResult; internalView: boo
 }
 
 /** 우측 슬라이드 Drawer — 호텔의 전체 요금제 상세 */
-export default function RateDetailDrawer({ group, internalView, onClose }: Props) {
+export default function RateDetailDrawer({ group, internalView, onClose, onProceedBooking }: Props) {
   if (!group) return null;
+
+  /** 예약 가능한(booking_token 보유) 요금 중 최저가 — 기존 플로우로 전달할 요금 */
+  const bookableRate =
+    group.rates
+      .filter((r) => r.booking_token && r.availability !== 'unavailable')
+      .sort((a, b) => a.selling_price - b.selling_price)[0] ?? null;
 
   return (
     <div className="fixed inset-0 z-40" role="dialog" aria-modal="true">
@@ -171,16 +179,19 @@ export default function RateDetailDrawer({ group, internalView, onClose }: Props
         </div>
 
         <footer className="border-t border-slate-200 bg-white px-5 py-3">
-          <a
-            href="#legacy-search"
-            onClick={(e) => e.preventDefault()}
-            className="block w-full rounded-md bg-brand-500 px-4 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-brand-600"
-            title="더미 링크 — 검색 조건을 이어받아 기존 예약 화면으로 이동 (프로토타입)"
+          <button
+            type="button"
+            disabled={!bookableRate}
+            onClick={() => bookableRate && onProceedBooking(bookableRate)}
+            className="block w-full rounded-md bg-brand-500 px-4 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-brand-600 disabled:cursor-not-allowed disabled:bg-slate-300"
+            title="검색 조건과 선택 요금을 이어받아 기존 Create Booking 화면으로 이동"
           >
-            기존 검색 화면에서 확인
-          </a>
+            기존 검색 화면에서 확인 → Create Booking
+          </button>
           <p className="mt-1.5 text-center text-[10px] text-slate-400">
-            예약 생성은 AI 검색에서 지원하지 않습니다 — 기존 예약 플로우를 이용하세요.
+            {bookableRate
+              ? `예약 가능 최저가(${bookableRate.rate_plan_name})가 기존 Create Booking 화면으로 전달됩니다.`
+              : '예약 가능한 요금(booking_token 보유)이 없어 이동할 수 없습니다.'}
           </p>
         </footer>
       </aside>

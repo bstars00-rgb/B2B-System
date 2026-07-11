@@ -10,7 +10,9 @@ import { SCENARIOS, nextSearchId, runMockSearch } from '../mocks';
 import { parseQuery } from '../utils/parser';
 import { groupByHotel } from '../utils/group';
 import { formatDateTime } from '../utils/format';
+import type { RateResult } from '../types';
 import ChatPanel from './ChatPanel';
+import CreateBookingModal from './CreateBookingModal';
 import PortalSidebar from './PortalSidebar';
 import SystemFlowPanel from './SystemFlowPanel';
 import SearchConditionPanel from './SearchConditionPanel';
@@ -87,6 +89,8 @@ export default function AiSearchPage() {
   const [detailHotelId, setDetailHotelId] = useState<string | null>(null);
   const [internalView, setInternalView] = useState(false);
   const [history, setHistory] = useState<SearchHistoryItem[]>([]);
+  /** 기존 Create Booking 화면으로 전달된 요금 (모달 표시) */
+  const [bookingRate, setBookingRate] = useState<RateResult | null>(null);
 
   const timersRef = useRef<number[]>([]);
   const clearTimers = useCallback(() => {
@@ -381,6 +385,17 @@ export default function AiSearchPage() {
         group={detailGroup}
         internalView={internalView}
         onClose={() => setDetailHotelId(null)}
+        onProceedBooking={(rate) => {
+          setDetailHotelId(null);
+          setBookingRate(rate);
+        }}
+      />
+
+      {/* 기존 포털 Create Booking 화면 재현 — AI 검색 조건·요금 전달 */}
+      <CreateBookingModal
+        rate={bookingRate}
+        conditions={conditions}
+        onClose={() => setBookingRate(null)}
       />
     </div>
   );
