@@ -11,6 +11,7 @@ import { parseQuery } from '../utils/parser';
 import { groupByHotel } from '../utils/group';
 import { formatDateTime } from '../utils/format';
 import ChatPanel from './ChatPanel';
+import SystemFlowPanel from './SystemFlowPanel';
 import SearchConditionPanel from './SearchConditionPanel';
 import HotelResultList, { type ViewMode } from './HotelResultList';
 import RateDetailDrawer from './RateDetailDrawer';
@@ -232,6 +233,7 @@ export default function AiSearchPage() {
 
         <main className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+            <SystemFlowPanel phase={phase} step={loadingStep} response={response} />
             <SearchConditionPanel conditions={conditions} />
             <SearchHistoryPanel
               history={history}
