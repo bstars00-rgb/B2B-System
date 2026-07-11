@@ -1,133 +1,16 @@
-import type { SearchResponse } from '../types';
-import { makeRate, resetRateSeq } from './factory';
+import type { SearchConditions, SearchResponse } from '../types';
+import { buildCityResults } from './hotelDb';
 
-/** 시나리오 ① 정상 결과 10개 — 도쿄 4성급 중심, 호텔별 요금제 1~2건 */
-export function buildNormal(searchId: string): SearchResponse {
-  resetRateSeq();
-  const results = [
-    makeRate(searchId, {
-      hotel_id: 'HTL-1001',
-      hotel_name: '도쿄 스테이션 호텔',
-      star_rating: 5,
-      latitude: 35.6812,
-      longitude: 139.7671,
-      room_type_name: '수페리어 트윈',
-      rate_plan_name: '베스트 플렉시블',
-      net_price: 385000,
-      meal_plan: '조식 포함',
-      cancellation_type: 'free_cancellation',
-    }),
-    makeRate(searchId, {
-      hotel_id: 'HTL-1001',
-      hotel_name: '도쿄 스테이션 호텔',
-      star_rating: 5,
-      latitude: 35.6812,
-      longitude: 139.7671,
-      room_type_name: '수페리어 트윈',
-      rate_plan_name: '논리펀더블 특가',
-      net_price: 329000,
-      meal_plan: '조식 포함',
-      cancellation_type: 'non_refundable',
-    }),
-    makeRate(searchId, {
-      hotel_id: 'HTL-1002',
-      hotel_name: '미츠이 가든 호텔 긴자',
-      star_rating: 4,
-      latitude: 35.669,
-      longitude: 139.7649,
-      room_type_name: '모더레이트 더블',
-      net_price: 248000,
-      meal_plan: '조식 포함',
-      cancellation_type: 'free_cancellation',
-    }),
-    makeRate(searchId, {
-      hotel_id: 'HTL-1003',
-      hotel_name: '호텔 그레이스리 신주쿠',
-      star_rating: 4,
-      latitude: 35.6952,
-      longitude: 139.7015,
-      room_type_name: '스탠다드 세미더블',
-      net_price: 198000,
-      meal_plan: '조식 불포함',
-      cancellation_type: 'free_cancellation',
-    }),
-    makeRate(searchId, {
-      hotel_id: 'HTL-1004',
-      hotel_name: '시나가와 프린스 호텔',
-      star_rating: 4,
-      latitude: 35.6285,
-      longitude: 139.7387,
-      room_type_name: '메인타워 트윈',
-      net_price: 176000,
-      meal_plan: '조식 불포함',
-      cancellation_type: 'partial_penalty',
-      availability: 'available',
-    }),
-    makeRate(searchId, {
-      hotel_id: 'HTL-1005',
-      hotel_name: '게이오 플라자 호텔 도쿄',
-      star_rating: 4,
-      latitude: 35.6899,
-      longitude: 139.6946,
-      room_type_name: '스탠다드 트윈',
-      net_price: 231000,
-      meal_plan: '조식 포함',
-      cancellation_type: 'free_cancellation',
-      availability: 'on_request',
-      warnings: ['온리퀘스트 객실 — 확정까지 최대 24시간 소요'],
-    }),
-    makeRate(searchId, {
-      hotel_id: 'HTL-1006',
-      hotel_name: '더 게이트 호텔 가미나리몬',
-      star_rating: 4,
-      latitude: 35.7106,
-      longitude: 139.7967,
-      room_type_name: '콤팩트 더블',
-      net_price: 154000,
-      meal_plan: '조식 불포함',
-      cancellation_type: 'non_refundable',
-    }),
-    makeRate(searchId, {
-      hotel_id: 'HTL-1007',
-      hotel_name: '롯폰기 캔들 호텔',
-      star_rating: 3,
-      latitude: 35.6641,
-      longitude: 139.7315,
-      room_type_name: '이코노미 더블',
-      net_price: 121000,
-      meal_plan: '조식 불포함',
-      cancellation_type: 'free_cancellation',
-    }),
-    makeRate(searchId, {
-      hotel_id: 'HTL-1008',
-      hotel_name: '팔레스 호텔 도쿄',
-      star_rating: 5,
-      latitude: 35.6841,
-      longitude: 139.7614,
-      room_type_name: '디럭스 킹',
-      net_price: 512000,
-      meal_plan: '조식 포함',
-      cancellation_type: 'free_cancellation',
-    }),
-    makeRate(searchId, {
-      hotel_id: 'HTL-1009',
-      hotel_name: '아사쿠사 뷰 호텔',
-      star_rating: 4,
-      latitude: 35.7159,
-      longitude: 139.7902,
-      room_type_name: '스탠다드 트윈',
-      net_price: 168000,
-      meal_plan: '조식 포함',
-      cancellation_type: 'partial_penalty',
-      availability: 'unavailable',
-      has_booking_token: false,
-      warnings: ['조회 시점 기준 재고 소진 — 참고용 요금'],
-    }),
-  ];
+/**
+ * 시나리오 ① 정상 결과 — 목적지 인식형.
+ * 검색 조건의 목적지(방콕/서울/싱가포르 등 15개 도시)에 맞는 호텔을 현지 통화 요금으로
+ * 반환하고, 성급·조식·무료취소 필터를 적용한다. 미등록 도시는 제네릭 세트로 대체.
+ */
+export function buildNormal(searchId: string, conditions?: SearchConditions | null): SearchResponse {
   return {
     search_id: searchId,
     status: 'ok',
     searched_at: new Date().toISOString(),
-    results,
+    results: buildCityResults(searchId, conditions),
   };
 }

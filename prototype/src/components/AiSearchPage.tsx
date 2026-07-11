@@ -129,7 +129,7 @@ export default function AiSearchPage() {
       timersRef.current.push(
         window.setTimeout(() => {
           const searchId = nextSearchId();
-          const res = runMockSearch(scenario, searchId);
+          const res = runMockSearch(scenario, searchId, parsed);
           setResponse(res);
           setPhase('done');
           setMessages((prev) => [...prev, makeMsg('assistant', assistantSummary(res))]);

@@ -1,4 +1,4 @@
-import type { ScenarioId, SearchResponse } from '../types';
+import type { ScenarioId, SearchConditions, SearchResponse } from '../types';
 import { buildNormal } from './scenarioNormal';
 import { buildFreeCancelOnly } from './scenarioFreeCancelOnly';
 import { buildNonRefundable } from './scenarioNonRefundable';
@@ -18,7 +18,7 @@ export interface ScenarioMeta {
 
 /** 개발용 시나리오 스위처 목록 */
 export const SCENARIOS: ScenarioMeta[] = [
-  { id: 'normal', label: '① 정상 결과 10개', description: '도쿄 — 호텔별 요금제 혼합' },
+  { id: 'normal', label: '① 정상 결과 (목적지 인식)', description: '방콕/서울/싱가포르 등 15개 도시 · 현지 통화' },
   { id: 'free_cancel_only', label: '② 무료 취소만', description: '전 요금제 무료취소' },
   { id: 'non_refundable', label: '③ 환불 불가', description: '논리펀더블 특가만' },
   { id: 'mixed_breakfast', label: '④ 조식 포함/불포함 혼합', description: '동일 호텔 2요금제' },
@@ -30,7 +30,10 @@ export const SCENARIOS: ScenarioMeta[] = [
   { id: 'stale', label: '⑩ 오래된 검색 결과', description: 'STALE 경고 (TTL 초과)' },
 ];
 
-const builders: Record<ScenarioId, (searchId: string) => SearchResponse> = {
+const builders: Record<
+  ScenarioId,
+  (searchId: string, conditions?: SearchConditions | null) => SearchResponse
+> = {
   normal: buildNormal,
   free_cancel_only: buildFreeCancelOnly,
   non_refundable: buildNonRefundable,
@@ -51,6 +54,10 @@ export function nextSearchId(): string {
 }
 
 /** 지연 시뮬레이션 포함 mock 검색 실행 (MCP 미연결 상태) */
-export function runMockSearch(scenario: ScenarioId, searchId: string): SearchResponse {
-  return builders[scenario](searchId);
+export function runMockSearch(
+  scenario: ScenarioId,
+  searchId: string,
+  conditions?: SearchConditions | null,
+): SearchResponse {
+  return builders[scenario](searchId, conditions);
 }
