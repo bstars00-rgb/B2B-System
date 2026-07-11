@@ -318,7 +318,7 @@ function deadlineFor(checkIn: string | null, tzOffset: string): string {
 }
 
 const MAX_HOTELS = 9;
-const MAX_RATES = 14;
+const MAX_RATES = 18;
 const MAX_RECOMMENDED_HOTELS = 4;
 
 export interface CityResults {
@@ -389,11 +389,22 @@ export function buildCityResults(
     if (i % 4 === 1 && !breakfastBase) {
       plans.push({
         ...common,
-        room_type_name: roomType,
+        room_type_name: ROOM_TYPES[(i + 1) % ROOM_TYPES.length],
         rate_plan_name: '조식 포함 플렉시블',
         meal_plan: '조식 포함',
         cancellation_type: 'free_cancellation',
         net_price: Math.round(h.base * nights * 1.12),
+      });
+    }
+    // 상위 룸타입 — 호텔당 룸타입이 2개 이상 존재하도록 (룸타입 선택 UX)
+    if (i % 2 === 0) {
+      plans.push({
+        ...common,
+        room_type_name: ROOM_TYPES[(i + 2) % ROOM_TYPES.length],
+        rate_plan_name: '프리미엄 플렉시블',
+        meal_plan: '조식 포함',
+        cancellation_type: 'free_cancellation',
+        net_price: Math.round(h.base * nights * 1.35),
       });
     }
     // 재고 상태 변화 (참고용 요금·온리퀘스트 케이스 재현)
