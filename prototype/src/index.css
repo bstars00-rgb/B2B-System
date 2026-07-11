@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply antialiased;
+}
+
+/* B2B 정보 밀도 — 스크롤바 슬림화 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  @apply rounded bg-slate-300;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}

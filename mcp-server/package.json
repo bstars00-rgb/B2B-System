@@ -1,0 +1,33 @@
+{
+  "name": "ellis-mcp-server",
+  "version": "0.1.0",
+  "description": "Ohmy Hotel B2B - ELLIS hotel search MCP server (read-only)",
+  "type": "module",
+  "main": "dist/server.js",
+  "bin": {
+    "ellis-mcp": "dist/server.js"
+  },
+  "engines": {
+    "node": ">=18.17"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "start:mock": "cross-env MOCK_MODE=true node dist/server.js",
+    "dev": "tsx src/server.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "cross-env": "^7.0.3",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}

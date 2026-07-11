@@ -1,0 +1,1091 @@
+openapi: 3.1.0
+info:
+  title: Ohmyhotel Search Gateway API
+  version: 0.1.0-draft
+  description: |
+    ELLIS 기반 LLM 자연어 호텔 요금 검색을 위한 내부 Search Gateway (조회 전용).
+    소비자: MCP Server (ellis-mcp). 상세 설계: docs/gateway/search-gateway-design.md
+  contact:
+    name: Platform Team
+    email: platform@ohmyhotel.com
+
+servers:
+  - url: https://search-gw.internal.ohmyhotel.com/v1
+    description: Internal (mTLS required)
+
+security:
+  - internalServiceToken: []
+    agentContext: []
+
+tags:
+  - name: destinations
+  - name: hotels
+  - name: rates
+  - name: searches
+  - name: system
+
+paths:
+  /destinations/search:
+    post:
+      tags: [destinations]
+      operationId: searchDestinations
+      summary: 목적지(지역코드) 후보 검색
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DestinationSearchRequest'
+      responses:
+        '200':
+          description: 목적지 후보 목록
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DestinationSearchResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '502': { $ref: '#/components/responses/EllisError' }
+        '504': { $ref: '#/components/responses/EllisTimeout' }
+
+  /hotels/search:
+    post:
+      tags: [hotels]
+      operationId: searchHotels
+      summary: 호텔 목록 검색 (콘텐츠만, 요금 없음)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HotelSearchRequest'
+      responses:
+        '200':
+          description: 호텔 목록
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HotelSearchResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '502': { $ref: '#/components/responses/EllisError' }
+        '504': { $ref: '#/components/responses/EllisTimeout' }
+
+  /hotels/{hotelId}:
+    get:
+      tags: [hotels]
+      operationId: getHotel
+      summary: 호텔 상세 콘텐츠 조회
+      parameters:
+        - name: hotelId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: lang
+          in: query
+          required: false
+          schema:
+            type: string
+            default: ko
+            description: 응답 언어 (BCP 47)
+      responses:
+        '200':
+          description: 호텔 상세
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HotelContent'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '502': { $ref: '#/components/responses/EllisError' }
+        '504': { $ref: '#/components/responses/EllisTimeout' }
+
+  /rates/search:
+    post:
+      tags: [rates]
+      operationId: searchRates
+      summary: 요금 검색 (search_id 발급, 요금 스냅샷 생성)
+      description: |
+        Availability + Rate + Agent Pricing + Policy 를 조합한 통합 요금 검색.
+        일부 공급사 실패 시 HTTP 200 + status=PARTIAL + warnings[] (SUPPLIER_PARTIAL_FAILURE).
+        net_price / markup 은 INTERNAL_SALES / INTERNAL_OPS 이상 역할에만 포함되며 그 외에는 null.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RateSearchRequest'
+      responses:
+        '200':
+          description: 요금 검색 결과 (COMPLETE 또는 PARTIAL)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateSearchResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '502': { $ref: '#/components/responses/EllisError' }
+        '504': { $ref: '#/components/responses/EllisTimeout' }
+
+  /rates/{searchId}/{rateId}:
+    get:
+      tags: [rates]
+      operationId: getRate
+      summary: 검색 결과 내 특정 요금 조회 (선택적 현재가 재검증)
+      parameters:
+        - $ref: '#/components/parameters/SearchId'
+        - $ref: '#/components/parameters/RateId'
+        - name: verify
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: true 시 ELLIS 재조회로 현재가 대조. 변동 시 409 STALE_RESULT
+      responses:
+        '200':
+          description: 요금 상세
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateResult'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/StaleResult' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '502': { $ref: '#/components/responses/EllisError' }
+        '504': { $ref: '#/components/responses/EllisTimeout' }
+
+  /rates/{searchId}/{rateId}/cancellation-policy:
+    get:
+      tags: [rates]
+      operationId: getCancellationPolicy
+      summary: 특정 요금의 취소정책 전문 (단계별 위약금)
+      parameters:
+        - $ref: '#/components/parameters/SearchId'
+        - $ref: '#/components/parameters/RateId'
+      responses:
+        '200':
+          description: 정규화된 취소정책 + 원문
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancellationPolicy'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/StaleResult' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '502': { $ref: '#/components/responses/EllisError' }
+        '504': { $ref: '#/components/responses/EllisTimeout' }
+
+  /searches/{searchId}/status:
+    get:
+      tags: [searches]
+      operationId: getSearchStatus
+      summary: 요금 검색 진행 상태 (공급사별 완료/실패)
+      parameters:
+        - $ref: '#/components/parameters/SearchId'
+      responses:
+        '200':
+          description: 검색 상태
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchStatus'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /searches/recent:
+    get:
+      tags: [searches]
+      operationId: getRecentSearches
+      summary: 호출 Agent 컨텍스트 기준 최근 검색 이력
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: 최근 검색 이력
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecentSearchesResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /health:
+    get:
+      tags: [system]
+      operationId: getHealth
+      summary: 헬스체크 (자체 + ELLIS 다운스트림 상태 요약)
+      security: []
+      responses:
+        '200':
+          description: 정상 또는 부분 저하
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '503':
+          description: 서비스 불가
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+
+components:
+  securitySchemes:
+    internalServiceToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        내부 서비스 간 서명 토큰 (svc JWT, aud=search-gateway, TTL<=5m).
+        mTLS 클라이언트 인증서와 함께 사용 (전송 계층에서 별도 강제).
+    agentContext:
+      type: apiKey
+      in: header
+      name: X-Agent-Context
+      description: |
+        Orchestrator가 서명한 Agent 컨텍스트 JWT.
+        클레임: agent_id, user_id, acting_user_id, role, markets[], currency, nationality_default, exp(<=10m).
+
+  parameters:
+    SearchId:
+      name: searchId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^srch_[0-9A-HJKMNP-TV-Z]{26}$'
+      description: 요금 검색 스냅샷 ID (TTL 30분)
+    RateId:
+      name: rateId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: search_id 스코프 내 요금 식별자
+    Page:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: page_size
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  responses:
+    BadRequest:
+      description: 잘못된 요청 (INVALID_QUERY)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: 인증 실패 (UNAUTHORIZED)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: 권한 없음 — 역할/판매 시장/타 Agent 자원 (FORBIDDEN)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: 결과 없음 또는 자원 없음 (NO_RESULTS)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    StaleResult:
+      description: 스냅샷 만료 또는 재검증 시 가격/재고 변경 (STALE_RESULT)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    RateLimited:
+      description: 호출 한도 초과 (RATE_LIMITED)
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: 재시도 가능까지 남은 초
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalError:
+      description: Gateway 내부 오류 (INTERNAL_ERROR)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    EllisError:
+      description: ELLIS 다운스트림 오류 (ELLIS_ERROR)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    EllisTimeout:
+      description: ELLIS 다운스트림 타임아웃 (ELLIS_TIMEOUT)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    # ---------- 공통 ----------
+    Money:
+      type: string
+      pattern: '^-?[0-9]+(\.[0-9]{1,4})?$'
+      description: 십진 문자열 금액 (부동소수점 오차 방지). 통화는 별도 currency 필드
+      examples: ['152.30']
+
+    Currency:
+      type: string
+      pattern: '^[A-Z]{3}$'
+      description: ISO 4217 통화 코드
+      examples: ['USD']
+
+    Paging:
+      type: object
+      required: [page, page_size, total_count, has_more]
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        page_size:
+          type: integer
+          minimum: 1
+          maximum: 100
+        total_count:
+          type: integer
+          minimum: 0
+        has_more:
+          type: boolean
+
+    ErrorCode:
+      type: string
+      enum:
+        - INVALID_QUERY
+        - UNAUTHORIZED
+        - FORBIDDEN
+        - NO_RESULTS
+        - RATE_LIMITED
+        - ELLIS_TIMEOUT
+        - ELLIS_ERROR
+        - SUPPLIER_PARTIAL_FAILURE
+        - STALE_RESULT
+        - INTERNAL_ERROR
+
+    Error:
+      type: object
+      required: [code, message, trace_id]
+      properties:
+        code:
+          $ref: '#/components/schemas/ErrorCode'
+        message:
+          type: string
+        trace_id:
+          type: string
+        retryable:
+          type: boolean
+        details:
+          type: object
+          additionalProperties: true
+          description: 부가 정보 (예 - 실패 서비스명, 신구 가격)
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+
+    PartialFailureWarning:
+      type: object
+      required: [code, reason, occurred_at]
+      properties:
+        code:
+          type: string
+          enum:
+            - SUPPLIER_PARTIAL_FAILURE
+            - STALE_RESULT
+            - ROOM_TYPE_UNMAPPED
+            - MEAL_PLAN_UNVERIFIED
+            - CANCELLATION_UNPARSED
+            - TAX_UNVERIFIED
+        supplier_id:
+          type: [string, 'null']
+          description: 실패/영향 공급사 (해당 시)
+        reason:
+          type: string
+          description: 원인 코드 또는 설명 (예 - ELLIS_TIMEOUT)
+        affected:
+          type: string
+          description: 누락/영향 범위 설명
+        retryable:
+          type: boolean
+        occurred_at:
+          type: string
+          format: date-time
+
+    # ---------- 목적지 ----------
+    DestinationSearchRequest:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: 자연어/키워드 목적지 질의
+        lang:
+          type: string
+          default: ko
+        page:
+          type: integer
+          minimum: 1
+          default: 1
+        page_size:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+
+    Destination:
+      type: object
+      required: [type, code, name]
+      properties:
+        type:
+          type: string
+          enum: [REGION, CITY, DISTRICT, LANDMARK, HOTEL]
+        code:
+          type: string
+        name:
+          type: string
+        country_code:
+          type: string
+        hierarchy:
+          type: string
+          description: 표시용 계층 경로 (예 - Singapore > Marina Bay)
+
+    DestinationSearchResponse:
+      type: object
+      required: [results, paging]
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Destination'
+        paging:
+          $ref: '#/components/schemas/Paging'
+
+    # ---------- 호텔 ----------
+    HotelSearchRequest:
+      type: object
+      required: [destination]
+      properties:
+        destination:
+          $ref: '#/components/schemas/DestinationRef'
+        filters:
+          $ref: '#/components/schemas/HotelFilters'
+        lang:
+          type: string
+          default: ko
+        page:
+          type: integer
+          minimum: 1
+          default: 1
+        page_size:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+
+    DestinationRef:
+      type: object
+      required: [type, code]
+      properties:
+        type:
+          type: string
+          enum: [REGION, CITY, DISTRICT, LANDMARK, HOTEL]
+        code:
+          type: string
+
+    HotelFilters:
+      type: object
+      properties:
+        star_rating_min:
+          type: number
+          minimum: 0
+          maximum: 5
+        star_rating_max:
+          type: number
+          minimum: 0
+          maximum: 5
+        property_types:
+          type: array
+          items:
+            type: string
+        chain_codes:
+          type: array
+          items:
+            type: string
+
+    HotelSummary:
+      type: object
+      required: [hotel_id, hotel_name]
+      properties:
+        hotel_id:
+          type: string
+        hotel_name:
+          type: string
+        destination:
+          type: string
+        star_rating:
+          type: number
+        latitude:
+          type: number
+        longitude:
+          type: number
+        thumbnail_url:
+          type: string
+
+    HotelSearchResponse:
+      type: object
+      required: [results, paging]
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/HotelSummary'
+        paging:
+          $ref: '#/components/schemas/Paging'
+
+    HotelContent:
+      type: object
+      required: [hotel_id, hotel_name]
+      properties:
+        hotel_id:
+          type: string
+        hotel_name:
+          type: string
+        destination:
+          type: string
+        star_rating:
+          type: number
+        latitude:
+          type: number
+        longitude:
+          type: number
+        address:
+          type: string
+        facilities:
+          type: array
+          items:
+            type: string
+        check_in_from:
+          type: string
+        check_out_until:
+          type: string
+        description:
+          type: string
+        images:
+          type: array
+          items:
+            type: string
+        notices:
+          type: array
+          items:
+            type: string
+
+    # ---------- 요금 ----------
+    RoomOccupancy:
+      type: object
+      required: [rooms]
+      properties:
+        rooms:
+          type: array
+          minItems: 1
+          maxItems: 8
+          items:
+            type: object
+            required: [adults]
+            properties:
+              adults:
+                type: integer
+                minimum: 1
+                maximum: 8
+              children:
+                type: integer
+                minimum: 0
+                maximum: 6
+                default: 0
+              children_ages:
+                type: array
+                items:
+                  type: integer
+                  minimum: 0
+                  maximum: 17
+                description: children 수와 배열 길이 일치 필수
+
+    RateSearchRequest:
+      type: object
+      required: [check_in, check_out, occupancy]
+      properties:
+        destination:
+          oneOf:
+            - $ref: '#/components/schemas/DestinationRef'
+            - type: 'null'
+          description: hotel_ids 와 상호 배타 (둘 중 하나 필수)
+        hotel_ids:
+          type: [array, 'null']
+          items:
+            type: string
+          maxItems: 50
+        check_in:
+          type: string
+          format: date
+        check_out:
+          type: string
+          format: date
+        occupancy:
+          $ref: '#/components/schemas/RoomOccupancy'
+        client_nationality:
+          type: string
+          pattern: '^[A-Z]{2}$'
+          description: ISO 3166-1 alpha-2. 미지정 시 Agent 컨텍스트 기본값
+        currency:
+          $ref: '#/components/schemas/Currency'
+        filters:
+          $ref: '#/components/schemas/RateFilters'
+        sort:
+          $ref: '#/components/schemas/SortSpec'
+        group_by:
+          type: string
+          enum: [none, hotel]
+          default: none
+        dedupe:
+          type: boolean
+          default: true
+        include_duplicates:
+          type: boolean
+          default: false
+          description: INTERNAL_SALES 이상 역할 전용
+        timeout_hint_ms:
+          type: integer
+          minimum: 1000
+          maximum: 12000
+          description: 전체 데드라인 하향 힌트 (상향 불가)
+        page:
+          type: integer
+          minimum: 1
+          default: 1
+        page_size:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+
+    RateFilters:
+      type: object
+      properties:
+        star_rating_min:
+          type: number
+          minimum: 0
+          maximum: 5
+        meal_plans:
+          type: array
+          items:
+            $ref: '#/components/schemas/MealPlan'
+        free_cancellation_only:
+          type: boolean
+          default: false
+        max_selling_price:
+          $ref: '#/components/schemas/Money'
+        supplier_ids:
+          type: [array, 'null']
+          items:
+            type: string
+
+    SortSpec:
+      type: object
+      properties:
+        by:
+          type: string
+          enum:
+            - PRICE_ASC
+            - PRICE_DESC
+            - STAR_DESC_PRICE_ASC
+            - CANCELLATION_FLEX
+            - DISTANCE_ASC
+            - RECOMMENDED
+          default: PRICE_ASC
+        origin:
+          type: object
+          description: DISTANCE_ASC 시 필수
+          properties:
+            lat:
+              type: number
+            lng:
+              type: number
+
+    MealPlan:
+      type: string
+      enum: [ROOM_ONLY, BREAKFAST, HALF_BOARD, FULL_BOARD, ALL_INCLUSIVE]
+
+    CancellationType:
+      type: string
+      enum: [FREE, PARTIAL, NON_REFUNDABLE, UNKNOWN]
+
+    RateResult:
+      type: object
+      required:
+        - search_id
+        - hotel_id
+        - hotel_name
+        - destination
+        - star_rating
+        - latitude
+        - longitude
+        - room_type_id
+        - room_type_name
+        - rate_plan_id
+        - rate_plan_name
+        - supplier_id
+        - meal_plan
+        - cancellation_type
+        - cancellation_policy_text
+        - selling_price
+        - tax
+        - currency
+        - total_nights
+        - total_rooms
+        - availability
+        - last_updated_at
+        - booking_token
+        - warnings
+      properties:
+        search_id:
+          type: string
+        rate_id:
+          type: string
+          description: search_id 스코프 내 요금 식별자
+        hotel_id:
+          type: string
+          description: 오마이호텔 마스터 호텔 ID
+        hotel_name:
+          type: string
+        destination:
+          type: string
+        star_rating:
+          type: number
+          minimum: 0
+          maximum: 5
+        latitude:
+          type: number
+        longitude:
+          type: number
+        room_type_id:
+          type: string
+          description: 표준 객실 타입 ID. 미매핑 시 "UNMAPPED:{supplier_room_code}"
+        room_type_name:
+          type: string
+        rate_plan_id:
+          type: string
+        rate_plan_name:
+          type: string
+        supplier_id:
+          type: string
+        meal_plan:
+          $ref: '#/components/schemas/MealPlan'
+        cancellation_type:
+          $ref: '#/components/schemas/CancellationType'
+        cancellation_deadline:
+          type: [string, 'null']
+          format: date-time
+          description: 무료취소 마감 (호텔 현지 TZ 오프셋). NON_REFUNDABLE/UNKNOWN 시 null
+        cancellation_policy_text:
+          type: string
+        net_price:
+          oneOf:
+            - $ref: '#/components/schemas/Money'
+            - type: 'null'
+          description: 공급가. INTERNAL_SALES/INTERNAL_OPS 이상에만 값 포함, 그 외 null 마스킹
+        markup:
+          oneOf:
+            - $ref: '#/components/schemas/Money'
+            - type: 'null'
+          description: 마크업 금액 (Agent Pricing Service 결과 그대로). net_price 와 동일 마스킹
+        selling_price:
+          $ref: '#/components/schemas/Money'
+        tax:
+          $ref: '#/components/schemas/Money'
+        currency:
+          $ref: '#/components/schemas/Currency'
+        total_nights:
+          type: integer
+          minimum: 1
+        total_rooms:
+          type: integer
+          minimum: 1
+        availability:
+          type: integer
+          minimum: 0
+          description: 판매 가능 잔여 객실 수
+        last_updated_at:
+          type: string
+          format: date-time
+          description: ELLIS 기준 요금 데이터 최종 갱신 시각
+        booking_token:
+          type: string
+          description: 예약 화면 딥링크용 서명 토큰 (요금 스냅샷 캡슐화, TTL 30분)
+        warnings:
+          type: array
+          items:
+            $ref: '#/components/schemas/PartialFailureWarning'
+        supplier_rate_name:
+          type: string
+          description: 공급사 원본 요금제 명칭 (보존용)
+        property_fees:
+          type: array
+          description: 현장 지불 요금 (selling_price 미포함)
+          items:
+            type: object
+            required: [name, amount, currency]
+            properties:
+              name:
+                type: string
+              amount:
+                $ref: '#/components/schemas/Money'
+              currency:
+                $ref: '#/components/schemas/Currency'
+
+    RateSearchResponse:
+      type: object
+      required: [search_id, status, results, warnings, paging]
+      properties:
+        search_id:
+          type: string
+        status:
+          type: string
+          enum: [COMPLETE, PARTIAL]
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/RateResult'
+        warnings:
+          type: array
+          items:
+            $ref: '#/components/schemas/PartialFailureWarning'
+        paging:
+          $ref: '#/components/schemas/Paging'
+        searched_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+          description: search_id 스냅샷 만료 시각
+
+    # ---------- 취소정책 ----------
+    PenaltyTier:
+      type: object
+      required: [penalty_type]
+      properties:
+        from:
+          type: [string, 'null']
+          format: date-time
+          description: 구간 시작 (null = 예약 시점부터)
+        to:
+          type: [string, 'null']
+          format: date-time
+          description: 구간 끝 (null = 체크인/노쇼까지)
+        penalty_type:
+          type: string
+          enum: [NONE, AMOUNT, PERCENT, NIGHTS, FULL]
+        amount:
+          oneOf:
+            - $ref: '#/components/schemas/Money'
+            - type: 'null'
+        percent:
+          type: [number, 'null']
+          minimum: 0
+          maximum: 100
+        nights:
+          type: [integer, 'null']
+          minimum: 0
+        currency:
+          oneOf:
+            - $ref: '#/components/schemas/Currency'
+            - type: 'null'
+
+    CancellationPolicy:
+      type: object
+      required: [cancellation_type, cancellation_policy_text, penalty_tiers]
+      properties:
+        search_id:
+          type: string
+        rate_id:
+          type: string
+        cancellation_type:
+          $ref: '#/components/schemas/CancellationType'
+        cancellation_deadline:
+          type: [string, 'null']
+          format: date-time
+        penalty_tiers:
+          type: array
+          items:
+            $ref: '#/components/schemas/PenaltyTier'
+        cancellation_policy_text:
+          type: string
+        source_text:
+          type: string
+          description: 공급사 원문 (정규화 전)
+
+    # ---------- 검색 상태/이력 ----------
+    SearchStatus:
+      type: object
+      required: [search_id, status, suppliers]
+      properties:
+        search_id:
+          type: string
+        status:
+          type: string
+          enum: [IN_PROGRESS, COMPLETE, PARTIAL, EXPIRED]
+        suppliers:
+          type: array
+          items:
+            type: object
+            required: [supplier_id, state]
+            properties:
+              supplier_id:
+                type: string
+              state:
+                type: string
+                enum: [PENDING, SUCCESS, FAILED]
+              error_code:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorCode'
+                  - type: 'null'
+              result_count:
+                type: integer
+        searched_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+
+    RecentSearchSummary:
+      type: object
+      required: [search_id, searched_at]
+      properties:
+        search_id:
+          type: string
+        searched_at:
+          type: string
+          format: date-time
+        destination:
+          type: string
+        check_in:
+          type: string
+          format: date
+        check_out:
+          type: string
+          format: date
+        occupancy_summary:
+          type: string
+          description: 표시용 요약 (예 - 성인2 아동1(7세) x 1실)
+        result_count:
+          type: integer
+        status:
+          type: string
+          enum: [COMPLETE, PARTIAL, EXPIRED]
+
+    RecentSearchesResponse:
+      type: object
+      required: [results, paging]
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecentSearchSummary'
+        paging:
+          $ref: '#/components/schemas/Paging'
+
+    # ---------- 시스템 ----------
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [UP, DEGRADED, DOWN]
+        version:
+          type: string
+        downstreams:
+          type: array
+          items:
+            type: object
+            required: [service, status]
+            properties:
+              service:
+                type: string
+                description: hotel-content / availability / rate / agent-pricing / policy
+              status:
+                type: string
+                enum: [UP, DEGRADED, DOWN]
+              circuit_breaker:
+                type: string
+                enum: [CLOSED, OPEN, HALF_OPEN]
