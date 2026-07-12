@@ -6,6 +6,8 @@ interface Props {
   rate: RateResult | null;
   conditions: SearchConditions | null;
   onClose: () => void;
+  /** Create 클릭 — 예약 생성 (1번 투숙객 이름 전달, 미입력 시 'GUEST') */
+  onCreate: (travelerName: string) => void;
 }
 
 /** 실제 포털 모달과 동일한 행 레이아웃 (좌 라벨 회색 / 우 값) */
@@ -25,9 +27,14 @@ function Row({ label, value, valueClass }: { label: ReactNode; value: ReactNode;
  * AI 검색에서 선택한 요금·검색 조건이 그대로 전달되어 채워진 상태를 보여준다.
  * 실제 예약 생성은 실행되지 않는다 (MVP: 조회 전용).
  */
-export default function CreateBookingModal({ rate, conditions, onClose }: Props) {
-  const [createNotice, setCreateNotice] = useState(false);
+export default function CreateBookingModal({ rate, conditions, onClose, onCreate }: Props) {
+  const [localName, setLocalName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [firstName, setFirstName] = useState('');
   if (!rate) return null;
+
+  const travelerName =
+    [lastName, firstName].filter(Boolean).join(' ').trim() || localName.trim() || 'GUEST';
 
   const nights = rate.total_nights;
   const rooms = conditions?.rooms ?? rate.total_rooms;
@@ -137,13 +144,28 @@ export default function CreateBookingModal({ rate, conditions, onClose }: Props)
                         </label>
                       </td>
                       <td className="px-3 py-2">
-                        <input placeholder="Name(Local Language)" className="w-full rounded border border-slate-300 px-2 py-1.5 placeholder:italic placeholder:text-slate-400" />
+                        <input
+                          placeholder="Name(Local Language)"
+                          value={i === 0 ? localName : undefined}
+                          onChange={i === 0 ? (e) => setLocalName(e.target.value) : undefined}
+                          className="w-full rounded border border-slate-300 px-2 py-1.5 placeholder:italic placeholder:text-slate-400"
+                        />
                       </td>
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-1">
-                          <input placeholder="Please enter only uppercase..." className="w-1/2 rounded border border-slate-300 px-2 py-1.5 placeholder:italic placeholder:text-slate-400" />
+                          <input
+                            placeholder="Please enter only uppercase..."
+                            value={i === 0 ? lastName : undefined}
+                            onChange={i === 0 ? (e) => setLastName(e.target.value.toUpperCase()) : undefined}
+                            className="w-1/2 rounded border border-slate-300 px-2 py-1.5 placeholder:italic placeholder:text-slate-400"
+                          />
                           <span className="text-slate-400">/</span>
-                          <input placeholder="Please enter only uppercase letters." className="w-1/2 rounded border border-slate-300 px-2 py-1.5 placeholder:italic placeholder:text-slate-400" />
+                          <input
+                            placeholder="Please enter only uppercase letters."
+                            value={i === 0 ? firstName : undefined}
+                            onChange={i === 0 ? (e) => setFirstName(e.target.value.toUpperCase()) : undefined}
+                            className="w-1/2 rounded border border-slate-300 px-2 py-1.5 placeholder:italic placeholder:text-slate-400"
+                          />
                         </div>
                       </td>
                       <td className="px-3 py-2 text-center text-slate-300">—</td>
@@ -207,20 +229,15 @@ export default function CreateBookingModal({ rate, conditions, onClose }: Props)
             </div>
           </section>
 
-          {/* 프로토타입 안내 */}
-          {createNotice && (
-            <div className="mt-4 rounded border border-amber-300 bg-amber-50 px-4 py-3 text-[12px] text-amber-800">
-              ⚠ 프로토타입입니다 — 실제 예약은 생성되지 않습니다. 운영 환경에서는 이 버튼이 기존
-              포털의 예약 생성 로직(ELLIS)으로 연결됩니다. AI 검색(MVP)은 조회 전용이며, 예약
-              생성은 이 기존 Create Booking 플로우가 담당합니다.
-            </div>
-          )}
-
           {/* 버튼 */}
           <div className="mt-4 flex items-center justify-end gap-2">
+            <span className="mr-auto text-[10px] text-slate-400">
+              Create 시 예약이 생성되어 Bookings 목록에 표시됩니다. (Mock — 세션 내 저장, 실제
+              예약 아님)
+            </span>
             <button
               type="button"
-              onClick={() => setCreateNotice(true)}
+              onClick={() => onCreate(travelerName)}
               className="rounded bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600"
             >
               Create

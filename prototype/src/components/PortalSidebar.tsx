@@ -1,11 +1,14 @@
 /**
  * 실제 Ohmy Partners 포털(ohmyhotel.biz)의 좌측 사이드바를 재현한 셸.
- * AI 요금 검색이 기존 Seller 메뉴 안에 신규 메뉴로 추가되는 위치를 보여준다.
- * AI 요금 검색 외 메뉴는 프로토타입에서 동작하지 않는 더미이다.
+ * Bookings와 AI 요금 검색은 실제로 화면 전환이 동작하며, 나머지는 더미이다.
  */
 
-const SELLER_MENUS = ['Bookings', 'Create Booking'] as const;
-const SELLER_MENUS_AFTER = ['FAQ Board', 'Notice'] as const;
+export type PortalView = 'ai' | 'bookings';
+
+interface Props {
+  view: PortalView;
+  onNavigate: (view: PortalView) => void;
+}
 
 function DummyItem({ label }: { label: string }) {
   return (
@@ -20,7 +23,40 @@ function DummyItem({ label }: { label: string }) {
   );
 }
 
-export default function PortalSidebar() {
+function NavItem({
+  label,
+  active,
+  badge,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  badge?: string;
+  onClick: () => void;
+}) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onClick}
+        className={`flex w-full items-center gap-1.5 py-1.5 pr-3 text-left text-[13px] ${
+          active
+            ? 'border-l-2 border-brand-500 bg-brand-50 pl-[34px] font-bold text-brand-600'
+            : 'pl-9 text-slate-600 hover:bg-slate-50 hover:text-slate-800'
+        }`}
+      >
+        {label}
+        {badge && (
+          <span className="rounded bg-brand-500 px-1 py-px text-[8px] font-black uppercase text-white">
+            {badge}
+          </span>
+        )}
+      </button>
+    </li>
+  );
+}
+
+export default function PortalSidebar({ view, onNavigate }: Props) {
   return (
     <aside className="hidden w-[212px] shrink-0 flex-col border-r border-slate-200 bg-white lg:flex">
       {/* 로고 블록 (실제 포털: 다크 배경 + OHMYHOTEL&CO) */}
@@ -54,21 +90,20 @@ export default function PortalSidebar() {
           </span>
         </div>
         <ul className="py-1">
-          {SELLER_MENUS.map((m) => (
-            <DummyItem key={m} label={m} />
-          ))}
-          {/* 신규 메뉴 — AI 요금 검색 (현재 화면) */}
-          <li>
-            <span className="flex items-center gap-1.5 border-l-2 border-brand-500 bg-brand-50 py-1.5 pl-[34px] pr-3 text-[13px] font-bold text-brand-600">
-              AI 요금 검색
-              <span className="rounded bg-brand-500 px-1 py-px text-[8px] font-black uppercase text-white">
-                New
-              </span>
-            </span>
-          </li>
-          {SELLER_MENUS_AFTER.map((m) => (
-            <DummyItem key={m} label={m} />
-          ))}
+          <NavItem
+            label="Bookings"
+            active={view === 'bookings'}
+            onClick={() => onNavigate('bookings')}
+          />
+          <DummyItem label="Create Booking" />
+          <NavItem
+            label="AI 요금 검색"
+            badge="New"
+            active={view === 'ai'}
+            onClick={() => onNavigate('ai')}
+          />
+          <DummyItem label="FAQ Board" />
+          <DummyItem label="Notice" />
         </ul>
 
         {/* Member list 섹션 (접힘) */}
@@ -87,7 +122,7 @@ export default function PortalSidebar() {
 
       <p className="border-t border-slate-100 px-3 py-2 text-[9px] leading-snug text-slate-400">
         실제 Ohmy Partners 메뉴 구조에 AI 요금 검색이 신규 메뉴로 추가되는 위치를 표현한
-        프로토타입입니다.
+        프로토타입입니다. Bookings ↔ AI 요금 검색 전환이 동작합니다.
       </p>
     </aside>
   );

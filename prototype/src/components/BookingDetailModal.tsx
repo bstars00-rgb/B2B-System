@@ -1,0 +1,234 @@
+import { useState, type ReactNode } from 'react';
+import type { Booking } from '../types';
+
+interface Props {
+  booking: Booking | null;
+  onClose: () => void;
+  /** Cancel 확정 시 호출 — 예약 상태를 Cancelled로 변경 */
+  onCancelBooking: (ellisCode: string) => void;
+}
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+
+function dateWithWeekday(iso: string): string {
+  const d = new Date(`${iso}T00:00:00`);
+  return `${iso}(${WEEKDAYS[d.getDay()]})`;
+}
+
+function Row({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="flex border-b border-slate-100 text-[13px] last:border-b-0">
+      <div className="w-[210px] shrink-0 bg-slate-50 px-4 py-2.5 font-medium text-slate-600">
+        {label}
+      </div>
+      <div className="flex-1 px-4 py-2.5 text-slate-800">{value}</div>
+    </div>
+  );
+}
+
+const nf = new Intl.NumberFormat('en-US');
+
+/**
+ * 실제 포털 예약 상세 모달 재현 — OMH Reservation number + Booker + Reservation details.
+ * Cancel 버튼으로 예약 취소(상태 변경)까지 동작한다.
+ */
+export default function BookingDetailModal({ booking, onClose, onCancelBooking }: Props) {
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
+  if (!booking) return null;
+
+  const cancelled = booking.status === 'Cancelled';
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-6"
+      role="dialog"
+      aria-modal="true"
+    >
+      <button
+        type="button"
+        aria-label="닫기"
+        onClick={onClose}
+        className="fixed inset-0 h-full w-full cursor-default bg-slate-900/50"
+      />
+      <div className="relative w-full max-w-3xl overflow-hidden rounded-lg bg-white shadow-2xl">
+        {/* 다크 헤더 */}
+        <div className="flex items-center justify-between bg-[#333333] px-5 py-3">
+          <h3 className="text-sm font-bold text-white">{booking.ellis_code}</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-slate-300 hover:text-white"
+            aria-label="모달 닫기"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="max-h-[80vh] overflow-y-auto p-5">
+          {/* OMH Reservation number */}
+          <div className="rounded border border-slate-200 bg-slate-50 px-4 py-3 text-[13px] font-bold text-slate-800">
+            OMH Reservation number : {booking.ellis_code}
+          </div>
+
+          {/* Booker */}
+          <section className="mt-4 rounded border border-slate-200">
+            <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2">
+              <h4 className="text-[13px] font-bold text-slate-800">Booker</h4>
+              <button
+                type="button"
+                className="cursor-not-allowed rounded border border-slate-300 bg-white px-3 py-1 text-xs text-slate-500"
+                title="프로토타입 — Booker 저장 (더미)"
+              >
+                Save
+              </button>
+            </div>
+            <Row
+              label="Name"
+              value={
+                <input
+                  disabled
+                  value="ATTIC TOURS"
+                  className="w-full rounded border border-slate-200 bg-slate-100 px-2.5 py-1.5 text-[13px] text-slate-500"
+                />
+              }
+            />
+            <Row
+              label="Email"
+              value={
+                <input
+                  defaultValue="tyosales@attic-tours.com"
+                  className="w-full rounded border border-slate-300 px-2.5 py-1.5 text-[13px]"
+                />
+              }
+            />
+            <Row
+              label="Tel"
+              value={
+                <div className="flex gap-2">
+                  <input defaultValue="+81" className="w-20 rounded border border-slate-300 px-2.5 py-1.5 text-[13px]" />
+                  <input defaultValue="9080863551" className="flex-1 rounded border border-slate-300 px-2.5 py-1.5 text-[13px]" />
+                </div>
+              }
+            />
+            <Row
+              label="Seller Booking Code"
+              value={
+                <input
+                  disabled
+                  value={booking.seller_code}
+                  className="w-full rounded border border-slate-200 bg-slate-100 px-2.5 py-1.5 text-[13px] text-slate-500"
+                />
+              }
+            />
+          </section>
+
+          {/* Reservation details */}
+          <section className="mt-4 rounded border border-slate-200">
+            <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2">
+              <h4 className="text-[13px] font-bold text-slate-800">Resveration details</h4>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={cancelled}
+                  onClick={() => setConfirmingCancel(true)}
+                  className="rounded border border-slate-300 bg-white px-3 py-1 text-xs text-slate-600 hover:border-rose-300 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="cursor-not-allowed rounded border border-slate-300 bg-white px-3 py-1 text-xs text-slate-500"
+                  title="프로토타입 — 바우처 출력 (더미)"
+                >
+                  Voucher
+                </button>
+                <button
+                  type="button"
+                  className="cursor-not-allowed rounded border border-slate-300 bg-white px-3 py-1 text-xs text-slate-500"
+                  title="프로토타입 — 인보이스 출력 (더미)"
+                >
+                  Invoice
+                </button>
+              </div>
+            </div>
+
+            {confirmingCancel && !cancelled && (
+              <div className="flex items-center justify-between gap-3 border-b border-rose-200 bg-rose-50 px-4 py-2.5 text-[12px] text-rose-700">
+                <span>
+                  이 예약을 취소하시겠습니까? 취소 마감({booking.client_cancel_dl ? '무료취소 가능' : '환불불가 요금'})
+                  정책에 따라 위약금이 발생할 수 있습니다.
+                </span>
+                <span className="flex shrink-0 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onCancelBooking(booking.ellis_code);
+                      setConfirmingCancel(false);
+                    }}
+                    className="rounded bg-rose-600 px-3 py-1 font-semibold text-white hover:bg-rose-700"
+                  >
+                    취소 확정
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingCancel(false)}
+                    className="rounded border border-slate-300 bg-white px-3 py-1 text-slate-600"
+                  >
+                    닫기
+                  </button>
+                </span>
+              </div>
+            )}
+
+            <Row
+              label="Booking Status / Payment Status"
+              value={
+                <b className={cancelled ? 'text-rose-600' : 'text-slate-800'}>
+                  {booking.status} / {booking.payment_status}
+                </b>
+              }
+            />
+            <Row
+              label="Check in / Out Date"
+              value={`${dateWithWeekday(booking.check_in)} ~ ${dateWithWeekday(booking.check_out)} [ ${booking.nights}NTS ]`}
+            />
+            <Row label="Region name" value={booking.region} />
+            <Row label="Hotel Name" value={booking.hotel_name} />
+            <Row label="Rooms / Travelers" value={`${booking.room_count} Rooms / ${booking.travelers} Travelers`} />
+            <Row label="Room Type" value={booking.room_type} />
+            <Row label="1st Traveler Name" value={booking.traveler_name} />
+            <Row
+              label="Client Cancellation D/L"
+              value={
+                booking.client_cancel_dl ? (
+                  <span className="text-rose-600">{booking.client_cancel_dl.slice(0, 16).replace('T', ' ')} Free cancellation available</span>
+                ) : (
+                  <span className="font-semibold text-rose-600">Non-refundable</span>
+                )
+              }
+            />
+            <Row
+              label="Billing Sum"
+              value={
+                <b>
+                  {booking.currency} {nf.format(booking.sum_amt)}
+                </b>
+              }
+            />
+            {booking.cancel_date && (
+              <Row
+                label="BKG Cancel Date"
+                value={<span className="text-rose-600">{booking.cancel_date.slice(0, 16).replace('T', ' ')}</span>}
+              />
+            )}
+          </section>
+
+          <p className="mt-3 text-[10px] text-slate-400">
+            Mock 예약 — 이 세션에만 저장되며 실제 예약이 아닙니다. 운영 환경에서는 ELLIS 예약
+            시스템과 연동됩니다.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}

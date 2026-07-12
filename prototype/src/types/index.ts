@@ -110,6 +110,32 @@ export interface SearchHistoryItem {
   searched_at: string;
 }
 
+/** 생성된 예약 1건 — 실제 포털 Bookings 목록/상세와 동일 필드 구성 */
+export interface Booking {
+  /** ELLIS 예약 코드 (예: J26071110004H01) */
+  ellis_code: string;
+  /** 셀러 예약 코드 (예: ATTIC202607110001) */
+  seller_code: string;
+  booking_date: string;
+  status: 'Confirmed' | 'Cancelled';
+  payment_status: 'Unpaid' | 'Paid';
+  hotel_id: string;
+  hotel_name: string;
+  region: string;
+  check_in: string;
+  check_out: string;
+  nights: number;
+  room_type: string;
+  room_count: number;
+  traveler_name: string;
+  travelers: number;
+  currency: string;
+  /** B.Sum Amt — 세금 포함 청구 총액 */
+  sum_amt: number;
+  client_cancel_dl: string | null;
+  cancel_date: string | null;
+}
+
 /** 호텔 단위로 묶은 결과 (카드/비교 뷰 용) */
 export interface HotelGroup {
   hotel_id: string;
