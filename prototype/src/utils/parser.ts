@@ -46,9 +46,9 @@ interface DateRange {
 }
 
 function parseDates(q: string): DateRange {
-  // "8월 20일~23일", "8월 20일부터 8월 23일까지"
+  // "8월 20일~23일", "8월 20일부터 8월 23일까지" — 종료일 숫자가 "N박"의 N이면 제외
   let m = q.match(
-    /(\d{1,2})\s*월\s*(\d{1,2})\s*일?\s*(?:~|-|부터|에서)\s*(?:(\d{1,2})\s*월\s*)?(\d{1,2})\s*일?/,
+    /(\d{1,2})\s*월\s*(\d{1,2})\s*일?\s*(?:~|-|부터|에서)\s*(?:(\d{1,2})\s*월\s*)?(\d{1,2})(?!\s*박)\s*일?/,
   );
   if (m) {
     const m1 = Number(m[1]);
@@ -157,6 +157,11 @@ export function parseQuery(query: string): SearchConditions {
   const budgetMatch = q.match(/(\d+(?:\.\d+)?)\s*만\s*원?\s*(?:이하|이내|미만|대|정도)?/);
   if (budgetMatch) budget_max = Math.round(Number(budgetMatch[1]) * 10000);
 
+  // 역/지하철 인접 ("역에서 가까운 곳만", "역세권", "지하철 근처")
+  let near_station: boolean | null = null;
+  if (/역\s*(?:에서)?\s*가까|역\s*근처|역세권|지하철\s*(?:역\s*)?(?:근처|인근|가까)|역\s*앞|역\s*도보/.test(q))
+    near_station = true;
+
   return {
     raw_query: query,
     destination,
@@ -172,5 +177,71 @@ export function parseQuery(query: string): SearchConditions {
     free_cancellation_only,
     budget_max,
     budget_currency: 'KRW',
+    near_station,
   };
+}
+
+/**
+ * 대화 문맥 유지 — 이전 검색 조건에 새 질문의 변경분만 덮어쓴다 (NLU 규칙 ⑫⑬).
+ * 새 질문에 목적지가 명시되면 이전 호텔 지목은 해제한다 (도시가 바뀌었으므로).
+ */
+export function mergeConditions(
+  fresh: SearchConditions,
+  prev: SearchConditions | null,
+): SearchConditions {
+  if (!prev) return fresh;
+  return {
+    ...fresh,
+    destination: fresh.destination ?? prev.destination,
+    hotel_name: fresh.hotel_name ?? (fresh.destination ? null : prev.hotel_name),
+    check_in: fresh.check_in ?? prev.check_in,
+    check_out: fresh.check_out ?? prev.check_out,
+    nights: fresh.nights ?? prev.nights,
+    adults: fresh.adults ?? prev.adults,
+    children: fresh.children ?? prev.children,
+    rooms: fresh.rooms ?? prev.rooms,
+    star_rating: fresh.star_rating ?? prev.star_rating,
+    breakfast_included: fresh.breakfast_included ?? prev.breakfast_included,
+    free_cancellation_only: fresh.free_cancellation_only ?? prev.free_cancellation_only,
+    budget_max: fresh.budget_max ?? prev.budget_max,
+    near_station: fresh.near_station ?? prev.near_station,
+  };
+}
+
+/** 질문에서 조건이 하나라도 추출됐는지 (정제/신규 검색 판단용) */
+export function hasAnySignal(c: SearchConditions): boolean {
+  return Boolean(
+    c.destination ||
+      c.hotel_name ||
+      c.check_in ||
+      c.nights ||
+      c.adults ||
+      c.children ||
+      c.rooms ||
+      c.star_rating ||
+      c.breakfast_included !== null ||
+      c.free_cancellation_only !== null ||
+      c.budget_max ||
+      c.near_station !== null,
+  );
+}
+
+/** 새 질문에서 추출된 조건을 사람이 읽을 수 있는 라벨로 (정제 응답 문구용) */
+export function describeSignals(c: SearchConditions): string[] {
+  const labels: string[] = [];
+  if (c.hotel_name) labels.push(`호텔 '${c.hotel_name}'`);
+  else if (c.destination) labels.push(`목적지 ${c.destination}`);
+  if (c.check_in && c.check_out) labels.push(`${c.check_in} ~ ${c.check_out}`);
+  else if (c.nights) labels.push(`${c.nights}박`);
+  if (c.adults) labels.push(`성인 ${c.adults}명`);
+  if (c.children) labels.push(`아동 ${c.children}명`);
+  if (c.rooms) labels.push(`객실 ${c.rooms}개`);
+  if (c.star_rating) labels.push(`${c.star_rating}성급 이상`);
+  if (c.breakfast_included === true) labels.push('조식 포함만');
+  if (c.breakfast_included === false) labels.push('조식 불포함만');
+  if (c.free_cancellation_only === true) labels.push('무료취소만');
+  if (c.free_cancellation_only === false) labels.push('환불불가 특가만');
+  if (c.budget_max) labels.push(`1박 ₩${c.budget_max.toLocaleString()} 이하`);
+  if (c.near_station) labels.push('역 근처만');
+  return labels;
 }

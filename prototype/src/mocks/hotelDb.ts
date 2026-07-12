@@ -321,6 +321,38 @@ const MAX_HOTELS = 9;
 const MAX_RATES = 18;
 const MAX_RECOMMENDED_HOTELS = 4;
 
+/** 역/지하철 인접 호텔 (mock — 실제 시스템에서는 좌표·POI 기반 판정) */
+const STATION_HOTELS = new Set([
+  'HTL-TYO-01', // 도쿄 스테이션 호텔 (도쿄역 직결)
+  'HTL-TYO-04', // 그레이스리 신주쿠
+  'HTL-TYO-05', // 시나가와 프린스 (시나가와역)
+  'HTL-TYO-06', // 게이오 플라자 (신주쿠역)
+  'HTL-TYO-09', // 소테츠 프레사 긴자
+  'HTL-OSA-02', // 스위소텔 난카이 (난바역 직결)
+  'HTL-OSA-06', // 도미 인 프리미엄 난바
+  'HTL-KYO-02', // 그란비아 (교토역 직결)
+  'HTL-KYO-04', // 교토 센추리 (교토역)
+  'HTL-FUK-02', // 닛코 후쿠오카 (하카타역)
+  'HTL-FUK-04', // 리치몬드 하카타 에키마에
+  'HTL-SPK-01', // JR타워 닛코 삿포로 (삿포로역 직결)
+  'HTL-SPK-04', // 그레이스리 삿포로
+  'HTL-SEL-04', // 코트야드 남대문 (서울역 인근)
+  'HTL-SEL-07', // 나인트리 명동 (명동역)
+  'HTL-SEL-08', // 롯데시티 마포 (공덕역)
+  'HTL-PUS-02', // 롯데 부산 (서면역)
+  'HTL-PUS-05', // 토요코인 부산역
+  'HTL-BKK-06', // 이스틴 그랜드 사톤 (BTS 수라삭 직결)
+  'HTL-BKK-08', // 노보텔 실롬 (BTS 총논시)
+  'HTL-BKK-09', // 홀리데이 인 실롬
+  'HTL-SIN-02', // 팬 퍼시픽 (프로머나드역)
+  'HTL-SIN-05', // 스위소텔 스탬포드 (시티홀역 직결)
+  'HTL-SIN-06', // 칼튼 (브라스 바사역)
+  'HTL-TPE-04', // 시저 파크 (타이베이역)
+  'HTL-TPE-05', // 코스모스 (타이베이역)
+  'HTL-HKG-04', // 로얄 플라자 (몽콕이스트역)
+  'HTL-HKG-05', // 이비스 센트럴 (셩완역)
+]);
+
 export interface CityResults {
   results: RateResult[];
   /** 특정 호텔 검색 시 함께 제안하는 동일 도시 추천 호텔 */
@@ -426,6 +458,9 @@ export function buildCityResults(
     if (conditions?.breakfast_included === false && s.meal_plan === '조식 포함') return false;
     if (conditions?.free_cancellation_only === true && s.cancellation_type !== 'free_cancellation')
       return false;
+    // 환불불가 특가만 ("환불불가 특가 있어?")
+    if (conditions?.free_cancellation_only === false && s.cancellation_type !== 'non_refundable')
+      return false;
     if (
       conditions?.budget_max &&
       city.currency === 'KRW' &&
@@ -519,7 +554,11 @@ export function buildCityResults(
   }
 
   // ── 일반 목적지 검색 ──
-  let seeds = applyFilters(city.hotels.flatMap(buildForHotel));
+  // 역 인접 필터: 해당 도시에 인접 호텔이 있을 때만 적용 (없으면 전체 유지)
+  const stationPool = city.hotels.filter((h) => STATION_HOTELS.has(h.id));
+  const hotelPool =
+    conditions?.near_station && stationPool.length > 0 ? stationPool : city.hotels;
+  let seeds = applyFilters(hotelPool.flatMap((h) => buildForHotel(h, city.hotels.indexOf(h))));
 
   // 호텔 수·요금제 수 상한
   const hotelIds = [...new Set(seeds.map((s) => s.hotel_id))].slice(0, MAX_HOTELS);

@@ -7,7 +7,7 @@ import type {
   SearchResponse,
 } from '../types';
 import { SCENARIOS, nextSearchId, runMockSearch } from '../mocks';
-import { parseQuery } from '../utils/parser';
+import { describeSignals, hasAnySignal, mergeConditions, parseQuery } from '../utils/parser';
 import { groupByHotel } from '../utils/group';
 import { formatDateTime } from '../utils/format';
 import type { Booking, RateResult } from '../types';
@@ -38,15 +38,23 @@ function makeMsg(role: ChatMsg['role'], content: string): ChatMsg {
   return { id: `msg-${Date.now()}-${msgSeq}`, role, content, timestamp: new Date().toISOString() };
 }
 
-function assistantSummary(res: SearchResponse, searchedHotelName?: string | null): string {
+function assistantSummary(
+  res: SearchResponse,
+  searchedHotelName?: string | null,
+  refinementLabels?: string[] | null,
+): string {
   const groups = groupByHotel(res.results);
+  const refinePrefix =
+    refinementLabels && refinementLabels.length > 0
+      ? `이전 검색 조건을 유지한 채 ${refinementLabels.join(' · ')} 조건을 반영했습니다.\n`
+      : '';
   switch (res.status) {
     case 'ok': {
       const recCount = groupByHotel(res.recommended_results ?? []).length;
       const base =
         searchedHotelName && recCount > 0
-          ? `요청하신 '${searchedHotelName}'의 요금제 ${res.results.length}건을 찾았고, 같은 도시의 추천 호텔 ${recCount}곳을 함께 제안합니다. 금액·취소조건 등 모든 숫자는 우측 결과 카드/표에서 확인해 주세요. [${res.search_id}]`
-          : `조건에 맞는 호텔 ${groups.length}곳, 요금제 ${res.results.length}건을 찾았습니다. 금액·취소조건 등 모든 숫자는 우측 결과 카드/표에서 확인해 주세요. [${res.search_id}]`;
+          ? `${refinePrefix}요청하신 '${searchedHotelName}'의 요금제 ${res.results.length}건을 찾았고, 같은 도시의 추천 호텔 ${recCount}곳을 함께 제안합니다. 금액·취소조건 등 모든 숫자는 우측 결과 카드/표에서 확인해 주세요. [${res.search_id}]`
+          : `${refinePrefix}조건에 맞는 호텔 ${groups.length}곳, 요금제 ${res.results.length}건을 찾았습니다. 금액·취소조건 등 모든 숫자는 우측 결과 카드/표에서 확인해 주세요. [${res.search_id}]`;
       return res.is_stale
         ? `${base}\n\n⚠ 이 결과는 조회 후 30분이 지난 캐시(STALE)입니다. 확정 전 재검색을 권장합니다.`
         : base;
@@ -134,8 +142,40 @@ export default function AiSearchPage() {
       if (phase === 'loading') return;
       clearTimers();
 
-      const parsed = parseQuery(query);
       setMessages((prev) => [...prev, makeMsg('user', query)]);
+
+      // 대화 문맥 유지 — 새 질문의 변경분만 이전 조건에 덮어쓰기 (NLU 규칙 ⑫⑬)
+      const fresh = parseQuery(query);
+      const parsed = mergeConditions(fresh, conditions);
+
+      // 후속 질문인데 조건을 하나도 추출하지 못한 경우 — 검색하지 않고 되묻기
+      if (conditions && !hasAnySignal(fresh)) {
+        setMessages((prev) => [
+          ...prev,
+          makeMsg(
+            'assistant',
+            '어떤 조건을 바꿀지 이해하지 못했습니다. 예: "역에서 가까운 곳만", "무료취소만", "5성급만", "예산 30만원 이하", "조식 포함으로" 처럼 말씀해 주세요.',
+          ),
+        ]);
+        return;
+      }
+
+      // 목적지도 호텔도 없는 첫 검색 — 임의 도시로 검색하지 않고 되묻기
+      if (!parsed.destination && !parsed.hotel_name) {
+        setMessages((prev) => [
+          ...prev,
+          makeMsg(
+            'assistant',
+            '어느 도시(또는 호텔)의 요금을 찾아드릴까요? 예: "방콕 8월 15일~17일 성인 2명 무료취소" 처럼 목적지와 날짜를 함께 알려주시면 바로 조회하겠습니다.',
+          ),
+        ]);
+        return;
+      }
+
+      // 정제 질문 여부 — 목적지/호텔은 그대로 두고 조건만 추가·변경한 경우
+      const refinementLabels =
+        conditions && !fresh.destination && !fresh.hotel_name ? describeSignals(fresh) : null;
+
       setConditions(parsed);
       setPhase('loading');
       setLoadingStep(0);
@@ -157,7 +197,10 @@ export default function AiSearchPage() {
           const res = runMockSearch(scenario, searchId, parsed);
           setResponse(res);
           setPhase('done');
-          setMessages((prev) => [...prev, makeMsg('assistant', assistantSummary(res, parsed.hotel_name))]);
+          setMessages((prev) => [
+            ...prev,
+            makeMsg('assistant', assistantSummary(res, parsed.hotel_name, refinementLabels)),
+          ]);
           setHistory((prev) =>
             [
               {
@@ -175,7 +218,7 @@ export default function AiSearchPage() {
         }, COMPLETE_DELAY),
       );
     },
-    [phase, scenario, clearTimers],
+    [phase, scenario, conditions, clearTimers],
   );
 
   /** 예약 생성 — 실제 포털과 동일하게 ELLIS/Seller 코드 발번 후 Bookings 목록에 추가 */

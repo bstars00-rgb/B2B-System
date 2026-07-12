@@ -55,6 +55,8 @@ export interface SearchConditions {
   free_cancellation_only: boolean | null;
   budget_max: number | null;
   budget_currency: string;
+  /** 역/지하철 인접 호텔만 (후속 정제 질문: "역에서 가까운 곳만") */
+  near_station: boolean | null;
 }
 
 export type ScenarioId =
