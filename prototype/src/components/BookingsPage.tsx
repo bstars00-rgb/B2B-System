@@ -20,20 +20,45 @@ function dlLabel(iso: string | null): string {
  * 실제 포털 Bookings 화면 재현 — 필터 바 + 예약 목록 그리드.
  * AI 검색 → Create Booking으로 생성한 예약이 이 목록에 쌓인다.
  */
+const DATE_FIELDS: Record<string, keyof Booking> = {
+  'Booking Date': 'booking_date',
+  'Cancel Date': 'cancel_date',
+  'Check In Date': 'check_in',
+  'Check Out Date': 'check_out',
+  'Cancel Deadline': 'client_cancel_dl',
+  'Stay Date': 'check_in',
+};
+
+const EMPTY = {
+  dateType: 'Booking Date', from: '2026-07-01', to: '2026-07-13',
+  ellis: '', status: '', payment: 'All',
+  bookerType: 'Booker', bookerText: '', country: '', hotel: '', seller: '',
+};
+
 export default function BookingsPage({ bookings, onOpenDetail }: Props) {
-  const [fEllis, setFEllis] = useState('');
-  const [fHotel, setFHotel] = useState('');
-  const [fStatus, setFStatus] = useState('');
-  const [applied, setApplied] = useState({ ellis: '', hotel: '', status: '' });
+  const [f, setF] = useState({ ...EMPTY });
+  const [applied, setApplied] = useState({ ...EMPTY });
+  const set = (patch: Partial<typeof EMPTY>) => setF((p) => ({ ...p, ...patch }));
 
   const rows = useMemo(
     () =>
       bookings.filter((b) => {
-        if (applied.ellis && !b.ellis_code.toLowerCase().includes(applied.ellis.toLowerCase()))
-          return false;
-        if (applied.hotel && !b.hotel_name.toLowerCase().includes(applied.hotel.toLowerCase()))
-          return false;
+        // 날짜 기간 필터 (선택한 날짜 유형 기준)
+        const field = DATE_FIELDS[applied.dateType];
+        const dv = (b[field] as string | null) ?? '';
+        if (dv) {
+          const day = dv.slice(0, 10);
+          if (applied.from && day < applied.from) return false;
+          if (applied.to && day > applied.to) return false;
+        }
+        if (applied.ellis && !b.ellis_code.toLowerCase().includes(applied.ellis.toLowerCase())) return false;
         if (applied.status && b.status !== applied.status) return false;
+        if (applied.payment !== 'All' && b.payment_status !== applied.payment) return false;
+        if (applied.hotel && !b.hotel_name.toLowerCase().includes(applied.hotel.toLowerCase())) return false;
+        if (applied.seller && !b.seller_code.toLowerCase().includes(applied.seller.toLowerCase())) return false;
+        if (applied.country && !b.region.toLowerCase().includes(applied.country.toLowerCase())) return false;
+        if (applied.bookerText && !b.traveler_name.toLowerCase().includes(applied.bookerText.toLowerCase()))
+          return false;
         return true;
       }),
     [bookings, applied],
@@ -45,65 +70,81 @@ export default function BookingsPage({ bookings, onOpenDetail }: Props) {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto p-4">
       <div className="rounded-lg bg-white p-4 shadow-sm">
-        {/* ── 필터 바 (실제 포털 구성) ── */}
+        {/* ── 필터 바 (실제 포털 구성 — 3행) ── */}
         <div className="rounded border border-slate-200 bg-slate-50/50 p-3">
+          {/* 1행 */}
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-1.5">
-              <select className={input} disabled title="프로토타입 — 날짜 필터 (더미)">
-                <option>Booking Date</option>
+              <select value={f.dateType} onChange={(e) => set({ dateType: e.target.value })} className={input}>
+                {Object.keys(DATE_FIELDS).map((k) => (
+                  <option key={k}>{k}</option>
+                ))}
               </select>
-              <input className={`${input} w-28`} defaultValue="2026-07-01" />
+              <input type="date" value={f.from} onChange={(e) => set({ from: e.target.value })} className={`${input} w-32`} />
               <span className="text-slate-400">~</span>
-              <input className={`${input} w-28`} defaultValue="2026-07-12" />
+              <input type="date" value={f.to} onChange={(e) => set({ to: e.target.value })} className={`${input} w-32`} />
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-xs text-slate-600">ELLIS BKG Co...</span>
-              <input
-                className={`${input} w-36`}
-                value={fEllis}
-                onChange={(e) => setFEllis(e.target.value)}
-              />
+              <input value={f.ellis} onChange={(e) => set({ ellis: e.target.value })} className={`${input} w-36`} />
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-xs text-slate-600">BKG Status</span>
-              <select
-                className={`${input} w-28`}
-                value={fStatus}
-                onChange={(e) => setFStatus(e.target.value)}
-              >
+              <select value={f.status} onChange={(e) => set({ status: e.target.value })} className={`${input} w-32`}>
                 <option value="">Select</option>
                 <option value="Confirmed">Confirmed</option>
                 <option value="Cancelled">Cancelled</option>
               </select>
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-slate-600">Hotel Name</span>
-              <input
-                className={`${input} w-40`}
-                value={fHotel}
-                onChange={(e) => setFHotel(e.target.value)}
-              />
-            </div>
             <div className="ml-auto flex items-center gap-1.5">
               <button
                 type="button"
-                onClick={() => setApplied({ ellis: fEllis, hotel: fHotel, status: fStatus })}
+                onClick={() => setApplied({ ...f })}
                 className="rounded bg-brand-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-600"
               >
                 Search
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setFEllis('');
-                  setFHotel('');
-                  setFStatus('');
-                  setApplied({ ellis: '', hotel: '', status: '' });
-                }}
+                onClick={() => { setF({ ...EMPTY }); setApplied({ ...EMPTY }); }}
                 className="rounded border border-slate-300 px-4 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
               >
                 Reset
               </button>
+            </div>
+          </div>
+          {/* 2행 */}
+          <div className="mt-2.5 flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-slate-600">Payment Status</span>
+              <select value={f.payment} onChange={(e) => set({ payment: e.target.value })} className={`${input} w-40`}>
+                {['All', 'Unpaid', 'Partially Paid', 'Fully Paid', 'Refunded', 'Partially Refunded'].map((p) => (
+                  <option key={p}>{p}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <select value={f.bookerType} onChange={(e) => set({ bookerType: e.target.value })} className={input}>
+                {['Booker', 'Traveler', 'Mobile No.'].map((b) => (
+                  <option key={b}>{b}</option>
+                ))}
+              </select>
+              <input value={f.bookerText} onChange={(e) => set({ bookerText: e.target.value })} className={`${input} w-52`} />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-slate-600">Country</span>
+              <input value={f.country} onChange={(e) => set({ country: e.target.value })} placeholder="Name" className={`${input} w-40 placeholder:italic placeholder:text-slate-400`} />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-slate-600">Hotel Name</span>
+              <input value={f.hotel} onChange={(e) => set({ hotel: e.target.value })} className={`${input} w-44`} />
+            </div>
+          </div>
+          {/* 3행 */}
+          <div className="mt-2.5 flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-slate-600">Seller BKG Co...</span>
+              <input value={f.seller} onChange={(e) => set({ seller: e.target.value })} className={`${input} w-44`} />
             </div>
           </div>
         </div>
@@ -148,12 +189,13 @@ export default function BookingsPage({ bookings, onOpenDetail }: Props) {
                 <th className="px-3 py-2.5 font-semibold">BKG Cancel Date</th>
                 <th className="px-3 py-2.5 font-semibold">Invoice No.</th>
                 <th className="px-3 py-2.5 font-semibold">Dispute</th>
+                <th className="px-3 py-2.5 font-semibold">Dispute Remark</th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={16} className="px-3 py-14 text-center text-slate-400">
+                  <td colSpan={17} className="px-3 py-14 text-center text-slate-400">
                     No records available.
                   </td>
                 </tr>
@@ -207,6 +249,7 @@ export default function BookingsPage({ bookings, onOpenDetail }: Props) {
                     <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">
                       {b.cancel_date ? formatDateTime(b.cancel_date) : ''}
                     </td>
+                    <td className="px-3 py-2.5" />
                     <td className="px-3 py-2.5" />
                     <td className="px-3 py-2.5" />
                   </tr>

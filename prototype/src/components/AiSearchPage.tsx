@@ -24,6 +24,8 @@ import HotelResultList, { type ViewMode } from './HotelResultList';
 import RateDetailDrawer from './RateDetailDrawer';
 import HotelComparisonPanel from './HotelComparisonPanel';
 import SearchHistoryPanel from './SearchHistoryPanel';
+import StaffPage from './StaffPage';
+import { SEED_BOOKINGS } from '../mocks/seedBookings';
 import ErrorAlert from './ErrorAlert';
 import EmptyResult from './EmptyResult';
 import LoadingSkeleton, { LOADING_STEPS } from './LoadingSkeleton';
@@ -37,6 +39,7 @@ const TAB_LABELS: Record<PortalView, string> = {
   ai: 'AI 요금 검색',
   faq: 'FAQ Board',
   notice: 'Notice Board',
+  staff: 'Staff List',
 };
 
 /** 검색 단계별 지연 (ms) — setTimeout으로 MCP 도구 호출 시뮬레이션 */
@@ -141,8 +144,8 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
     },
     [view],
   );
-  /** 생성된 예약 목록 (세션 내 mock 저장) */
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  /** 생성된 예약 목록 (초기 목데이터 + 세션 내 생성분) */
+  const [bookings, setBookings] = useState<Booking[]>(SEED_BOOKINGS);
   const [detailBooking, setDetailBooking] = useState<Booking | null>(null);
   const bookingSeqRef = useRef(3);
 
@@ -431,6 +434,8 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
         {/* ── 본문: Bookings / Create Booking / AI 검색 (좌 채팅 / 우 조건+결과) ── */}
         {view === 'bookings' ? (
           <BookingsPage bookings={bookings} onOpenDetail={setDetailBooking} />
+        ) : view === 'staff' ? (
+          <StaffPage />
         ) : view === 'faq' ? (
           <BoardPage kind="faq" />
         ) : view === 'notice' ? (

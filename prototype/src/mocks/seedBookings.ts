@@ -1,0 +1,61 @@
+import type { Booking } from '../types';
+
+/** Bookings 초기 목데이터 — 실제 포털 목록과 유사한 예약 7건 (세션 시작 시 채워짐) */
+export const SEED_BOOKINGS: Booking[] = [
+  {
+    ellis_code: 'J26071210013H01', seller_code: 'ATTIC202607120004',
+    booking_date: '2026-07-12T18:02:00', status: 'Confirmed', payment_status: 'Unpaid',
+    hotel_id: 'HTL-OSA-04', hotel_name: 'Sotetsu Grand Fresa Osaka - Namba', region: 'Osaka',
+    check_in: '2026-08-07', check_out: '2026-08-11', nights: 4,
+    room_type: 'ECONOMY, DOUBLE BED', room_count: 1, traveler_name: 'Johanna', travelers: 2,
+    currency: 'JPY', sum_amt: 39540, client_cancel_dl: '2026-08-04T17:00:00', cancel_date: null,
+  },
+  {
+    ellis_code: 'J26071210008H01', seller_code: 'ATTIC202607120003',
+    booking_date: '2026-07-12T16:41:00', status: 'Confirmed', payment_status: 'Unpaid',
+    hotel_id: 'HTL-TYO-09', hotel_name: 'Sotetsu Fresa Inn Ginza Nanachome', region: 'Tokyo',
+    check_in: '2026-11-08', check_out: '2026-11-10', nights: 2,
+    room_type: 'TWIN NON SMOKING', room_count: 2, traveler_name: 'Karte', travelers: 4,
+    currency: 'JPY', sum_amt: 80484, client_cancel_dl: '2026-11-05T17:00:00', cancel_date: null,
+  },
+  {
+    ellis_code: 'J26071210004H01', seller_code: 'ATTIC202607120002',
+    booking_date: '2026-07-12T13:20:00', status: 'Confirmed', payment_status: 'Unpaid',
+    hotel_id: 'HTL-BKK-05', hotel_name: 'Comfort Hotel Bangkok', region: 'Bangkok',
+    check_in: '2026-11-19', check_out: '2026-11-23', nights: 4,
+    room_type: '1 Double Bed Standard', room_count: 1, traveler_name: 'Louella', travelers: 2,
+    currency: 'JPY', sum_amt: 60107, client_cancel_dl: '2026-11-16T17:00:00', cancel_date: null,
+  },
+  {
+    ellis_code: 'J26071210003H01', seller_code: 'ATTIC202607120001',
+    booking_date: '2026-07-12T12:05:00', status: 'Confirmed', payment_status: 'Unpaid',
+    hotel_id: 'HTL-BKK-06', hotel_name: 'Comfort Hotel Sathorn', region: 'Bangkok',
+    check_in: '2026-12-19', check_out: '2026-12-26', nights: 7,
+    room_type: '1 Double Bed Standard', room_count: 2, traveler_name: 'Michael', travelers: 3,
+    currency: 'JPY', sum_amt: 217441, client_cancel_dl: '2026-12-16T17:00:00', cancel_date: null,
+  },
+  {
+    ellis_code: 'J26071110007H01', seller_code: 'ATTIC202607110002',
+    booking_date: '2026-07-11T18:30:00', status: 'Confirmed', payment_status: 'Unpaid',
+    hotel_id: 'HTL-OSA-03', hotel_name: 'Sotetsu Grand Fresa Osaka', region: 'Osaka',
+    check_in: '2027-01-01', check_out: '2027-01-05', nights: 4,
+    room_type: 'Economy Double Room for 2 People', room_count: 1, traveler_name: 'Corazon', travelers: 2,
+    currency: 'JPY', sum_amt: 56522, client_cancel_dl: '2026-12-30T17:00:00', cancel_date: null,
+  },
+  {
+    ellis_code: 'J26071110004H01', seller_code: 'ATTIC202607110001',
+    booking_date: '2026-07-11T18:02:00', status: 'Confirmed', payment_status: 'Unpaid',
+    hotel_id: 'HTL-TYO-08', hotel_name: 'Sotetsu Fresa Inn Tokyo Kinshicho', region: 'Tokyo',
+    check_in: '2026-10-08', check_out: '2026-10-11', nights: 3,
+    room_type: 'Twin Non Smoking', room_count: 1, traveler_name: 'Katherine', travelers: 2,
+    currency: 'JPY', sum_amt: 73198, client_cancel_dl: '2026-10-05T17:00:00', cancel_date: null,
+  },
+  {
+    ellis_code: 'J26071010008H01', seller_code: 'ATTIC202607100001',
+    booking_date: '2026-07-10T17:03:00', status: 'Confirmed', payment_status: 'Unpaid',
+    hotel_id: 'HTL-OSA-04', hotel_name: 'Sotetsu Grand Fresa Osaka - Namba', region: 'Osaka',
+    check_in: '2026-08-25', check_out: '2026-08-27', nights: 2,
+    room_type: 'Economy Double Room for 2 People - Non-Smoking', room_count: 1, traveler_name: 'Jason', travelers: 2,
+    currency: 'JPY', sum_amt: 115370, client_cancel_dl: '2026-08-23T17:00:00', cancel_date: null,
+  },
+];

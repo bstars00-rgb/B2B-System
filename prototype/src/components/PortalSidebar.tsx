@@ -3,7 +3,7 @@
  * Seller 메뉴 전체(Bookings/Create Booking/AI 요금 검색/FAQ Board/Notice)가 화면 전환 동작한다.
  */
 
-export type PortalView = 'ai' | 'bookings' | 'create-booking' | 'faq' | 'notice';
+export type PortalView = 'ai' | 'bookings' | 'create-booking' | 'faq' | 'notice' | 'staff';
 
 interface Props {
   view: PortalView;
@@ -88,18 +88,22 @@ export default function PortalSidebar({ view, onNavigate }: Props) {
           <NavItem label="Notice" active={view === 'notice'} onClick={() => onNavigate('notice')} />
         </ul>
 
-        {/* Member list 섹션 (접힘) */}
+        {/* Member list 섹션 */}
         <div
-          className="mt-1 flex cursor-not-allowed items-center justify-between border-t border-slate-100 px-3 py-2 text-slate-500"
-          title="프로토타입 — 실제 포털의 기존 메뉴"
+          className={`mt-1 flex items-center justify-between border-t border-slate-100 px-3 py-2 ${
+            view === 'staff' ? 'bg-brand-500 text-white' : 'text-slate-600'
+          }`}
         >
-          <span className="flex items-center gap-1.5 text-[13px]">
+          <span className="flex items-center gap-1.5 text-[13px] font-bold">
             <span aria-hidden>✎</span> Member list
           </span>
           <span className="text-[10px]" aria-hidden>
-            ⌄
+            ⌃
           </span>
         </div>
+        <ul className="py-1">
+          <NavItem label="Staff list" active={view === 'staff'} onClick={() => onNavigate('staff')} />
+        </ul>
       </nav>
 
       <p className="border-t border-slate-100 px-3 py-2 text-[9px] leading-snug text-slate-400">
