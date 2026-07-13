@@ -1,26 +1,13 @@
 /**
  * 실제 Ohmy Partners 포털(ohmyhotel.biz)의 좌측 사이드바를 재현한 셸.
- * Bookings와 AI 요금 검색은 실제로 화면 전환이 동작하며, 나머지는 더미이다.
+ * Seller 메뉴 전체(Bookings/Create Booking/AI 요금 검색/FAQ Board/Notice)가 화면 전환 동작한다.
  */
 
-export type PortalView = 'ai' | 'bookings' | 'create-booking';
+export type PortalView = 'ai' | 'bookings' | 'create-booking' | 'faq' | 'notice';
 
 interface Props {
   view: PortalView;
   onNavigate: (view: PortalView) => void;
-}
-
-function DummyItem({ label }: { label: string }) {
-  return (
-    <li>
-      <span
-        className="block cursor-not-allowed py-1.5 pl-9 pr-3 text-[13px] text-slate-500"
-        title="프로토타입 — 실제 포털의 기존 메뉴 (여기서는 동작하지 않음)"
-      >
-        {label}
-      </span>
-    </li>
-  );
 }
 
 function NavItem({
@@ -90,24 +77,15 @@ export default function PortalSidebar({ view, onNavigate }: Props) {
           </span>
         </div>
         <ul className="py-1">
-          <NavItem
-            label="Bookings"
-            active={view === 'bookings'}
-            onClick={() => onNavigate('bookings')}
-          />
+          <NavItem label="Bookings" active={view === 'bookings'} onClick={() => onNavigate('bookings')} />
           <NavItem
             label="Create Booking"
             active={view === 'create-booking'}
             onClick={() => onNavigate('create-booking')}
           />
-          <NavItem
-            label="AI 요금 검색"
-            badge="New"
-            active={view === 'ai'}
-            onClick={() => onNavigate('ai')}
-          />
-          <DummyItem label="FAQ Board" />
-          <DummyItem label="Notice" />
+          <NavItem label="AI 요금 검색" badge="New" active={view === 'ai'} onClick={() => onNavigate('ai')} />
+          <NavItem label="FAQ Board" active={view === 'faq'} onClick={() => onNavigate('faq')} />
+          <NavItem label="Notice" active={view === 'notice'} onClick={() => onNavigate('notice')} />
         </ul>
 
         {/* Member list 섹션 (접힘) */}
@@ -125,8 +103,7 @@ export default function PortalSidebar({ view, onNavigate }: Props) {
       </nav>
 
       <p className="border-t border-slate-100 px-3 py-2 text-[9px] leading-snug text-slate-400">
-        실제 Ohmy Partners 메뉴 구조에 AI 요금 검색이 신규 메뉴로 추가되는 위치를 표현한
-        프로토타입입니다. Bookings ↔ AI 요금 검색 전환이 동작합니다.
+        실제 Ohmy Partners 메뉴 구조 클론 — Seller 메뉴 전체가 동작합니다.
       </p>
     </aside>
   );

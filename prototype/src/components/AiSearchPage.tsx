@@ -11,6 +11,7 @@ import { describeSignals, hasAnySignal, mergeConditions, parseQuery } from '../u
 import { groupByHotel } from '../utils/group';
 import { formatDateTime } from '../utils/format';
 import type { Booking, RateResult } from '../types';
+import BoardPage from './BoardPage';
 import BookingDetailModal from './BookingDetailModal';
 import BookingsPage from './BookingsPage';
 import ChatPanel from './ChatPanel';
@@ -28,6 +29,15 @@ import EmptyResult from './EmptyResult';
 import LoadingSkeleton, { LOADING_STEPS } from './LoadingSkeleton';
 
 type Phase = 'idle' | 'loading' | 'done';
+
+/** 탭 스트립 라벨 (실제 포털: 방문한 메뉴가 탭으로 열림) */
+const TAB_LABELS: Record<PortalView, string> = {
+  bookings: 'Bookings',
+  'create-booking': 'Create Booking',
+  ai: 'AI 요금 검색',
+  faq: 'FAQ Board',
+  notice: 'Notice Board',
+};
 
 /** 검색 단계별 지연 (ms) — setTimeout으로 MCP 도구 호출 시뮬레이션 */
 const STEP_DELAYS = [450, 1050, 1900, 2500];
@@ -104,8 +114,26 @@ export default function AiSearchPage() {
   const [bookingRate, setBookingRate] = useState<RateResult | null>(null);
   /** 예약 모달에 전달할 검색 조건 (AI 채팅 또는 Create Booking 폼) */
   const [bookingConditions, setBookingConditions] = useState<SearchConditions | null>(null);
-  /** 현재 화면: AI 요금 검색 / Bookings 목록 / Create Booking */
+  /** 현재 화면: AI 요금 검색 / Bookings 목록 / Create Booking / FAQ / Notice */
   const [view, setView] = useState<PortalView>('ai');
+  /** 열려 있는 탭들 (실제 포털처럼 방문한 메뉴가 탭으로 추가·✕로 닫힘) */
+  const [openTabs, setOpenTabs] = useState<PortalView[]>(['bookings', 'ai']);
+
+  const navigate = useCallback((v: PortalView) => {
+    setOpenTabs((prev) => (prev.includes(v) ? prev : [...prev, v]));
+    setView(v);
+  }, []);
+  const closeTab = useCallback(
+    (v: PortalView) => {
+      setOpenTabs((prev) => {
+        const next = prev.filter((x) => x !== v);
+        if (next.length === 0) next.push('ai');
+        if (view === v) setView(next[next.length - 1]);
+        return next;
+      });
+    },
+    [view],
+  );
   /** 생성된 예약 목록 (세션 내 mock 저장) */
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [detailBooking, setDetailBooking] = useState<Booking | null>(null);
@@ -291,7 +319,7 @@ export default function AiSearchPage() {
   return (
     <div className="flex h-screen bg-slate-100 text-slate-900">
       {/* ── 실제 포털 좌측 사이드바 (Seller 메뉴 + AI 요금 검색 신규 메뉴) ── */}
-      <PortalSidebar view={view} onNavigate={setView} />
+      <PortalSidebar view={view} onNavigate={navigate} />
 
       <div className="flex min-h-0 flex-1 flex-col">
         {/* ── 포털 상단 헤더 (실제 구성: 햄버거 + English | ATTIC TOURS | Change password | Log out) ── */}
@@ -314,44 +342,33 @@ export default function AiSearchPage() {
         {/* ── 포털 탭 스트립 + 프로토타입 컨트롤 ── */}
         <div className="flex shrink-0 items-end justify-between border-b border-slate-200 bg-slate-50 px-3 pt-2">
           <div className="flex items-end gap-1">
-            <button
-              type="button"
-              onClick={() => setView('bookings')}
-              className={`rounded-t border border-b-0 border-slate-200 px-3 py-1.5 text-xs ${
-                view === 'bookings'
-                  ? 'border-t-2 border-t-brand-500 bg-white font-bold text-slate-800'
-                  : 'bg-slate-100 text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              Bookings ✕
-              {bookings.length > 0 && (
-                <span className="ml-1 rounded-full bg-brand-500 px-1.5 text-[9px] font-bold text-white">
-                  {bookings.length}
-                </span>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => setView('create-booking')}
-              className={`rounded-t border border-b-0 border-slate-200 px-3 py-1.5 text-xs ${
-                view === 'create-booking'
-                  ? 'border-t-2 border-t-brand-500 bg-white font-bold text-slate-800'
-                  : 'bg-slate-100 text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              Create Booking ✕
-            </button>
-            <button
-              type="button"
-              onClick={() => setView('ai')}
-              className={`rounded-t border border-b-0 border-slate-200 px-3 py-1.5 text-xs ${
-                view === 'ai'
-                  ? 'border-t-2 border-t-brand-500 bg-white font-bold text-slate-800'
-                  : 'bg-slate-100 text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              AI 요금 검색 ✕
-            </button>
+            {openTabs.map((t) => (
+              <span
+                key={t}
+                className={`flex items-center gap-1.5 rounded-t border border-b-0 border-slate-200 px-3 py-1.5 text-xs ${
+                  view === t
+                    ? 'border-t-2 border-t-brand-500 bg-white font-bold text-slate-800'
+                    : 'bg-slate-100 text-slate-500'
+                }`}
+              >
+                <button type="button" onClick={() => setView(t)} className="hover:text-slate-800">
+                  {TAB_LABELS[t]}
+                  {t === 'bookings' && bookings.length > 0 && (
+                    <span className="ml-1 rounded-full bg-brand-500 px-1.5 text-[9px] font-bold text-white">
+                      {bookings.length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  aria-label={`${TAB_LABELS[t]} 탭 닫기`}
+                  onClick={() => closeTab(t)}
+                  className="text-slate-400 hover:text-slate-700"
+                >
+                  ✕
+                </button>
+              </span>
+            ))}
           </div>
 
           <div className="flex items-center gap-3 pb-1.5">
@@ -407,6 +424,10 @@ export default function AiSearchPage() {
         {/* ── 본문: Bookings / Create Booking / AI 검색 (좌 채팅 / 우 조건+결과) ── */}
         {view === 'bookings' ? (
           <BookingsPage bookings={bookings} onOpenDetail={setDetailBooking} />
+        ) : view === 'faq' ? (
+          <BoardPage kind="faq" />
+        ) : view === 'notice' ? (
+          <BoardPage kind="notice" />
         ) : view === 'create-booking' ? (
           <CreateBookingPage
             onProceedBooking={(rate, conds) => {
