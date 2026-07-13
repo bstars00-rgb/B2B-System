@@ -3,7 +3,7 @@
  * Bookings와 AI 요금 검색은 실제로 화면 전환이 동작하며, 나머지는 더미이다.
  */
 
-export type PortalView = 'ai' | 'bookings';
+export type PortalView = 'ai' | 'bookings' | 'create-booking';
 
 interface Props {
   view: PortalView;
@@ -95,7 +95,11 @@ export default function PortalSidebar({ view, onNavigate }: Props) {
             active={view === 'bookings'}
             onClick={() => onNavigate('bookings')}
           />
-          <DummyItem label="Create Booking" />
+          <NavItem
+            label="Create Booking"
+            active={view === 'create-booking'}
+            onClick={() => onNavigate('create-booking')}
+          />
           <NavItem
             label="AI 요금 검색"
             badge="New"

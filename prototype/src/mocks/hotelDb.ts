@@ -569,3 +569,139 @@ export function buildCityResults(
 
 /** 등록된 도시 대표명 목록 (파서 사전과 동기화용) */
 export const CITY_DESTINATIONS = CITIES.map((c) => c.destination);
+
+// ═══════════ Create Booking 폼 검색용 (실제 포털 클론) ═══════════
+
+const CITY_COUNTRY: Record<string, string> = {
+  도쿄: 'Japan', 오사카: 'Japan', 교토: 'Japan', 후쿠오카: 'Japan', 삿포로: 'Japan',
+  서울: 'South Korea', 부산: 'South Korea', 제주: 'South Korea',
+  방콕: 'Thailand', 싱가포르: 'Singapore',
+  다낭: 'Vietnam', 하노이: 'Vietnam', 호치민: 'Vietnam',
+  타이베이: 'Taiwan', 홍콩: 'Hong Kong',
+};
+
+/** 호텔/도시 숫자 코드 (실제 포털의 6자리 코드 형식 재현 — 결정론적) */
+const codeIndex = new Map<string, string>();
+{
+  let n = 0;
+  for (const c of CITIES) {
+    codeIndex.set(`city:${c.destination}`, String(100387 + n * 991));
+    for (const h of c.hotels) {
+      codeIndex.set(h.id, String(410000 + n * 137 + (h.id.charCodeAt(h.id.length - 1) % 9) * 7130));
+      n += 1;
+    }
+  }
+}
+export function hotelCodeOf(hotelId: string): string {
+  return codeIndex.get(hotelId) ?? '478795';
+}
+
+export interface AutocompleteEntry {
+  code: string;
+  /** 표시 라벨: "478795 - Sotetsu Fresa Inn Hiroshima, Japan" 형식 */
+  label: string;
+  type: 'city' | 'hotel';
+  destination: string;
+  hotel_name: string | null;
+}
+
+/** Destination 자동완성 — 도시 + 호텔명 검색 (실제 포털과 동일하게 코드-이름 형식) */
+export function searchAutocomplete(query: string): AutocompleteEntry[] {
+  const q = query.trim();
+  if (q.length < 1) return [];
+  const out: AutocompleteEntry[] = [];
+  for (const c of CITIES) {
+    if (c.destination.includes(q) || c.aliases.some((a) => a.includes(q))) {
+      const code = codeIndex.get(`city:${c.destination}`) ?? '100387';
+      out.push({
+        code,
+        label: `${code} - ${c.destination}, ${c.destination}, ${CITY_COUNTRY[c.destination] ?? ''}`,
+        type: 'city',
+        destination: c.destination,
+        hotel_name: null,
+      });
+    }
+  }
+  const nq = q.toLowerCase();
+  for (const c of CITIES) {
+    for (const h of c.hotels) {
+      if (h.name.toLowerCase().includes(nq)) {
+        const code = hotelCodeOf(h.id);
+        out.push({
+          code,
+          label: `${code} - ${h.name}, ${h.name}, ${CITY_COUNTRY[c.destination] ?? ''}`,
+          type: 'hotel',
+          destination: c.destination,
+          hotel_name: h.name,
+        });
+      }
+      if (out.length >= 10) return out;
+    }
+  }
+  return out.slice(0, 10);
+}
+
+/** 도시별 주변 명소 (호텔 상세 Neighborhood 재현용) */
+const CITY_LANDMARKS: Record<string, string[]> = {
+  도쿄: ['도쿄역 - 東京駅, Tokyo Station', '긴자 - 銀座, Ginza', '황거 - 皇居, Imperial Palace', '도쿄 - 東京, Tokyo'],
+  오사카: ['난바역 - 難波駅, Namba Station', '도톤보리 - 道頓堀, Dotonbori', '오사카성 - 大阪城, Osaka Castle'],
+  교토: ['교토역 - 京都駅, Kyoto Station', '기요미즈데라 - 清水寺, Kiyomizu-dera', '기온 - 祇園, Gion'],
+  후쿠오카: ['하카타역 - 博多駅, Hakata Station', '캐널시티 하카타 - Canal City Hakata', '텐진 - 天神, Tenjin'],
+  삿포로: ['삿포로역 - 札幌駅, Sapporo Station', '오도리 공원 - 大通公園, Odori Park', '스스키노 - Susukino'],
+  서울: ['명동 - Myeongdong', '경복궁 - Gyeongbokgung Palace', 'N서울타워 - N Seoul Tower', '서울역 - Seoul Station'],
+  부산: ['해운대 해수욕장 - Haeundae Beach', '광안리 - Gwangalli', '부산역 - Busan Station'],
+  제주: ['제주국제공항 - Jeju Int’l Airport', '중문관광단지 - Jungmun Resort', '한라산 - Hallasan'],
+  방콕: ['왓 아룬 - Wat Arun', '아이콘시암 - ICONSIAM', 'BTS 사판탁신 - BTS Saphan Taksin', '차오프라야강 - Chao Phraya River'],
+  싱가포르: ['마리나 베이 - Marina Bay', '가든스 바이 더 베이 - Gardens by the Bay', '머라이언 파크 - Merlion Park'],
+  다낭: ['미케 비치 - My Khe Beach', '한시장 - Han Market', '드래곤 브리지 - Dragon Bridge'],
+  하노이: ['호안끼엠 호수 - Hoan Kiem Lake', '하노이 구시가지 - Old Quarter', '오페라 하우스 - Opera House'],
+  호치민: ['벤탄 시장 - Ben Thanh Market', '노트르담 대성당 - Notre-Dame Cathedral', '동커이 거리 - Dong Khoi'],
+  타이베이: ['타이베이역 - Taipei Main Station', '시먼딩 - Ximending', '타이베이 101 - Taipei 101'],
+  홍콩: ['침사추이 - Tsim Sha Tsui', '빅토리아 하버 - Victoria Harbour', '템플 스트리트 - Temple Street'],
+};
+
+export interface HotelContent {
+  code: string;
+  checkInOut: string;
+  address: string;
+  phone: string;
+  neighborhood: string[];
+  introduction: string[];
+  roomFacility: string;
+  hotelFacility: string;
+  caution: string[];
+  photoCount: number;
+}
+
+/** 호텔 상세 콘텐츠 (실제 포털 상세 화면 구성 재현 — mock 생성) */
+export function hotelContentOf(hotelId: string, destination: string): HotelContent {
+  const landmarks = CITY_LANDMARKS[destination] ?? [`${destination} 중심가 - City Center`];
+  return {
+    code: hotelCodeOf(hotelId),
+    checkInOut: '15:00 / 11:00',
+    address: `5-2 Central District, ${destination}`,
+    phone: '822622031',
+    neighborhood: landmarks,
+    introduction: [
+      '* Location',
+      `- ${destination} 주요 지점에서 도보 5분 이내의 위치`,
+      '- 주요 역/공항 접근 용이',
+      '* Hotel Services / Facilities',
+      '- Free Internet Access',
+      '- Restaurant, self-check in/ check out machine, water purification system',
+      '* Room Amenities',
+      '- Free Wi-Fi in all rooms',
+      '- LCD TV, refrigerator, electric kettle, hair dryer, bath amenities',
+    ],
+    roomFacility: `Make yourself at home in one of the guestrooms featuring refrigerators and flat-screen televisions. Complimentary wired and wireless Internet access keeps you connected. Private bathrooms with shower/tub combinations feature complimentary toiletries.`,
+    hotelFacility: `Make use of convenient amenities, which include complimentary wireless Internet access and a vending machine. Buffet breakfasts are available daily for a fee.`,
+    caution: [
+      'Mandatory Fees',
+      'Optional extras',
+      'The following fees and deposits are charged by the property at time of service, check-in, or check-out.',
+      'Fee for buffet breakfast: approximately per person (check hotel notice)',
+      'The above list may not be comprehensive. Fees and deposits may not include tax and are subject to change.',
+    ],
+    photoCount: 11,
+  };
+}

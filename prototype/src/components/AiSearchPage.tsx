@@ -15,6 +15,7 @@ import BookingDetailModal from './BookingDetailModal';
 import BookingsPage from './BookingsPage';
 import ChatPanel from './ChatPanel';
 import CreateBookingModal from './CreateBookingModal';
+import CreateBookingPage from './CreateBookingPage';
 import PortalSidebar, { type PortalView } from './PortalSidebar';
 import SystemFlowPanel from './SystemFlowPanel';
 import SearchConditionPanel from './SearchConditionPanel';
@@ -101,7 +102,9 @@ export default function AiSearchPage() {
   const [history, setHistory] = useState<SearchHistoryItem[]>([]);
   /** 기존 Create Booking 화면으로 전달된 요금 (모달 표시) */
   const [bookingRate, setBookingRate] = useState<RateResult | null>(null);
-  /** 현재 화면: AI 요금 검색 / Bookings 목록 */
+  /** 예약 모달에 전달할 검색 조건 (AI 채팅 또는 Create Booking 폼) */
+  const [bookingConditions, setBookingConditions] = useState<SearchConditions | null>(null);
+  /** 현재 화면: AI 요금 검색 / Bookings 목록 / Create Booking */
   const [view, setView] = useState<PortalView>('ai');
   /** 생성된 예약 목록 (세션 내 mock 저장) */
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -225,6 +228,7 @@ export default function AiSearchPage() {
   const createBooking = useCallback(
     (travelerName: string) => {
       if (!bookingRate) return;
+      const conds = bookingConditions ?? conditions;
       const now = new Date();
       const p = (n: number) => String(n).padStart(2, '0');
       const ymd = `${String(now.getFullYear()).slice(-2)}${p(now.getMonth() + 1)}${p(now.getDate())}`;
@@ -239,13 +243,13 @@ export default function AiSearchPage() {
         hotel_id: bookingRate.hotel_id,
         hotel_name: bookingRate.hotel_name,
         region: bookingRate.destination,
-        check_in: conditions?.check_in ?? '2026-08-20',
-        check_out: conditions?.check_out ?? '2026-08-22',
+        check_in: conds?.check_in ?? '2026-08-20',
+        check_out: conds?.check_out ?? '2026-08-22',
         nights: bookingRate.total_nights,
         room_type: bookingRate.room_type_name,
-        room_count: conditions?.rooms ?? bookingRate.total_rooms,
+        room_count: conds?.rooms ?? bookingRate.total_rooms,
         traveler_name: travelerName,
-        travelers: (conditions?.adults ?? 2) + (conditions?.children ?? 0),
+        travelers: (conds?.adults ?? 2) + (conds?.children ?? 0),
         currency: bookingRate.currency,
         sum_amt: bookingRate.selling_price + bookingRate.tax,
         client_cancel_dl: bookingRate.cancellation_deadline,
@@ -253,9 +257,10 @@ export default function AiSearchPage() {
       };
       setBookings((prev) => [booking, ...prev]);
       setBookingRate(null);
+      setBookingConditions(null);
       setView('bookings');
     },
-    [bookingRate, conditions],
+    [bookingRate, bookingConditions, conditions],
   );
 
   /** 예약 취소 — 상태 변경 + 취소 일시 기록 */
@@ -327,6 +332,17 @@ export default function AiSearchPage() {
             </button>
             <button
               type="button"
+              onClick={() => setView('create-booking')}
+              className={`rounded-t border border-b-0 border-slate-200 px-3 py-1.5 text-xs ${
+                view === 'create-booking'
+                  ? 'border-t-2 border-t-brand-500 bg-white font-bold text-slate-800'
+                  : 'bg-slate-100 text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Create Booking ✕
+            </button>
+            <button
+              type="button"
               onClick={() => setView('ai')}
               className={`rounded-t border border-b-0 border-slate-200 px-3 py-1.5 text-xs ${
                 view === 'ai'
@@ -388,9 +404,16 @@ export default function AiSearchPage() {
           </div>
         </div>
 
-        {/* ── 본문: Bookings 목록 또는 AI 검색 (좌 채팅 / 우 조건+결과) ── */}
+        {/* ── 본문: Bookings / Create Booking / AI 검색 (좌 채팅 / 우 조건+결과) ── */}
         {view === 'bookings' ? (
           <BookingsPage bookings={bookings} onOpenDetail={setDetailBooking} />
+        ) : view === 'create-booking' ? (
+          <CreateBookingPage
+            onProceedBooking={(rate, conds) => {
+              setBookingConditions(conds);
+              setBookingRate(rate);
+            }}
+          />
         ) : (
         <div className="flex min-h-0 flex-1">
           <div className="w-[380px] shrink-0 border-r border-slate-200">
@@ -512,6 +535,7 @@ export default function AiSearchPage() {
         onClose={() => setDetailHotelId(null)}
         onProceedBooking={(rate) => {
           setDetailHotelId(null);
+          setBookingConditions(conditions);
           setBookingRate(rate);
         }}
       />
@@ -519,7 +543,7 @@ export default function AiSearchPage() {
       {/* 기존 포털 Create Booking 화면 재현 — AI 검색 조건·요금 전달, Create 시 예약 생성 */}
       <CreateBookingModal
         rate={bookingRate}
-        conditions={conditions}
+        conditions={bookingConditions ?? conditions}
         onClose={() => setBookingRate(null)}
         onCreate={createBooking}
       />

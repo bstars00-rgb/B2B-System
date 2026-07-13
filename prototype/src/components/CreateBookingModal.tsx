@@ -31,6 +31,7 @@ export default function CreateBookingModal({ rate, conditions, onClose, onCreate
   const [localName, setLocalName] = useState('');
   const [lastName, setLastName] = useState('');
   const [firstName, setFirstName] = useState('');
+  const [confirmClose, setConfirmClose] = useState(false);
   if (!rate) return null;
 
   const travelerName =
@@ -49,9 +50,39 @@ export default function CreateBookingModal({ rate, conditions, onClose, onCreate
       <button
         type="button"
         aria-label="닫기"
-        onClick={onClose}
+        onClick={() => setConfirmClose(true)}
         className="fixed inset-0 h-full w-full cursor-default bg-slate-900/50"
       />
+
+      {/* 닫기 확인 다이얼로그 (실제 포털과 동일) */}
+      {confirmClose && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          <div className="w-[380px] overflow-hidden rounded-lg bg-white shadow-2xl">
+            <div className="border-b border-slate-200 bg-slate-50 px-5 py-3 text-center text-sm font-bold text-slate-800">
+              Confirm
+            </div>
+            <p className="px-5 py-6 text-center text-[13px] text-slate-700">
+              Are you sure you want to close?
+            </p>
+            <div className="flex justify-center gap-2 pb-5">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded bg-brand-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-600"
+              >
+                Confirm
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmClose(false)}
+                className="rounded border border-slate-300 px-4 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="relative w-full max-w-4xl overflow-hidden rounded-lg bg-white shadow-2xl">
         {/* 다크 헤더 (실제 포털과 동일) */}
         <div className="flex items-center justify-between bg-[#333333] px-5 py-3">
@@ -113,6 +144,14 @@ export default function CreateBookingModal({ rate, conditions, onClose, onCreate
               valueClass={rate.cancellation_deadline ? 'text-rose-600' : 'font-semibold text-rose-600'}
             />
             <Row label="Plan Name" value={`[${rate.rate_plan_id}] ${rate.rate_plan_name}`} />
+            <Row
+              label="Promotion Name"
+              value={
+                rate.cancellation_type === 'non_refundable'
+                  ? `[${rate.rate_plan_id.replace('RP', '648')}] Event Promotion(Non Refundable)`
+                  : ''
+              }
+            />
           </section>
 
           {/* Travelers */}
@@ -244,7 +283,7 @@ export default function CreateBookingModal({ rate, conditions, onClose, onCreate
             </button>
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => setConfirmClose(true)}
               className="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
             >
               Close
