@@ -81,24 +81,31 @@ function assistantSummary(
   }
 }
 
-/** 상단 우측 계정 메뉴 (실제 포털과 동일 구성 — 더미) */
-function PortalAccountMenu() {
-  const item = 'cursor-not-allowed text-[12px] text-slate-600 hover:text-slate-800';
+/** 상단 우측 계정 메뉴 (실제 포털과 동일 구성) */
+function PortalAccountMenu({ onLogout }: { onLogout: () => void }) {
+  const dummy = 'cursor-not-allowed text-[12px] text-slate-600 hover:text-slate-800';
   return (
-    <div className="flex items-center gap-3" title="프로토타입 — 실제 포털의 계정 메뉴 (더미)">
-      <span className={item}>🌐 English</span>
+    <div className="flex items-center gap-3">
+      <span className={dummy} title="프로토타입 — 더미">🌐 English</span>
       <span className="text-slate-300">|</span>
       <span className="text-[12px] font-semibold text-slate-700">ATTIC TOURS</span>
       <span className="text-slate-300">|</span>
-      <span className={item}>Change password</span>
+      <span className={dummy} title="프로토타입 — 더미">Change password</span>
       <span className="text-slate-300">|</span>
-      <span className={item}>Log out</span>
+      <button type="button" onClick={onLogout} className="text-[12px] text-slate-600 hover:text-brand-600">
+        Log out
+      </button>
     </div>
   );
 }
 
+interface AiSearchPageProps {
+  onLogout: () => void;
+}
+
 /** ELLIS MCP AI 요금 검색 — 실제 Ohmy Partners 포털 셸(사이드바·탭·헤더·푸터) 안에 배치 */
-export default function AiSearchPage() {
+export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
+  const [logoutConfirm, setLogoutConfirm] = useState(false);
   const [scenario, setScenario] = useState<ScenarioId>('normal');
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [conditions, setConditions] = useState<SearchConditions | null>(null);
@@ -336,7 +343,7 @@ export default function AiSearchPage() {
               Ohmy Partners · <b className="text-brand-500">ELLIS AI 요금 검색</b> Prototype
             </span>
           </div>
-          <PortalAccountMenu />
+          <PortalAccountMenu onLogout={() => setLogoutConfirm(true)} />
         </header>
 
         {/* ── 포털 탭 스트립 + 프로토타입 컨트롤 ── */}
@@ -575,6 +582,36 @@ export default function AiSearchPage() {
         onClose={() => setDetailBooking(null)}
         onCancelBooking={cancelBooking}
       />
+
+      {/* 로그아웃 확인 (실제 포털과 동일) */}
+      {logoutConfirm && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50">
+          <div className="w-[380px] overflow-hidden rounded-lg bg-white shadow-2xl">
+            <div className="border-b border-slate-200 bg-slate-50 px-5 py-3 text-center text-sm font-bold text-slate-800">
+              Confirm
+            </div>
+            <p className="px-5 py-6 text-center text-[13px] text-slate-700">
+              Are you sure you want to log out?
+            </p>
+            <div className="flex justify-center gap-2 pb-5">
+              <button
+                type="button"
+                onClick={onLogout}
+                className="rounded bg-brand-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-600"
+              >
+                Confirm
+              </button>
+              <button
+                type="button"
+                onClick={() => setLogoutConfirm(false)}
+                className="rounded border border-slate-300 px-4 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
