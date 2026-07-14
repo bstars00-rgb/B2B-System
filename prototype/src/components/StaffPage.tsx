@@ -145,7 +145,7 @@ export default function StaffPage() {
 }
 
 /** 모달 행 레이아웃 (좌 라벨 / 우 값) — 컴포넌트 외부 정의로 리마운트 방지 */
-function ModalRow({
+export function ModalRow({
   label,
   required,
   children,
@@ -164,24 +164,34 @@ function ModalRow({
   );
 }
 
-/** User Info 등록 모달 (실제 포털과 동일 필드) */
-function UserInfoModal({ onClose, onSave }: { onClose: () => void; onSave: (s: Staff) => void }) {
-  const [name, setName] = useState('');
-  const [id, setId] = useState('');
-  const [dept, setDept] = useState('');
-  const [position, setPosition] = useState('');
-  const [officePhone, setOfficePhone] = useState('');
-  const [mobileCc, setMobileCc] = useState('');
-  const [mobile, setMobile] = useState('');
-  const [email, setEmail] = useState('tyosales@attic-tours.com');
-  const [language, setLanguage] = useState('English');
-  const [superUser, setSuperUser] = useState(false);
+/** User Info 모달 (실제 포털과 동일 필드) — Staff 신규 등록(create) / 헤더 계정 메뉴의 내 정보 수정(edit) 겸용 */
+export function UserInfoModal({
+  mode = 'create',
+  initial,
+  onClose,
+  onSave,
+}: {
+  mode?: 'create' | 'edit';
+  initial?: Staff;
+  onClose: () => void;
+  onSave: (s: Staff) => void;
+}) {
+  const [name, setName] = useState(initial?.name ?? '');
+  const [id, setId] = useState(initial?.id ?? '');
+  const [dept, setDept] = useState(initial?.department ?? '');
+  const [position, setPosition] = useState(initial?.position ?? '');
+  const [officePhone, setOfficePhone] = useState(initial?.officePhone ?? '');
+  const [mobileCc, setMobileCc] = useState(initial?.mobileCc ?? '');
+  const [mobile, setMobile] = useState(initial?.mobile ?? '');
+  const [email, setEmail] = useState(initial?.email ?? 'tyosales@attic-tours.com');
+  const [language, setLanguage] = useState(initial?.language ?? 'English');
+  const [superUser, setSuperUser] = useState(initial?.superUser ?? false);
   const [password, setPassword] = useState('');
-  const [dupChecked, setDupChecked] = useState(false);
+  const [dupChecked, setDupChecked] = useState(mode === 'edit');
   const [error, setError] = useState<string | null>(null);
 
   const save = () => {
-    if (!name.trim() || !id.trim() || !officePhone.trim() || !mobile.trim() || !email.trim() || !password.trim()) {
+    if (!name.trim() || !id.trim() || !officePhone.trim() || !mobile.trim() || !email.trim() || (mode === 'create' && !password.trim())) {
       setError('필수 항목(*)을 모두 입력해 주세요.');
       return;
     }
@@ -255,9 +265,11 @@ function UserInfoModal({ onClose, onSave }: { onClose: () => void; onSave: (s: S
                 <input type="radio" name="super" checked={!superUser} onChange={() => setSuperUser(false)} className="accent-brand-500" /> No
               </label>
             </ModalRow>
-            <ModalRow label="Password" required>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded border border-slate-200 bg-sky-50/60 px-2.5 py-1.5 text-[13px]" />
-            </ModalRow>
+            {mode === 'create' && (
+              <ModalRow label="Password" required>
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded border border-slate-200 bg-sky-50/60 px-2.5 py-1.5 text-[13px]" />
+              </ModalRow>
+            )}
           </div>
 
           {error && <p className="mt-2 text-xs text-rose-600">{error}</p>}

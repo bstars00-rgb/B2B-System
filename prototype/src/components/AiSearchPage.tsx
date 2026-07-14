@@ -11,6 +11,7 @@ import { describeSignals, hasAnySignal, mergeConditions, parseQuery } from '../u
 import { groupByHotel } from '../utils/group';
 import { formatDateTime } from '../utils/format';
 import type { Booking, RateResult } from '../types';
+import AccountMenu from './AccountMenu';
 import BoardPage from './BoardPage';
 import BookingDetailModal from './BookingDetailModal';
 import BookingsPage from './BookingsPage';
@@ -85,9 +86,8 @@ function assistantSummary(
   }
 }
 
-/** 상단 우측 계정 메뉴 (실제 포털과 동일 구성 + Playbook) */
+/** 상단 우측 계정 메뉴 (실제 포털과 동일 구성 + Playbook) — 계정 드롭다운/모달은 AccountMenu */
 function PortalAccountMenu({ onLogout, onPlaybook }: { onLogout: () => void; onPlaybook: () => void }) {
-  const dummy = 'cursor-not-allowed text-[12px] text-slate-600 hover:text-slate-800';
   return (
     <div className="flex items-center gap-3">
       <button
@@ -99,11 +99,11 @@ function PortalAccountMenu({ onLogout, onPlaybook }: { onLogout: () => void; onP
         📖 Playbook
       </button>
       <span className="text-slate-300">|</span>
-      <span className={dummy} title="프로토타입 — 더미">🌐 English</span>
+      <span className="cursor-not-allowed text-[12px] text-slate-600 hover:text-slate-800" title="프로토타입 — 더미">
+        🌐 English
+      </span>
       <span className="text-slate-300">|</span>
-      <span className="text-[12px] font-semibold text-slate-700">ATTIC TOURS</span>
-      <span className="text-slate-300">|</span>
-      <span className={dummy} title="프로토타입 — 더미">Change password</span>
+      <AccountMenu />
       <span className="text-slate-300">|</span>
       <button type="button" onClick={onLogout} className="text-[12px] text-slate-600 hover:text-brand-600">
         Log out
