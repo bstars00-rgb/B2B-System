@@ -120,7 +120,7 @@ export interface Booking {
   seller_code: string;
   booking_date: string;
   status: 'Confirmed' | 'Cancelled';
-  payment_status: 'Unpaid' | 'Paid';
+  payment_status: 'Unpaid' | 'Partially Paid' | 'Fully Paid' | 'Refunded' | 'Partially Refunded';
   hotel_id: string;
   hotel_name: string;
   region: string;
@@ -136,6 +136,11 @@ export interface Booking {
   sum_amt: number;
   client_cancel_dl: string | null;
   cancel_date: string | null;
+  /** 발행된 인보이스 번호 (미발행 시 null) */
+  invoice_no?: string | null;
+  /** 분쟁 상태 표시 (없으면 undefined) */
+  dispute?: string | null;
+  dispute_remark?: string | null;
 }
 
 /** 호텔 단위로 묶은 결과 (카드/비교 뷰 용) */

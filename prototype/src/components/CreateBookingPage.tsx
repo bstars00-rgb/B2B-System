@@ -10,6 +10,7 @@ import { nextSearchId } from '../mocks';
 import { groupByHotel } from '../utils/group';
 import { formatMoney } from '../utils/format';
 import HotelRoomListPage from './HotelRoomListPage';
+import DatePicker from './DatePicker';
 
 interface RoomCfg {
   adt: number;
@@ -238,20 +239,14 @@ export default function CreateBookingPage({ onProceedBooking }: Props) {
             <label className="ml-2 text-xs font-medium text-slate-700">
               Check In/Out <b className="text-rose-500">*</b>
             </label>
-            <input
-              type="date"
-              value={checkIn}
-              onChange={(e) => e.target.value && setCheckIn(e.target.value)}
-              className={selectCls}
-            />
+            <DatePicker value={checkIn} onChange={(v) => v && setCheckIn(v)} className="w-32" />
             <span className="text-slate-400">~</span>
-            <input
-              type="date"
+            <DatePicker
               value={checkOut}
-              onChange={(e) => {
-                if (e.target.value && e.target.value > checkIn) setNights(diffNights(checkIn, e.target.value));
+              onChange={(v) => {
+                if (v && v > checkIn) setNights(diffNights(checkIn, v));
               }}
-              className={selectCls}
+              className="w-32"
             />
             <select
               value={nights}

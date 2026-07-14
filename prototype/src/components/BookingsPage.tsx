@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { Booking } from '../types';
 import { formatDateTime } from '../utils/format';
+import DatePicker from './DatePicker';
 
 interface Props {
   bookings: Booking[];
@@ -80,9 +81,9 @@ export default function BookingsPage({ bookings, onOpenDetail }: Props) {
                   <option key={k}>{k}</option>
                 ))}
               </select>
-              <input type="date" value={f.from} onChange={(e) => set({ from: e.target.value })} className={`${input} w-32`} />
+              <DatePicker value={f.from} onChange={(v) => set({ from: v })} className="w-32" />
               <span className="text-slate-400">~</span>
-              <input type="date" value={f.to} onChange={(e) => set({ to: e.target.value })} className={`${input} w-32`} />
+              <DatePicker value={f.to} onChange={(v) => set({ to: v })} className="w-32" />
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-xs text-slate-600">ELLIS BKG Co...</span>
@@ -249,9 +250,15 @@ export default function BookingsPage({ bookings, onOpenDetail }: Props) {
                     <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">
                       {b.cancel_date ? formatDateTime(b.cancel_date) : ''}
                     </td>
-                    <td className="px-3 py-2.5" />
-                    <td className="px-3 py-2.5" />
-                    <td className="px-3 py-2.5" />
+                    <td className="whitespace-nowrap px-3 py-2.5 text-center text-slate-600">
+                      {b.invoice_no ?? ''}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2.5 text-center text-slate-600">
+                      {b.dispute ?? ''}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">
+                      {b.dispute_remark ?? ''}
+                    </td>
                   </tr>
                 ))
               )}

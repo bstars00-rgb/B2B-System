@@ -20,11 +20,12 @@ export const SEED_BOOKINGS: Booking[] = [
   },
   {
     ellis_code: 'J26071210004H01', seller_code: 'ATTIC202607120002',
-    booking_date: '2026-07-12T13:20:00', status: 'Confirmed', payment_status: 'Unpaid',
+    booking_date: '2026-07-12T13:20:00', status: 'Confirmed', payment_status: 'Fully Paid',
     hotel_id: 'HTL-BKK-05', hotel_name: 'Comfort Hotel Bangkok', region: 'Bangkok',
     check_in: '2026-11-19', check_out: '2026-11-23', nights: 4,
     room_type: '1 Double Bed Standard', room_count: 1, traveler_name: 'Louella', travelers: 2,
     currency: 'JPY', sum_amt: 60107, client_cancel_dl: '2026-11-16T17:00:00', cancel_date: null,
+    invoice_no: 'INV-2607-00042',
   },
   {
     ellis_code: 'J26071210003H01', seller_code: 'ATTIC202607120001',
@@ -36,11 +37,13 @@ export const SEED_BOOKINGS: Booking[] = [
   },
   {
     ellis_code: 'J26071110007H01', seller_code: 'ATTIC202607110002',
-    booking_date: '2026-07-11T18:30:00', status: 'Confirmed', payment_status: 'Unpaid',
+    booking_date: '2026-07-11T18:30:00', status: 'Cancelled', payment_status: 'Refunded',
     hotel_id: 'HTL-OSA-03', hotel_name: 'Sotetsu Grand Fresa Osaka', region: 'Osaka',
     check_in: '2027-01-01', check_out: '2027-01-05', nights: 4,
     room_type: 'Economy Double Room for 2 People', room_count: 1, traveler_name: 'Corazon', travelers: 2,
-    currency: 'JPY', sum_amt: 56522, client_cancel_dl: '2026-12-30T17:00:00', cancel_date: null,
+    currency: 'JPY', sum_amt: 56522, client_cancel_dl: '2026-12-30T17:00:00',
+    cancel_date: '2026-07-12T09:15:00', invoice_no: 'INV-2607-00031',
+    dispute: 'Closed', dispute_remark: 'Refund completed to seller credit',
   },
   {
     ellis_code: 'J26071110004H01', seller_code: 'ATTIC202607110001',
@@ -49,6 +52,7 @@ export const SEED_BOOKINGS: Booking[] = [
     check_in: '2026-10-08', check_out: '2026-10-11', nights: 3,
     room_type: 'Twin Non Smoking', room_count: 1, traveler_name: 'Katherine', travelers: 2,
     currency: 'JPY', sum_amt: 73198, client_cancel_dl: '2026-10-05T17:00:00', cancel_date: null,
+    invoice_no: 'INV-2607-00028',
   },
   {
     ellis_code: 'J26071010008H01', seller_code: 'ATTIC202607100001',
