@@ -90,11 +90,11 @@ export default function StaffPage() {
           </button>
         </div>
 
-        {/* 목록 그리드 */}
-        <div className="mt-2 overflow-x-auto rounded border border-slate-200">
+        {/* 목록 그리드 (고정 높이 · 헤더 고정) */}
+        <div className="mt-2 max-h-[440px] overflow-auto rounded border border-slate-200">
           <table className="w-full min-w-[900px] text-xs">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
+            <thead className="sticky top-0 z-10">
+              <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 [&>th]:sticky [&>th]:top-0 [&>th]:bg-slate-50">
                 <th className="px-3 py-2.5 font-semibold">Name</th>
                 <th className="px-3 py-2.5 font-semibold">ID</th>
                 <th className="px-3 py-2.5 font-semibold">Office Phone No.</th>

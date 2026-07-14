@@ -331,7 +331,7 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
       {/* ── 실제 포털 좌측 사이드바 (Seller 메뉴 + AI 요금 검색 신규 메뉴) ── */}
       <PortalSidebar view={view} onNavigate={navigate} />
 
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {/* ── 포털 상단 헤더 (실제 구성: 햄버거 + English | ATTIC TOURS | Change password | Log out) ── */}
         <header className="flex h-[52px] shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4">
           <div className="flex items-center gap-3">

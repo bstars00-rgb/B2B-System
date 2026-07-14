@@ -167,11 +167,11 @@ export default function BookingsPage({ bookings, onOpenDetail }: Props) {
           </div>
         </div>
 
-        {/* ── 예약 목록 그리드 ── */}
-        <div className="mt-2 overflow-x-auto rounded border border-slate-200">
+        {/* ── 예약 목록 그리드 (고정 높이 · 헤더 고정 — 실사이트 Kendo 그리드 동일) ── */}
+        <div className="mt-2 max-h-[440px] overflow-auto rounded border border-slate-200">
           <table className="w-full min-w-[1500px] text-xs">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
+            <thead className="sticky top-0 z-10">
+              <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 [&>th]:sticky [&>th]:top-0 [&>th]:bg-slate-50">
                 <th className="w-8 px-2 py-2.5">
                   <input type="checkbox" disabled />
                 </th>
