@@ -1,5 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import type { Booking, TravelerDetail } from '../types';
+import InvoiceModal from './InvoiceModal';
+import PaymentGatewayModal from './PaymentGatewayModal';
 
 interface Props {
   booking: Booking | null;
@@ -67,6 +69,8 @@ const nf = new Intl.NumberFormat('en-US');
  */
 export default function BookingDetailModal({ booking, onClose, onCancelBooking }: Props) {
   const [confirmingCancel, setConfirmingCancel] = useState(false);
+  const [showInvoice, setShowInvoice] = useState(false);
+  const [showPayment, setShowPayment] = useState(false);
   if (!booking) return null;
 
   const cancelled = booking.status === 'Cancelled';
@@ -170,15 +174,16 @@ export default function BookingDetailModal({ booking, onClose, onCancelBooking }
                 </button>
                 <button
                   type="button"
-                  className="cursor-not-allowed rounded border border-slate-300 bg-white px-3 py-1 text-xs text-slate-500"
-                  title="프로토타입 — 바우처 출력 (더미)"
+                  onClick={() => setShowInvoice(true)}
+                  className="rounded border border-slate-300 bg-white px-3 py-1 text-xs text-slate-600 hover:border-brand-400 hover:text-brand-600"
+                  title="바우처 (프로토타입 — 인보이스와 동일 뷰)"
                 >
                   Voucher
                 </button>
                 <button
                   type="button"
-                  className="cursor-not-allowed rounded border border-slate-300 bg-white px-3 py-1 text-xs text-slate-500"
-                  title="프로토타입 — 인보이스 출력 (더미)"
+                  onClick={() => setShowInvoice(true)}
+                  className="rounded border border-slate-300 bg-white px-3 py-1 text-xs text-slate-600 hover:border-brand-400 hover:text-brand-600"
                 >
                   Invoice
                 </button>
@@ -342,8 +347,8 @@ export default function BookingDetailModal({ booking, onClose, onCancelBooking }
               <h4 className="text-[13px] font-bold text-slate-800">Billing &amp; Payment</h4>
               <button
                 type="button"
-                className="cursor-not-allowed rounded border border-slate-300 bg-white px-3 py-1 text-xs text-slate-500"
-                title="프로토타입 — 결제 (더미)"
+                onClick={() => setShowPayment(true)}
+                className="rounded border border-slate-300 bg-white px-3 py-1 text-xs text-slate-600 hover:border-brand-400 hover:text-brand-600"
               >
                 Credit card
               </button>
@@ -397,6 +402,18 @@ export default function BookingDetailModal({ booking, onClose, onCancelBooking }
           </p>
         </div>
       </div>
+
+      {/* Invoice 모달 (Invoice / Voucher 버튼) */}
+      {showInvoice && <InvoiceModal booking={booking} onClose={() => setShowInvoice(false)} />}
+
+      {/* 결제 게이트웨이 (Credit card 버튼) */}
+      {showPayment && (
+        <PaymentGatewayModal
+          amountLabel={`${booking.currency} ${nf.format(booking.sum_amt)}`}
+          productName={booking.hotel_name}
+          onClose={() => setShowPayment(false)}
+        />
+      )}
     </div>
   );
 }

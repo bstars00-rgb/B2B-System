@@ -10,6 +10,10 @@ import { makeRate, resetRateSeq, type RateSeed } from './factory';
 interface HotelSeed {
   id: string;
   name: string;
+  /** 영문/로마자 호텔명 (자동완성 영문 검색·표시용, 실사이트 형식) */
+  nameEn?: string;
+  /** 실제 포털 호텔 코드 (없으면 결정론적 생성) */
+  code?: string;
   star: number;
   lat: number;
   lng: number;
@@ -27,6 +31,12 @@ interface CityDef {
   hotels: HotelSeed[];
 }
 
+/** 표시/식별용 호텔명 — 영문명이 있으면 영문 우선 (실사이트와 동일) */
+const displayName = (h: HotelSeed): string => h.nameEn ?? h.name;
+/** 한글·영문 어느 쪽으로 검색해도 매칭 */
+const hotelMatches = (h: HotelSeed, target: string): boolean =>
+  h.name === target || h.nameEn === target;
+
 const CITIES: CityDef[] = [
   {
     destination: '도쿄',
@@ -42,8 +52,12 @@ const CITIES: CityDef[] = [
       { id: 'HTL-TYO-06', name: '게이오 플라자 호텔 도쿄', star: 4, lat: 35.6899, lng: 139.6946, base: 26500 },
       { id: 'HTL-TYO-07', name: '더 게이트 호텔 가미나리몬', star: 4, lat: 35.7106, lng: 139.7967, base: 17000 },
       { id: 'HTL-TYO-08', name: '아사쿠사 뷰 호텔', star: 4, lat: 35.7159, lng: 139.7902, base: 16000 },
-      { id: 'HTL-TYO-09', name: '소테츠 프레사 인 긴자 나나초메', star: 3, lat: 35.6688, lng: 139.7635, base: 12000 },
-      { id: 'HTL-TYO-10', name: '롯폰기 캔들 호텔', star: 3, lat: 35.6641, lng: 139.7315, base: 11000 },
+      { id: 'HTL-TYO-09', name: '소테츠 프레사 인 긴자 나나초메', nameEn: 'Sotetsu Fresa Inn Ginza Nanachome', code: '155719', star: 3, lat: 35.6688, lng: 139.7635, base: 12000 },
+      { id: 'HTL-TYO-10', name: '롯폰기 캔들 호텔', nameEn: 'Roppongi Candle Hotel', star: 3, lat: 35.6641, lng: 139.7315, base: 11000 },
+      { id: 'HTL-TYO-11', name: '소테츠 프레사 인 도쿄-아카사카', nameEn: 'Sotetsu Fresa Inn Tokyo-Akasaka', code: '168085', star: 3, lat: 35.6726, lng: 139.7376, base: 15500 },
+      { id: 'HTL-TYO-12', name: '소테츠 그랜드 프레사 타카다노바바', nameEn: 'Sotetsu Grand Fresa Takadanobaba', code: '752333', star: 3, lat: 35.7126, lng: 139.7038, base: 14000 },
+      { id: 'HTL-TYO-13', name: '소테츠 프레사 인 도쿄 킨시초', nameEn: 'Sotetsu Fresa Inn Tokyo Kinshicho', code: '249494', star: 3, lat: 35.6969, lng: 139.8146, base: 13000 },
+      { id: 'HTL-TYO-14', name: '소테츠 프레사 인 도쿄 타마치', nameEn: 'Sotetsu Fresa Inn Tokyo-Tamachi', code: '304417', star: 3, lat: 35.6457, lng: 139.7476, base: 12500 },
     ],
   },
   {
@@ -56,8 +70,11 @@ const CITIES: CityDef[] = [
       { id: 'HTL-OSA-02', name: '스위소텔 난카이 오사카', star: 5, lat: 34.6614, lng: 135.5022, base: 38000 },
       { id: 'HTL-OSA-03', name: '크로스 호텔 오사카', star: 4, lat: 34.6684, lng: 135.5013, base: 22000 },
       { id: 'HTL-OSA-04', name: '호텔 몬토레 그라스미어 오사카', star: 4, lat: 34.6627, lng: 135.4987, base: 17500 },
-      { id: 'HTL-OSA-05', name: '리가 로얄 호텔 오사카', star: 4, lat: 34.6817, lng: 135.4884, base: 16000 },
-      { id: 'HTL-OSA-06', name: '도미 인 프리미엄 난바', star: 3, lat: 34.6632, lng: 135.5015, base: 12500 },
+      { id: 'HTL-OSA-05', name: '리가 로얄 호텔 오사카', nameEn: 'Rihga Royal Hotel Osaka', star: 4, lat: 34.6817, lng: 135.4884, base: 16000 },
+      { id: 'HTL-OSA-06', name: '도미 인 프리미엄 난바', nameEn: 'Dormy Inn Premium Namba', star: 3, lat: 34.6632, lng: 135.5015, base: 12500 },
+      { id: 'HTL-OSA-07', name: '소테츠 프레사 인 요도야바시', nameEn: 'Sotetsu Fresa Inn Yodoyabashi', code: '810310', star: 3, lat: 34.6929, lng: 135.5052, base: 29700 },
+      { id: 'HTL-OSA-08', name: '소테츠 그랜드 프레사 오사카-난바', nameEn: 'Sotetsu Grand Fresa Osaka-Namba', code: '746262', star: 3, lat: 34.6626, lng: 135.5017, base: 19700 },
+      { id: 'HTL-OSA-09', name: '소테츠 프레사 인 오사카 신사이바시', nameEn: 'Sotetsu Fresa Inn Osaka-Shinsaibashi', code: '262604', star: 3, lat: 34.672, lng: 135.5011, base: 17500 },
     ],
   },
   {
@@ -372,7 +389,7 @@ export function buildCityResults(
   resetRateSeq();
   const targetHotelName = conditions?.hotel_name ?? null;
   const cityOfHotel = targetHotelName
-    ? (CITIES.find((c) => c.hotels.some((h) => h.name === targetHotelName)) ?? null)
+    ? (CITIES.find((c) => c.hotels.some((h) => hotelMatches(h, targetHotelName))) ?? null)
     : null;
   const city =
     cityOfHotel ??
@@ -388,7 +405,7 @@ export function buildCityResults(
     const supplier = SUPPLIERS[i % SUPPLIERS.length];
     const common = {
       hotel_id: h.id,
-      hotel_name: h.name,
+      hotel_name: displayName(h),
       destination: city.destination,
       star_rating: h.star,
       latitude: h.lat,
@@ -477,12 +494,12 @@ export function buildCityResults(
 
   // ── 특정 호텔 지목 검색: 해당 호텔 요금제 + 동일 도시 추천 ──
   const target = targetHotelName
-    ? (city.hotels.find((h) => h.name === targetHotelName) ?? null)
+    ? (city.hotels.find((h) => hotelMatches(h, targetHotelName)) ?? null)
     : null;
   if (target) {
     const common = {
       hotel_id: target.id,
-      hotel_name: target.name,
+      hotel_name: displayName(target),
       destination: city.destination,
       star_rating: target.star,
       latitude: target.lat,
@@ -587,7 +604,8 @@ const codeIndex = new Map<string, string>();
   for (const c of CITIES) {
     codeIndex.set(`city:${c.destination}`, String(100387 + n * 991));
     for (const h of c.hotels) {
-      codeIndex.set(h.id, String(410000 + n * 137 + (h.id.charCodeAt(h.id.length - 1) % 9) * 7130));
+      // 실제 코드가 지정된 호텔은 그대로, 없으면 결정론적 생성
+      codeIndex.set(h.id, h.code ?? String(410000 + n * 137 + (h.id.charCodeAt(h.id.length - 1) % 9) * 7130));
       n += 1;
     }
   }
@@ -625,14 +643,16 @@ export function searchAutocomplete(query: string): AutocompleteEntry[] {
   const nq = q.toLowerCase();
   for (const c of CITIES) {
     for (const h of c.hotels) {
-      if (h.name.toLowerCase().includes(nq)) {
+      const dn = displayName(h);
+      // 한글명·영문명 어느 쪽으로 입력해도 매칭
+      if (h.name.toLowerCase().includes(nq) || (h.nameEn?.toLowerCase().includes(nq) ?? false)) {
         const code = hotelCodeOf(h.id);
         out.push({
           code,
-          label: `${code} - ${h.name}, ${h.name}, ${CITY_COUNTRY[c.destination] ?? ''}`,
+          label: `${code} - ${dn}, ${dn}, ${CITY_COUNTRY[c.destination] ?? ''}`,
           type: 'hotel',
           destination: c.destination,
-          hotel_name: h.name,
+          hotel_name: dn,
         });
       }
       if (out.length >= 10) return out;
