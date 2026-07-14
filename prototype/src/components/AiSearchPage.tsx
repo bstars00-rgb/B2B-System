@@ -17,6 +17,7 @@ import BookingsPage from './BookingsPage';
 import ChatPanel from './ChatPanel';
 import CreateBookingModal from './CreateBookingModal';
 import CreateBookingPage from './CreateBookingPage';
+import PlaybookPage from './PlaybookPage';
 import PortalSidebar, { type PortalView } from './PortalSidebar';
 import SystemFlowPanel from './SystemFlowPanel';
 import SearchConditionPanel from './SearchConditionPanel';
@@ -84,11 +85,20 @@ function assistantSummary(
   }
 }
 
-/** 상단 우측 계정 메뉴 (실제 포털과 동일 구성) */
-function PortalAccountMenu({ onLogout }: { onLogout: () => void }) {
+/** 상단 우측 계정 메뉴 (실제 포털과 동일 구성 + Playbook) */
+function PortalAccountMenu({ onLogout, onPlaybook }: { onLogout: () => void; onPlaybook: () => void }) {
   const dummy = 'cursor-not-allowed text-[12px] text-slate-600 hover:text-slate-800';
   return (
     <div className="flex items-center gap-3">
+      <button
+        type="button"
+        onClick={onPlaybook}
+        className="flex items-center gap-1 rounded border border-brand-300 bg-brand-50 px-2 py-1 text-[12px] font-semibold text-brand-600 hover:bg-brand-100"
+        title="시스템 사용 가이드 (Playbook)"
+      >
+        📖 Playbook
+      </button>
+      <span className="text-slate-300">|</span>
       <span className={dummy} title="프로토타입 — 더미">🌐 English</span>
       <span className="text-slate-300">|</span>
       <span className="text-[12px] font-semibold text-slate-700">ATTIC TOURS</span>
@@ -109,6 +119,7 @@ interface AiSearchPageProps {
 /** ELLIS MCP AI 요금 검색 — 실제 Ohmy Partners 포털 셸(사이드바·탭·헤더·푸터) 안에 배치 */
 export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
   const [logoutConfirm, setLogoutConfirm] = useState(false);
+  const [playbookOpen, setPlaybookOpen] = useState(false);
   const [scenario, setScenario] = useState<ScenarioId>('normal');
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [conditions, setConditions] = useState<SearchConditions | null>(null);
@@ -346,7 +357,7 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
               Ohmy Partners · <b className="text-brand-500">ELLIS AI 요금 검색</b> Prototype
             </span>
           </div>
-          <PortalAccountMenu onLogout={() => setLogoutConfirm(true)} />
+          <PortalAccountMenu onLogout={() => setLogoutConfirm(true)} onPlaybook={() => setPlaybookOpen(true)} />
         </header>
 
         {/* ── 포털 탭 스트립 + 프로토타입 컨트롤 ── */}
@@ -587,6 +598,9 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
         onClose={() => setDetailBooking(null)}
         onCancelBooking={cancelBooking}
       />
+
+      {/* Ellis Playbook (시스템 매뉴얼) 전체화면 */}
+      {playbookOpen && <PlaybookPage onClose={() => setPlaybookOpen(false)} />}
 
       {/* 로그아웃 확인 (실제 포털과 동일) */}
       {logoutConfirm && (
