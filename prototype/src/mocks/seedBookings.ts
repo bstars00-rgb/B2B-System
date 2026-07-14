@@ -9,6 +9,11 @@ export const SEED_BOOKINGS: Booking[] = [
     check_in: '2026-08-07', check_out: '2026-08-11', nights: 4,
     room_type: 'ECONOMY, DOUBLE BED', room_count: 1, traveler_name: 'Johanna', travelers: 2,
     currency: 'JPY', sum_amt: 39540, client_cancel_dl: '2026-08-04T17:00:00', cancel_date: null,
+    travelers_detail: [
+      { room: 1, gender: 'F', local: 'Johanna', lastEn: 'JOHANNA', firstEn: 'CATMUNAN' },
+      { room: 1, gender: 'F', local: 'Lea', lastEn: 'LEA', firstEn: 'JAVIER' },
+    ],
+    special_request: { highFloor: true },
   },
   {
     ellis_code: 'J26071210008H01', seller_code: 'ATTIC202607120003',

@@ -141,6 +141,27 @@ export interface Booking {
   /** 분쟁 상태 표시 (없으면 undefined) */
   dispute?: string | null;
   dispute_remark?: string | null;
+  /** 투숙객 상세 (없으면 1st traveler 기준으로 자동 생성) */
+  travelers_detail?: TravelerDetail[];
+  /** 특별 요청 */
+  special_request?: {
+    nonSmoking?: boolean;
+    smoking?: boolean;
+    highFloor?: boolean;
+    babyCot?: boolean;
+    lateCheckIn?: boolean;
+    text?: string;
+  };
+}
+
+export interface TravelerDetail {
+  room: number;
+  gender: 'M' | 'F';
+  local: string;
+  lastEn: string;
+  firstEn: string;
+  childBirthday?: string;
+  childAge?: string;
 }
 
 /** 호텔 단위로 묶은 결과 (카드/비교 뷰 용) */

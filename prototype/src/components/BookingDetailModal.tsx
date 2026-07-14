@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import type { Booking } from '../types';
+import type { Booking, TravelerDetail } from '../types';
 
 interface Props {
   booking: Booking | null;
@@ -13,6 +13,39 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 function dateWithWeekday(iso: string): string {
   const d = new Date(`${iso}T00:00:00`);
   return `${iso}(${WEEKDAYS[d.getDay()]})`;
+}
+
+/** "MM.DD(weekday) HH:mm" (Cancellation Policy 제목용) */
+function shortDl(isoDt: string): string {
+  const [date, time] = isoDt.split('T');
+  const d = new Date(`${date}T00:00:00`);
+  const [, mm, dd] = date.split('-');
+  return `${mm}.${dd}(${WEEKDAYS[d.getDay()]}) ${(time ?? '00:00').slice(0, 5)}`;
+}
+
+const fmtDt = (isoDt: string) => `${isoDt.slice(0, 10)} ${isoDt.slice(11, 19) || '00:00:00'}`;
+
+function addMinute(isoDt: string): string {
+  const d = new Date(isoDt);
+  d.setMinutes(d.getMinutes() + 1);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:00`;
+}
+
+/** 투숙객 상세 — 명시값이 없으면 1st traveler + 인원수로 생성 */
+function travelersOf(b: Booking): TravelerDetail[] {
+  if (b.travelers_detail && b.travelers_detail.length) return b.travelers_detail;
+  const list: TravelerDetail[] = [];
+  const perRoom = Math.ceil(b.travelers / Math.max(1, b.room_count));
+  for (let i = 0; i < b.travelers; i += 1) {
+    const room = Math.floor(i / perRoom) + 1;
+    if (i === 0) {
+      list.push({ room, gender: 'M', local: b.traveler_name, lastEn: b.traveler_name.toUpperCase(), firstEn: 'GUEST' });
+    } else {
+      list.push({ room, gender: 'M', local: 'TBA', lastEn: 'TBA', firstEn: `TB${String.fromCharCode(65 + i)}` });
+    }
+  }
+  return list;
 }
 
 function Row({ label, value }: { label: string; value: ReactNode }) {
@@ -221,6 +254,141 @@ export default function BookingDetailModal({ booking, onClose, onCancelBooking }
                 value={<span className="text-rose-600">{booking.cancel_date.slice(0, 16).replace('T', ' ')}</span>}
               />
             )}
+          </section>
+
+          {/* Travelers */}
+          <section className="mt-4 rounded border border-slate-200">
+            <h4 className="border-b border-slate-200 bg-slate-50 px-4 py-2 text-[13px] font-bold text-slate-800">
+              Travelers
+            </h4>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] text-[12px]">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
+                    <th className="px-3 py-2 font-medium">Rooms</th>
+                    <th className="px-3 py-2 font-medium">Gender</th>
+                    <th className="px-3 py-2 font-medium">Name(Local Language)</th>
+                    <th className="px-3 py-2 font-medium">Last Name / First Name (EN)</th>
+                    <th className="px-3 py-2 font-medium">Child Birthday</th>
+                    <th className="px-3 py-2 font-medium">Child Age</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {travelersOf(booking).map((t, i, arr) => {
+                    const firstOfRoom = arr.findIndex((x) => x.room === t.room) === i;
+                    const roomSpan = arr.filter((x) => x.room === t.room).length;
+                    return (
+                      <tr key={i} className="border-b border-slate-100 last:border-b-0">
+                        {firstOfRoom ? (
+                          <td rowSpan={roomSpan} className="border-r border-slate-100 px-3 py-2 text-center align-middle text-amber-700">
+                            Rooms {t.room}
+                          </td>
+                        ) : null}
+                        <td className="px-3 py-2 text-center text-sky-600">{t.gender}</td>
+                        <td className="px-3 py-2 text-sky-700">{t.local}</td>
+                        <td className="px-3 py-2 text-amber-700">
+                          {t.lastEn} / {t.firstEn}
+                        </td>
+                        <td className="px-3 py-2 text-center text-slate-400">{t.childBirthday ?? ''}</td>
+                        <td className="px-3 py-2 text-center text-slate-400">{t.childAge ?? ''}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          {/* Special Request */}
+          <section className="mt-4 rounded border border-slate-200">
+            <h4 className="border-b border-slate-200 bg-slate-50 px-4 py-2 text-[13px] font-bold text-slate-800">
+              Special Request
+            </h4>
+            <div className="px-4 py-3">
+              <div className="flex flex-wrap gap-4 text-[13px] text-slate-700">
+                {(
+                  [
+                    ['non-smoking room', booking.special_request?.nonSmoking],
+                    ['smoking room', booking.special_request?.smoking],
+                    ['High Floor', booking.special_request?.highFloor],
+                    ['Baby Cot', booking.special_request?.babyCot],
+                    ['Late Check In', booking.special_request?.lateCheckIn],
+                  ] as [string, boolean | undefined][]
+                )
+                  .filter(([, v]) => v)
+                  .map(([label]) => (
+                    <label key={label} className="inline-flex items-center gap-1.5">
+                      <input type="checkbox" checked readOnly className="accent-brand-500" /> {label}
+                    </label>
+                  ))}
+                {!booking.special_request ||
+                Object.values(booking.special_request).every((v) => !v) ? (
+                  <span className="text-[12px] text-slate-400">요청 사항 없음</span>
+                ) : null}
+              </div>
+              <textarea
+                readOnly
+                value={booking.special_request?.text ?? ''}
+                placeholder="Client special requests (in English)"
+                rows={3}
+                className="mt-3 w-full rounded border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] text-slate-600 placeholder:italic placeholder:text-slate-400"
+              />
+            </div>
+          </section>
+
+          {/* Billing & Payment */}
+          <section className="mt-4 rounded border border-slate-200">
+            <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2">
+              <h4 className="text-[13px] font-bold text-slate-800">Billing &amp; Payment</h4>
+              <button
+                type="button"
+                className="cursor-not-allowed rounded border border-slate-300 bg-white px-3 py-1 text-xs text-slate-500"
+                title="프로토타입 — 결제 (더미)"
+              >
+                Credit card
+              </button>
+            </div>
+            <Row label="Billing total" value={<b>{booking.currency} {nf.format(booking.sum_amt)}</b>} />
+            <Row
+              label="Balance"
+              value={
+                <b className={booking.payment_status === 'Fully Paid' ? 'text-emerald-600' : ''}>
+                  {booking.currency}{' '}
+                  {nf.format(booking.payment_status === 'Fully Paid' ? 0 : booking.sum_amt)}
+                </b>
+              }
+            />
+          </section>
+
+          {/* Cancellation Policy */}
+          <section className="mt-4 rounded border border-slate-200">
+            <h4 className="border-b border-slate-200 bg-slate-50 px-4 py-2 text-[13px] font-bold text-slate-800">
+              Cancellation Policy
+            </h4>
+            <div className="px-4 py-3 text-[13px] leading-relaxed">
+              {booking.client_cancel_dl ? (
+                <>
+                  <p className="font-bold text-slate-800">
+                    Cancellation D/L : Untill {shortDl(booking.client_cancel_dl)}
+                  </p>
+                  <p className="mt-2 text-slate-700">
+                    - {fmtDt(booking.booking_date)} ~ {fmtDt(booking.client_cancel_dl)} Charge 0
+                  </p>
+                  <p className="text-slate-700">
+                    - {fmtDt(addMinute(booking.client_cancel_dl))} ~ {booking.check_in} 23:59:00 Charge{' '}
+                    {nf.format(booking.sum_amt)}
+                  </p>
+                  <p className="text-slate-700">- After check-in date, full charge will be applied</p>
+                </>
+              ) : (
+                <>
+                  <p className="font-bold text-rose-600">Non-refundable</p>
+                  <p className="mt-1 text-slate-700">
+                    - 본 요금제는 예약 확정 즉시 환불이 불가합니다. 노쇼 시 총액의 100%가 부과됩니다.
+                  </p>
+                </>
+              )}
+            </div>
           </section>
 
           <p className="mt-3 text-[10px] text-slate-400">
