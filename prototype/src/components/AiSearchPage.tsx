@@ -27,7 +27,7 @@ import RateDetailDrawer from './RateDetailDrawer';
 import HotelComparisonPanel from './HotelComparisonPanel';
 import SearchHistoryPanel from './SearchHistoryPanel';
 import StaffPage from './StaffPage';
-import { SEED_BOOKINGS } from '../mocks/seedBookings';
+import { buildBooking, loadBookings, saveBookings, subscribeBookings } from '../utils/bookingStore';
 import ErrorAlert from './ErrorAlert';
 import EmptyResult from './EmptyResult';
 import LoadingSkeleton, { LOADING_STEPS } from './LoadingSkeleton';
@@ -155,10 +155,11 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
     },
     [view],
   );
-  /** 생성된 예약 목록 (초기 목데이터 + 세션 내 생성분) */
-  const [bookings, setBookings] = useState<Booking[]>(SEED_BOOKINGS);
+  /** 예약 목록 — localStorage 영속 + 다른 탭(룸리스트)에서 생성한 예약 실시간 반영 */
+  const [bookings, setBookings] = useState<Booking[]>(loadBookings);
   const [detailBooking, setDetailBooking] = useState<Booking | null>(null);
-  const bookingSeqRef = useRef(3);
+  useEffect(() => saveBookings(bookings), [bookings]);
+  useEffect(() => subscribeBookings(setBookings), []);
 
   const timersRef = useRef<number[]>([]);
   const clearTimers = useCallback(() => {
@@ -273,37 +274,11 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
     [phase, scenario, conditions, clearTimers],
   );
 
-  /** 예약 생성 — 실제 포털과 동일하게 ELLIS/Seller 코드 발번 후 Bookings 목록에 추가 */
+  /** 예약 생성 — ELLIS/Seller 코드 발번(탭 간 공유 시퀀스) 후 Bookings 목록에 추가 */
   const createBooking = useCallback(
     (travelerName: string) => {
       if (!bookingRate) return;
-      const conds = bookingConditions ?? conditions;
-      const now = new Date();
-      const p = (n: number) => String(n).padStart(2, '0');
-      const ymd = `${String(now.getFullYear()).slice(-2)}${p(now.getMonth() + 1)}${p(now.getDate())}`;
-      const seq = bookingSeqRef.current + 1;
-      bookingSeqRef.current = seq;
-      const booking: Booking = {
-        ellis_code: `J${ymd}1${String(seq).padStart(4, '0')}H01`,
-        seller_code: `ATTIC20${ymd}${String(seq).padStart(4, '0')}`,
-        booking_date: now.toISOString(),
-        status: 'Confirmed',
-        payment_status: 'Unpaid',
-        hotel_id: bookingRate.hotel_id,
-        hotel_name: bookingRate.hotel_name,
-        region: bookingRate.destination,
-        check_in: conds?.check_in ?? '2026-08-20',
-        check_out: conds?.check_out ?? '2026-08-22',
-        nights: bookingRate.total_nights,
-        room_type: bookingRate.room_type_name,
-        room_count: conds?.rooms ?? bookingRate.total_rooms,
-        traveler_name: travelerName,
-        travelers: (conds?.adults ?? 2) + (conds?.children ?? 0),
-        currency: bookingRate.currency,
-        sum_amt: bookingRate.selling_price + bookingRate.tax,
-        client_cancel_dl: bookingRate.cancellation_deadline,
-        cancel_date: null,
-      };
+      const booking = buildBooking(bookingRate, bookingConditions ?? conditions, travelerName);
       setBookings((prev) => [booking, ...prev]);
       setBookingRate(null);
       setBookingConditions(null);
@@ -452,12 +427,7 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
         ) : view === 'notice' ? (
           <BoardPage kind="notice" />
         ) : view === 'create-booking' ? (
-          <CreateBookingPage
-            onProceedBooking={(rate, conds) => {
-              setBookingConditions(conds);
-              setBookingRate(rate);
-            }}
-          />
+          <CreateBookingPage />
         ) : (
         <div className="flex min-h-0 flex-1">
           <div className="w-[380px] shrink-0 border-r border-slate-200">

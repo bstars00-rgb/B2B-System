@@ -1,15 +1,16 @@
-import { useMemo, useRef, useState } from 'react';
-import type { HotelGroup, RateResult, SearchConditions } from '../types';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { HotelGroup, SearchConditions } from '../types';
 import {
   buildCityResults,
+  cityEnOf,
   hotelCodeOf,
+  hotelMetaOf,
   searchAutocomplete,
   type AutocompleteEntry,
 } from '../mocks/hotelDb';
 import { nextSearchId } from '../mocks';
 import { groupByHotel } from '../utils/group';
 import { formatMoney } from '../utils/format';
-import HotelRoomListPage from './HotelRoomListPage';
 import DatePicker from './DatePicker';
 
 interface RoomCfg {
@@ -18,16 +19,10 @@ interface RoomCfg {
   ages: number[];
 }
 
-interface Props {
-  onProceedBooking: (rate: RateResult, conditions: SearchConditions) => void;
-}
-
 type SortKey = 'rec' | 'starAsc' | 'starDesc' | 'rateAsc' | 'rateDesc';
 
-const KNOWN_BRANDS = [
-  '하얏트', '메리어트', '롯데', '노보텔', '홀리데이 인', '이비스', '샹그릴라', '만다린',
-  '프린스', '도미 인', '소테츠', '신라', '토요코인', '스위소텔', '콘래드', '팬 퍼시픽', '인터컨티넨탈',
-];
+/** 페이지당 호텔 수 (실사이트 페이저 재현) */
+const PAGE_SIZE = 10;
 
 function addDays(iso: string, days: number): string {
   const d = new Date(`${iso}T00:00:00`);
@@ -44,10 +39,11 @@ const selectCls =
 
 /**
  * 실제 포털 Create Booking 화면 클론.
- * 목적지/호텔 자동완성(코드-이름) → 날짜·Nights 연동 → 룸별 인원(아동 나이) → 검색 →
- * 좌측 필터(Rate 슬라이더·성급·체인) + 정렬 버튼 + 호텔 카드 → Select 시 룸리스트 화면.
+ * 목적지(지역/호텔) 자동완성(코드-이름, 한/영) → 날짜·Nights 연동 → 룸별 인원(아동 나이) → 검색 →
+ * 좌측 필터(Rate 슬라이더·성급·Property Type·Hotel Chain Brand — 결과 기반) + 정렬 + 페이저 →
+ * Select 시 새 탭으로 호텔 룸리스트 열림 (원래 검색 결과 유지 — 실사이트 프로세스).
  */
-export default function CreateBookingPage({ onProceedBooking }: Props) {
+export default function CreateBookingPage() {
   // ── 검색 폼 상태 ──
   const [destQuery, setDestQuery] = useState('');
   const [entry, setEntry] = useState<AutocompleteEntry | null>(null);
@@ -70,8 +66,10 @@ export default function CreateBookingPage({ onProceedBooking }: Props) {
   const [sort, setSort] = useState<SortKey>('rec');
   const [nameFilter, setNameFilter] = useState('');
   const [starSel, setStarSel] = useState<number[]>([]);
+  const [typeSel, setTypeSel] = useState<string[]>([]);
+  const [brandSel, setBrandSel] = useState<string[]>([]);
   const [rateMax, setRateMax] = useState<number | null>(null);
-  const [roomListHotel, setRoomListHotel] = useState<HotelGroup | null>(null);
+  const [page, setPage] = useState(1);
 
   const setRooms = (n: number) => {
     setRoomsCount(n);
@@ -116,14 +114,17 @@ export default function CreateBookingPage({ onProceedBooking }: Props) {
       budget_currency: 'KRW',
       near_station: null,
     };
-    const { results } = buildCityResults(nextSearchId(), conditions);
+    // 지역 검색은 상한 없이 전체 호텔 반환 (실사이트: "601 Properties" + 페이저)
+    const { results } = buildCityResults(nextSearchId(), conditions, { maxHotels: 999, maxRates: 999 });
     const groups = groupByHotel(results);
     setSearched({ groups, conditions });
     setSort('rec');
     setNameFilter('');
     setStarSel([]);
+    setTypeSel([]);
+    setBrandSel([]);
     setRateMax(null);
-    setRoomListHotel(null);
+    setPage(1);
   };
 
   // ── 필터·정렬 적용 ──
@@ -134,11 +135,17 @@ export default function CreateBookingPage({ onProceedBooking }: Props) {
     return { min: Math.min(...ps), max: Math.max(...ps) };
   }, [searched]);
 
-  const brands = useMemo(
-    () =>
-      searched
-        ? KNOWN_BRANDS.filter((b) => searched.groups.some((g) => g.hotel_name.includes(b)))
-        : [],
+  // ── 결과 기반 필터 옵션 (결과가 많을수록 필터값이 풍부해짐 — 실사이트 동작) ──
+  const starOptions = useMemo(
+    () => (searched ? [...new Set(searched.groups.map((g) => g.star_rating))].sort((a, b) => b - a) : []),
+    [searched],
+  );
+  const typeOptions = useMemo(
+    () => (searched ? [...new Set(searched.groups.map((g) => hotelMetaOf(g.hotel_id).propertyType))].sort() : []),
+    [searched],
+  );
+  const brandOptions = useMemo(
+    () => (searched ? [...new Set(searched.groups.map((g) => hotelMetaOf(g.hotel_id).chainBrand))].sort() : []),
     [searched],
   );
 
@@ -148,6 +155,8 @@ export default function CreateBookingPage({ onProceedBooking }: Props) {
     if (nameFilter.trim())
       list = list.filter((g) => g.hotel_name.toLowerCase().includes(nameFilter.trim().toLowerCase()));
     if (starSel.length > 0) list = list.filter((g) => starSel.includes(g.star_rating));
+    if (typeSel.length > 0) list = list.filter((g) => typeSel.includes(hotelMetaOf(g.hotel_id).propertyType));
+    if (brandSel.length > 0) list = list.filter((g) => brandSel.includes(hotelMetaOf(g.hotel_id).chainBrand));
     if (rateMax !== null) list = list.filter((g) => priceOf(g) <= rateMax);
     switch (sort) {
       case 'starAsc': list.sort((a, b) => a.star_rating - b.star_rating); break;
@@ -157,19 +166,32 @@ export default function CreateBookingPage({ onProceedBooking }: Props) {
       default: break;
     }
     return list;
-  }, [searched, sort, nameFilter, starSel, rateMax]);
+  }, [searched, sort, nameFilter, starSel, typeSel, brandSel, rateMax]);
 
-  // ── 호텔 룸리스트 화면 전환 ──
-  if (roomListHotel && searched) {
-    return (
-      <HotelRoomListPage
-        group={roomListHotel}
-        conditions={searched.conditions}
-        onBack={() => setRoomListHotel(null)}
-        onSelectRate={(rate) => onProceedBooking(rate, searched.conditions)}
-      />
-    );
-  }
+  // 필터·정렬 변경 시 1페이지로
+  useEffect(() => {
+    setPage(1);
+  }, [sort, nameFilter, starSel, typeSel, brandSel, rateMax]);
+
+  const pageCount = Math.max(1, Math.ceil(visibleGroups.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const pagedGroups = visibleGroups.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  /** Select — 실사이트와 동일하게 새 탭으로 룸리스트 열기 (검색 결과는 이 탭에 유지) */
+  const openHotelTab = (g: HotelGroup) => {
+    if (!searched) return;
+    const c = searched.conditions;
+    const q = new URLSearchParams({
+      hotel: hotelCodeOf(g.hotel_id),
+      ci: c.check_in ?? '',
+      co: c.check_out ?? '',
+      nights: String(c.nights ?? 1),
+      rooms: String(c.rooms ?? 1),
+      adt: String(c.adults ?? 2),
+      chd: String(c.children ?? 0),
+    });
+    window.open(`${window.location.pathname}?${q.toString()}`, '_blank');
+  };
 
   const sortBtn = (key: SortKey, label: string) => (
     <button
@@ -358,7 +380,16 @@ export default function CreateBookingPage({ onProceedBooking }: Props) {
               </div>
               <div className="border-b border-dashed border-slate-300 py-3">
                 <p className="text-xs font-semibold text-slate-700">Star Rating</p>
-                {[5, 4, 3, 2].filter((s) => searched.groups.some((g) => g.star_rating === s)).map((s) => (
+                <label className="mt-1.5 flex items-center gap-2 text-xs text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={starSel.length === 0}
+                    onChange={() => setStarSel([])}
+                    className="accent-brand-500"
+                  />
+                  All
+                </label>
+                {starOptions.map((s) => (
                   <label key={s} className="mt-1.5 flex items-center gap-2 text-xs text-slate-600">
                     <input
                       type="checkbox"
@@ -374,20 +405,56 @@ export default function CreateBookingPage({ onProceedBooking }: Props) {
               </div>
               <div className="border-b border-dashed border-slate-300 py-3">
                 <p className="text-xs font-semibold text-slate-700">Property Type</p>
-                {['All', 'Hotel'].map((t) => (
-                  <label key={t} className="mt-1.5 flex items-center gap-2 text-xs text-slate-500">
-                    <input type="checkbox" disabled className="accent-brand-500" /> {t}
+                <label className="mt-1.5 flex items-center gap-2 text-xs text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={typeSel.length === 0}
+                    onChange={() => setTypeSel([])}
+                    className="accent-brand-500"
+                  />
+                  All
+                </label>
+                {typeOptions.map((t) => (
+                  <label key={t} className="mt-1.5 flex items-center gap-2 text-xs text-slate-600">
+                    <input
+                      type="checkbox"
+                      checked={typeSel.includes(t)}
+                      onChange={(e) =>
+                        setTypeSel((prev) => (e.target.checked ? [...prev, t] : prev.filter((x) => x !== t)))
+                      }
+                      className="accent-brand-500"
+                    />
+                    {t}
                   </label>
                 ))}
               </div>
-              {brands.length > 0 && (
+              {brandOptions.length > 0 && (
                 <div className="py-3">
                   <p className="text-xs font-semibold text-slate-700">Hotel Chain Brand</p>
-                  {['All', ...brands].map((b) => (
-                    <label key={b} className="mt-1.5 flex items-center gap-2 text-xs text-slate-500">
-                      <input type="checkbox" disabled className="accent-brand-500" /> {b}
-                    </label>
-                  ))}
+                  <label className="mt-1.5 flex items-center gap-2 text-xs text-slate-600">
+                    <input
+                      type="checkbox"
+                      checked={brandSel.length === 0}
+                      onChange={() => setBrandSel([])}
+                      className="accent-brand-500"
+                    />
+                    All
+                  </label>
+                  <div className="max-h-64 overflow-y-auto">
+                    {brandOptions.map((b) => (
+                      <label key={b} className="mt-1.5 flex items-center gap-2 text-xs text-slate-600">
+                        <input
+                          type="checkbox"
+                          checked={brandSel.includes(b)}
+                          onChange={(e) =>
+                            setBrandSel((prev) => (e.target.checked ? [...prev, b] : prev.filter((x) => x !== b)))
+                          }
+                          className="accent-brand-500"
+                        />
+                        <span className="min-w-0 flex-1 break-words">{b}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
               )}
             </aside>
@@ -411,7 +478,7 @@ export default function CreateBookingPage({ onProceedBooking }: Props) {
                     조건에 맞는 호텔이 없습니다 — 필터를 완화해 보세요.
                   </p>
                 )}
-                {visibleGroups.map((g) => (
+                {pagedGroups.map((g) => (
                   <div key={g.hotel_id} className="flex items-center gap-4 rounded border border-slate-200 bg-white p-4">
                     <div className="flex h-20 w-28 shrink-0 items-center justify-center rounded bg-slate-200 text-[10px] text-slate-400">
                       HOTEL PHOTO
@@ -422,7 +489,7 @@ export default function CreateBookingPage({ onProceedBooking }: Props) {
                         <span className="font-medium text-amber-500">{g.star_rating} Star</span>
                       </p>
                       <h4 className="truncate text-sm font-bold text-slate-900">{g.hotel_name}</h4>
-                      <p className="text-[11px] text-slate-500">◎ {g.destination}</p>
+                      <p className="text-[11px] text-slate-500">◎ {cityEnOf(g.destination)}</p>
                     </div>
                     <div className="hidden text-xs text-slate-500 md:block">{g.min_rate.room_type_name}</div>
                     <div className="shrink-0 text-right">
@@ -432,7 +499,8 @@ export default function CreateBookingPage({ onProceedBooking }: Props) {
                     </div>
                     <button
                       type="button"
-                      onClick={() => setRoomListHotel(g)}
+                      onClick={() => openHotelTab(g)}
+                      title="새 탭에서 룸리스트 열기 — 이 검색 결과는 유지됩니다 (실사이트 동일)"
                       className="shrink-0 rounded border border-slate-300 px-4 py-1.5 text-xs font-medium text-slate-700 hover:border-brand-400 hover:text-brand-600"
                     >
                       Select
@@ -441,12 +509,39 @@ export default function CreateBookingPage({ onProceedBooking }: Props) {
                 ))}
               </div>
 
-              {/* 페이저 (실제 포털 형태) */}
+              {/* 페이저 (실제 포털 형태 — 페이지 클릭 이동) */}
               <div className="mt-4 flex justify-center">
                 <div className="flex overflow-hidden rounded border border-slate-200 text-xs">
-                  <span className="px-4 py-2 text-slate-400">Previous</span>
-                  <span className="bg-brand-500 px-4 py-2 font-bold text-white">1</span>
-                  <span className="px-4 py-2 text-slate-400">Next</span>
+                  <button
+                    type="button"
+                    disabled={safePage <= 1}
+                    onClick={() => setPage(safePage - 1)}
+                    className="px-4 py-2 text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
+                  >
+                    Previous
+                  </button>
+                  {Array.from({ length: pageCount }, (_, i) => i + 1).map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setPage(n)}
+                      className={
+                        n === safePage
+                          ? 'bg-brand-500 px-4 py-2 font-bold text-white'
+                          : 'px-4 py-2 text-slate-500 hover:bg-slate-50'
+                      }
+                    >
+                      {n}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    disabled={safePage >= pageCount}
+                    onClick={() => setPage(safePage + 1)}
+                    className="px-4 py-2 text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
+                  >
+                    Next
+                  </button>
                 </div>
               </div>
             </div>

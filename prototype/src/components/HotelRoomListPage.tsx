@@ -10,6 +10,8 @@ interface Props {
   onBack: () => void;
   /** 요금제 Select — 기존 Create Hotel Booking 모달로 진행 */
   onSelectRate: (rate: RateResult) => void;
+  /** 새 탭 전용 페이지로 열린 경우 (뒤로가기 버튼 숨김 — 상단 바에 ✕ Close 존재) */
+  standalone?: boolean;
 }
 
 const nf = new Intl.NumberFormat('en-US');
@@ -19,7 +21,7 @@ const nf = new Intl.NumberFormat('en-US');
  * 호텔 헤더 → 조건 바 → 요금제 테이블(Billing Curr/Gross/Discount/Sum·취소정책·Select) →
  * Show more → 지도/호텔정보/Neighborhood → Description → Photo.
  */
-export default function HotelRoomListPage({ group, conditions, onBack, onSelectRate }: Props) {
+export default function HotelRoomListPage({ group, conditions, onBack, onSelectRate, standalone }: Props) {
   const [showAll, setShowAll] = useState(false);
 
   // 지목 호텔의 전체 요금제 재생성 (target 흐름)
@@ -36,13 +38,15 @@ export default function HotelRoomListPage({ group, conditions, onBack, onSelectR
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-white p-4">
-      <button
-        type="button"
-        onClick={onBack}
-        className="mb-3 rounded border border-slate-300 px-3 py-1 text-xs text-slate-600 hover:border-brand-400 hover:text-brand-600"
-      >
-        ← 검색 결과로
-      </button>
+      {!standalone && (
+        <button
+          type="button"
+          onClick={onBack}
+          className="mb-3 rounded border border-slate-300 px-3 py-1 text-xs text-slate-600 hover:border-brand-400 hover:text-brand-600"
+        >
+          ← 검색 결과로
+        </button>
+      )}
 
       {/* 호텔 헤더 */}
       <div className="rounded border border-slate-200 px-5 py-4">

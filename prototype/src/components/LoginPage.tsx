@@ -1,7 +1,8 @@
 import { useState } from 'react';
 
 interface Props {
-  onLogin: () => void;
+  /** stay = Stay signed in 체크 여부 (localStorage 로그인 유지) */
+  onLogin: (stay: boolean) => void;
 }
 
 /**
@@ -22,7 +23,7 @@ export default function LoginPage({ onLogin }: Props) {
       setError('Please enter your email and password.');
       return;
     }
-    onLogin();
+    onLogin(stay);
   };
 
   return (

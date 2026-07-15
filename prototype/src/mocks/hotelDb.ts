@@ -19,11 +19,21 @@ interface HotelSeed {
   lng: number;
   /** 1박 net 요금 (도시 현지 통화 기준) */
   base: number;
+  /** 좌측 필터 Property Type (기본 Hotel) */
+  propertyType?: string;
+  /** 좌측 필터 Hotel Chain Brand (실사이트 브랜드 목록 표기) */
+  chainBrand?: string;
+  /** 대표 룸타입명 (실사이트 표기 — 없으면 제네릭) */
+  roomType?: string;
 }
 
 interface CityDef {
   /** 파서가 추출하는 목적지 표기 (대표명) */
   destination: string;
+  /** 영문 지역명 (자동완성 영문 검색·표시용) */
+  nameEn?: string;
+  /** 실제 포털 지역 코드 (없으면 결정론적 생성) */
+  code?: string;
   aliases: string[];
   currency: string;
   /** 취소 마감일시 표기용 UTC 오프셋 */
@@ -40,6 +50,8 @@ const hotelMatches = (h: HotelSeed, target: string): boolean =>
 const CITIES: CityDef[] = [
   {
     destination: '도쿄',
+    nameEn: 'Tokyo',
+    code: '102911',
     aliases: ['도쿄'],
     currency: 'JPY',
     tzOffset: '+09:00',
@@ -62,23 +74,44 @@ const CITIES: CityDef[] = [
   },
   {
     destination: '오사카',
+    nameEn: 'Osaka',
+    code: '102156',
     aliases: ['오사카'],
     currency: 'JPY',
     tzOffset: '+09:00',
     hotels: [
-      { id: 'HTL-OSA-01', name: '세인트 레지스 오사카', star: 5, lat: 34.6851, lng: 135.5006, base: 62000 },
-      { id: 'HTL-OSA-02', name: '스위소텔 난카이 오사카', star: 5, lat: 34.6614, lng: 135.5022, base: 38000 },
-      { id: 'HTL-OSA-03', name: '크로스 호텔 오사카', star: 4, lat: 34.6684, lng: 135.5013, base: 22000 },
-      { id: 'HTL-OSA-04', name: '호텔 몬토레 그라스미어 오사카', star: 4, lat: 34.6627, lng: 135.4987, base: 17500 },
-      { id: 'HTL-OSA-05', name: '리가 로얄 호텔 오사카', nameEn: 'Rihga Royal Hotel Osaka', star: 4, lat: 34.6817, lng: 135.4884, base: 16000 },
+      { id: 'HTL-OSA-01', name: '세인트 레지스 오사카', nameEn: 'The St. Regis Osaka', star: 5, lat: 34.6851, lng: 135.5006, base: 62000, chainBrand: 'Marriott' },
+      { id: 'HTL-OSA-02', name: '스위소텔 난카이 오사카', nameEn: 'Swissotel Nankai Osaka', star: 5, lat: 34.6614, lng: 135.5022, base: 38000 },
+      { id: 'HTL-OSA-03', name: '크로스 호텔 오사카', nameEn: 'Cross Hotel Osaka', star: 4, lat: 34.6684, lng: 135.5013, base: 22000, chainBrand: 'ORIX Hotel Management' },
+      { id: 'HTL-OSA-04', name: '호텔 몬토레 그라스미어 오사카', nameEn: 'Hotel Monterey Grasmere Osaka', star: 4, lat: 34.6627, lng: 135.4987, base: 17500, chainBrand: 'Hotel Monterey Group' },
+      { id: 'HTL-OSA-05', name: '리가 로얄 호텔 오사카', nameEn: 'Rihga Royal Hotel Osaka', star: 4, lat: 34.6817, lng: 135.4884, base: 16000, chainBrand: 'RIHGA Royal Hotels' },
       { id: 'HTL-OSA-06', name: '도미 인 프리미엄 난바', nameEn: 'Dormy Inn Premium Namba', star: 3, lat: 34.6632, lng: 135.5015, base: 12500 },
-      { id: 'HTL-OSA-07', name: '소테츠 프레사 인 요도야바시', nameEn: 'Sotetsu Fresa Inn Yodoyabashi', code: '810310', star: 3, lat: 34.6929, lng: 135.5052, base: 29700 },
-      { id: 'HTL-OSA-08', name: '소테츠 그랜드 프레사 오사카-난바', nameEn: 'Sotetsu Grand Fresa Osaka-Namba', code: '746262', star: 3, lat: 34.6626, lng: 135.5017, base: 19700 },
-      { id: 'HTL-OSA-09', name: '소테츠 프레사 인 오사카 신사이바시', nameEn: 'Sotetsu Fresa Inn Osaka-Shinsaibashi', code: '262604', star: 3, lat: 34.672, lng: 135.5011, base: 17500 },
+      { id: 'HTL-OSA-07', name: '소테츠 프레사 인 요도야바시', nameEn: 'Sotetsu Fresa Inn Yodoyabashi', code: '810310', star: 3, lat: 34.6929, lng: 135.5052, base: 29700, chainBrand: 'Sotetsu' },
+      { id: 'HTL-OSA-08', name: '소테츠 그랜드 프레사 오사카-난바', nameEn: 'Sotetsu Grand Fresa Osaka-Namba', code: '746262', star: 3, lat: 34.6626, lng: 135.5017, base: 19700, chainBrand: 'Sotetsu' },
+      { id: 'HTL-OSA-09', name: '소테츠 프레사 인 오사카 신사이바시', nameEn: 'Sotetsu Fresa Inn Osaka-Shinsaibashi', code: '262604', star: 3, lat: 34.672, lng: 135.5011, base: 17500, chainBrand: 'Sotetsu' },
+      // ── 실사이트 지역검색(102156 - Osaka) 결과 재현 — 실코드·실브랜드 (2026-07-15 스크린샷 명세) ──
+      { id: 'HTL-OSA-10', name: '호텔 아마넥 오사카 난바', nameEn: 'Hotel AMANEK Osaka Namba', code: '1001586', star: 4, lat: 34.6659, lng: 135.5035, base: 7812, chainBrand: 'amaneku Co., Ltd.', roomType: 'Standard Double (Non Smoking)' },
+      { id: 'HTL-OSA-11', name: '다이와 로이넷 호텔 오사카 우에혼마치', nameEn: 'Daiwa Roynet Hotel Osaka Uehonmachi', code: '453378', star: 3, lat: 34.6656, lng: 135.5192, base: 7726, chainBrand: 'Daiwa Roynet Hotels', roomType: 'Standard Double Non Smoking' },
+      { id: 'HTL-OSA-12', name: '스마일 호텔 프리미엄 오사카 히가시 신사이바시', nameEn: 'Smile Hotel Premium Osaka Higashi Shinsaibashi', code: '285030', star: 3.5, lat: 34.6733, lng: 135.5064, base: 6421, chainBrand: 'K.K. Hospitality Operations', roomType: 'Standard Double (Non Smoking)' },
+      { id: 'HTL-OSA-13', name: '신오사카 워싱턴 호텔 플라자', nameEn: 'Shin Osaka Washington Hotel Plaza', code: '551313', star: 3, lat: 34.7331, lng: 135.4997, base: 5151, chainBrand: 'Washington Hotel Corporation', roomType: '(A)Semi Double Room Non Smoking' },
+      { id: 'HTL-OSA-14', name: '젠티스 오사카', nameEn: 'Zentis Osaka', code: '655329', star: 4, lat: 34.6953, lng: 135.4933, base: 15219, propertyType: 'Boutique', chainBrand: 'Independent Hotels', roomType: 'Studio King No Smoking' },
+      { id: 'HTL-OSA-15', name: '다이와 로이넷 호텔 오사카 사카이스지 혼마치 프리미어', nameEn: 'Daiwa Roynet Hotel Osaka Sakaisuji Honmachi PREMIER', code: '725693', star: 3.5, lat: 34.6829, lng: 135.5066, base: 10036, chainBrand: 'Daiwa Roynet Hotels', roomType: 'MODERATE, TWIN BEDS, SMOKING' },
+      { id: 'HTL-OSA-16', name: '코코 호텔 오사카 난바 에비스초', nameEn: 'KOKO HOTEL Osaka Namba Ebisucho', code: '731117', star: 3, lat: 34.6567, lng: 135.5017, base: 4102, chainBrand: 'Independent Hotels', roomType: 'Moderate Twin Non Smoking' },
+      { id: 'HTL-OSA-17', name: '다이와 로이넷 호텔 요츠바시', nameEn: 'Daiwa Roynet Hotel Yotsubashi', code: '214867', star: 3, lat: 34.6742, lng: 135.4941, base: 8493, chainBrand: 'Daiwa Roynet Hotels', roomType: 'ROOM, DOUBLE BED, SMOKING' },
+      { id: 'HTL-OSA-18', name: '호텔 비스타 오사카 난바', nameEn: 'Hotel Vista Osaka Namba', code: '497098', star: 3, lat: 34.6648, lng: 135.4996, base: 10794, chainBrand: 'VISTA HOTEL MANAGEMENT CO., Ltd.', roomType: 'Standard Double Non Smoking' },
+      { id: 'HTL-OSA-19', name: '스마일 호텔 오사카 텐노지', nameEn: 'Smile Hotel Osaka Tennoji', code: '985233', star: 3, lat: 34.6499, lng: 135.5134, base: 4834, chainBrand: 'K.K. Hospitality Operations', roomType: 'Standard Double Non Smoking' },
+      { id: 'HTL-OSA-20', name: '스마일 호텔 프리미엄 오사카 혼마치', nameEn: 'Smile Hotel Premium Osaka Hommachi', code: '229742', star: 4, lat: 34.6822, lng: 135.4979, base: 5282, chainBrand: 'K.K. Hospitality Operations', roomType: 'Standard Double Smoking' },
+      { id: 'HTL-OSA-21', name: '델 스타일 오사카 신사이바시 바이 다이와 로이넷 호텔', nameEn: 'DEL style Osaka - Shinsaibashi by Daiwa Roynet Hotel', code: '398300', star: 3.5, lat: 34.6714, lng: 135.5042, base: 13777, chainBrand: 'Daiwa Roynet Hotels', roomType: 'MODERATE, QUEEN BED' },
+      { id: 'HTL-OSA-22', name: '코코 호텔 오사카 신사이바시', nameEn: 'KOKO HOTEL Osaka Shinsaibashi', code: '768491', star: 4, lat: 34.6759, lng: 135.5008, base: 4808, chainBrand: 'Independent Hotels', roomType: 'Standard Double Room - Non-Smoking' },
+      { id: 'HTL-OSA-23', name: '칸데오 호텔스 오사카 난바', nameEn: 'Candeo Hotels Osaka Namba', code: '189357', star: 3.5, lat: 34.6621, lng: 135.5049, base: 11176, chainBrand: 'Candeo Hotels', roomType: 'Double Room Non Smoking' },
+      { id: 'HTL-OSA-24', name: '베스트 웨스턴 호텔 피노 오사카 신사이바시', nameEn: 'Best Western Hotel Fino Osaka Shinsaibashi', code: '471157', star: 3.5, lat: 34.6749, lng: 135.5053, base: 7506, chainBrand: 'Best Western', roomType: 'COMFORT, DOUBLE BED' },
+      { id: 'HTL-OSA-25', name: '호텔 그란비아 오사카', nameEn: 'Hotel Granvia Osaka', code: '584277', star: 3.5, lat: 34.7025, lng: 135.4959, base: 16123, chainBrand: 'Independent Hotels', roomType: 'Standard Double' },
+      { id: 'HTL-OSA-26', name: '미마루 오사카 신사이바시 이스트', nameEn: 'APARTMENT HOTEL MIMARU Osaka Shinsaibashi East', code: '923184', star: 4, lat: 34.6738, lng: 135.5089, base: 17000, propertyType: 'Aparthotel', chainBrand: 'APARTMENT HOTEL MIMARU', roomType: 'Apartment Twin Room' },
     ],
   },
   {
     destination: '교토',
+    nameEn: 'Kyoto',
     aliases: ['교토'],
     currency: 'JPY',
     tzOffset: '+09:00',
@@ -92,6 +125,7 @@ const CITIES: CityDef[] = [
   },
   {
     destination: '후쿠오카',
+    nameEn: 'Fukuoka',
     aliases: ['후쿠오카'],
     currency: 'JPY',
     tzOffset: '+09:00',
@@ -105,6 +139,7 @@ const CITIES: CityDef[] = [
   },
   {
     destination: '삿포로',
+    nameEn: 'Sapporo',
     aliases: ['삿포로'],
     currency: 'JPY',
     tzOffset: '+09:00',
@@ -117,6 +152,7 @@ const CITIES: CityDef[] = [
   },
   {
     destination: '서울',
+    nameEn: 'Seoul',
     aliases: ['서울', '명동', '강남'],
     currency: 'KRW',
     tzOffset: '+09:00',
@@ -133,6 +169,7 @@ const CITIES: CityDef[] = [
   },
   {
     destination: '부산',
+    nameEn: 'Busan',
     aliases: ['부산', '해운대'],
     currency: 'KRW',
     tzOffset: '+09:00',
@@ -146,6 +183,7 @@ const CITIES: CityDef[] = [
   },
   {
     destination: '제주',
+    nameEn: 'Jeju',
     aliases: ['제주', '서귀포'],
     currency: 'KRW',
     tzOffset: '+09:00',
@@ -159,6 +197,7 @@ const CITIES: CityDef[] = [
   },
   {
     destination: '방콕',
+    nameEn: 'Bangkok',
     aliases: ['방콕', '수쿰윗', '실롬'],
     currency: 'THB',
     tzOffset: '+07:00',
@@ -177,6 +216,7 @@ const CITIES: CityDef[] = [
   },
   {
     destination: '싱가포르',
+    nameEn: 'Singapore',
     aliases: ['싱가포르', '마리나베이', '센토사'],
     currency: 'SGD',
     tzOffset: '+08:00',
@@ -193,6 +233,7 @@ const CITIES: CityDef[] = [
   },
   {
     destination: '다낭',
+    nameEn: 'Da Nang',
     aliases: ['다낭', '미케비치'],
     currency: 'VND',
     tzOffset: '+07:00',
@@ -207,6 +248,7 @@ const CITIES: CityDef[] = [
   },
   {
     destination: '하노이',
+    nameEn: 'Hanoi',
     aliases: ['하노이'],
     currency: 'VND',
     tzOffset: '+07:00',
@@ -219,6 +261,7 @@ const CITIES: CityDef[] = [
   },
   {
     destination: '호치민',
+    nameEn: 'Ho Chi Minh City',
     aliases: ['호치민', '사이공'],
     currency: 'VND',
     tzOffset: '+07:00',
@@ -231,6 +274,7 @@ const CITIES: CityDef[] = [
   },
   {
     destination: '타이베이',
+    nameEn: 'Taipei',
     aliases: ['타이베이', '시먼딩'],
     currency: 'TWD',
     tzOffset: '+08:00',
@@ -244,6 +288,7 @@ const CITIES: CityDef[] = [
   },
   {
     destination: '홍콩',
+    nameEn: 'Hong Kong',
     aliases: ['홍콩', '침사추이'],
     currency: 'HKD',
     tzOffset: '+08:00',
@@ -382,9 +427,17 @@ export interface CityResults {
  * - 성급(이상)·조식·무료취소 필터를 적용하고, 필터로 전부 걸러지면 필터 없이 반환한다.
  * - 예산 필터는 통화 혼동 방지를 위해 KRW 도시에만 적용 (임의 환율 환산 금지 원칙)
  */
+export interface CityResultOptions {
+  /** 결과 호텔 수 상한 (기본 9 — AI 검색용. Create Booking은 전체 반환) */
+  maxHotels?: number;
+  /** 결과 요금제 수 상한 (기본 18) */
+  maxRates?: number;
+}
+
 export function buildCityResults(
   searchId: string,
   conditions?: SearchConditions | null,
+  options?: CityResultOptions,
 ): CityResults {
   resetRateSeq();
   const targetHotelName = conditions?.hotel_name ?? null;
@@ -401,7 +454,7 @@ export function buildCityResults(
 
   const buildForHotel = (h: HotelSeed, i: number): RateSeed[] => {
     const breakfastBase = i % 2 === 0;
-    const roomType = ROOM_TYPES[i % ROOM_TYPES.length];
+    const roomType = h.roomType ?? ROOM_TYPES[i % ROOM_TYPES.length];
     const supplier = SUPPLIERS[i % SUPPLIERS.length];
     const common = {
       hotel_id: h.id,
@@ -449,7 +502,7 @@ export function buildCityResults(
     if (i % 2 === 0) {
       plans.push({
         ...common,
-        room_type_name: ROOM_TYPES[(i + 2) % ROOM_TYPES.length],
+        room_type_name: h.roomType ? `${h.roomType} - High Floor` : ROOM_TYPES[(i + 2) % ROOM_TYPES.length],
         rate_plan_name: '프리미엄 플렉시블',
         meal_plan: '조식 포함',
         cancellation_type: 'free_cancellation',
@@ -578,8 +631,10 @@ export function buildCityResults(
   let seeds = applyFilters(hotelPool.flatMap((h) => buildForHotel(h, city.hotels.indexOf(h))));
 
   // 호텔 수·요금제 수 상한
-  const hotelIds = [...new Set(seeds.map((s) => s.hotel_id))].slice(0, MAX_HOTELS);
-  seeds = seeds.filter((s) => hotelIds.includes(s.hotel_id)).slice(0, MAX_RATES);
+  const maxHotels = options?.maxHotels ?? MAX_HOTELS;
+  const maxRates = options?.maxRates ?? MAX_RATES;
+  const hotelIds = [...new Set(seeds.map((s) => s.hotel_id))].slice(0, maxHotels);
+  seeds = seeds.filter((s) => hotelIds.includes(s.hotel_id)).slice(0, maxRates);
 
   return { results: seeds.map((s) => makeRate(searchId, s)), recommended: [] };
 }
@@ -597,12 +652,12 @@ const CITY_COUNTRY: Record<string, string> = {
   타이베이: 'Taiwan', 홍콩: 'Hong Kong',
 };
 
-/** 호텔/도시 숫자 코드 (실제 포털의 6자리 코드 형식 재현 — 결정론적) */
+/** 호텔/도시 숫자 코드 (실제 포털의 6자리 코드 형식 재현 — 실코드 우선, 없으면 결정론적) */
 const codeIndex = new Map<string, string>();
 {
   let n = 0;
   for (const c of CITIES) {
-    codeIndex.set(`city:${c.destination}`, String(100387 + n * 991));
+    codeIndex.set(`city:${c.destination}`, c.code ?? String(100387 + n * 991));
     for (const h of c.hotels) {
       // 실제 코드가 지정된 호텔은 그대로, 없으면 결정론적 생성
       codeIndex.set(h.id, h.code ?? String(410000 + n * 137 + (h.id.charCodeAt(h.id.length - 1) % 9) * 7130));
@@ -614,6 +669,40 @@ export function hotelCodeOf(hotelId: string): string {
   return codeIndex.get(hotelId) ?? '478795';
 }
 
+/** 도시 영문 표기 (없으면 한글 대표명) — Create Booking 카드의 "◎ Osaka" 재현 */
+export function cityEnOf(destination: string): string {
+  return CITIES.find((c) => c.destination === destination)?.nameEn ?? destination;
+}
+
+export interface HotelMeta {
+  code: string;
+  propertyType: string;
+  chainBrand: string;
+}
+
+/** 좌측 필터용 호텔 메타 (Property Type · Hotel Chain Brand) */
+export function hotelMetaOf(hotelId: string): HotelMeta {
+  for (const c of CITIES) {
+    const h = c.hotels.find((x) => x.id === hotelId);
+    if (h)
+      return {
+        code: hotelCodeOf(h.id),
+        propertyType: h.propertyType ?? 'Hotel',
+        chainBrand: h.chainBrand ?? 'Independent Hotels',
+      };
+  }
+  return { code: hotelCodeOf(hotelId), propertyType: 'Hotel', chainBrand: 'Independent Hotels' };
+}
+
+/** 호텔 코드 → 호텔 식별 (새 탭 룸리스트 페이지 라우팅용) */
+export function hotelByCode(code: string): { hotelName: string; destination: string } | null {
+  for (const c of CITIES) {
+    const h = c.hotels.find((x) => hotelCodeOf(x.id) === code);
+    if (h) return { hotelName: displayName(h), destination: c.destination };
+  }
+  return null;
+}
+
 export interface AutocompleteEntry {
   code: string;
   /** 표시 라벨: "478795 - Sotetsu Fresa Inn Hiroshima, Japan" 형식 */
@@ -623,24 +712,29 @@ export interface AutocompleteEntry {
   hotel_name: string | null;
 }
 
-/** Destination 자동완성 — 도시 + 호텔명 검색 (실제 포털과 동일하게 코드-이름 형식) */
+/** Destination 자동완성 — 도시 + 호텔명 검색 (실제 포털과 동일하게 코드-이름 형식, 한/영 겸용) */
 export function searchAutocomplete(query: string): AutocompleteEntry[] {
   const q = query.trim();
   if (q.length < 1) return [];
   const out: AutocompleteEntry[] = [];
+  const nq = q.toLowerCase();
   for (const c of CITIES) {
-    if (c.destination.includes(q) || c.aliases.some((a) => a.includes(q))) {
+    const cityDisplay = c.nameEn ?? c.destination;
+    if (
+      c.destination.includes(q) ||
+      c.aliases.some((a) => a.includes(q)) ||
+      (c.nameEn?.toLowerCase().includes(nq) ?? false)
+    ) {
       const code = codeIndex.get(`city:${c.destination}`) ?? '100387';
       out.push({
         code,
-        label: `${code} - ${c.destination}, ${c.destination}, ${CITY_COUNTRY[c.destination] ?? ''}`,
+        label: `${code} - ${cityDisplay}, ${cityDisplay}, ${CITY_COUNTRY[c.destination] ?? ''}`,
         type: 'city',
         destination: c.destination,
         hotel_name: null,
       });
     }
   }
-  const nq = q.toLowerCase();
   for (const c of CITIES) {
     for (const h of c.hotels) {
       const dn = displayName(h);
