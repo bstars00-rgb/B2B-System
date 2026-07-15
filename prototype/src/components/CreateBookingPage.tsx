@@ -44,18 +44,18 @@ const selectCls =
  * Select 시 새 탭으로 호텔 룸리스트 열림 (원래 검색 결과 유지 — 실사이트 프로세스).
  */
 export default function CreateBookingPage() {
-  // ── 검색 폼 상태 ──
+  // ── 검색 폼 상태 (실사이트: 첫 진입 시 Check In/Out 빈 상태) ──
   const [destQuery, setDestQuery] = useState('');
   const [entry, setEntry] = useState<AutocompleteEntry | null>(null);
   const [showAuto, setShowAuto] = useState(false);
-  const [checkIn, setCheckIn] = useState('2026-08-19');
-  const [nights, setNights] = useState(2);
+  const [checkIn, setCheckIn] = useState('');
+  const [nights, setNights] = useState(1);
   const [roomsCount, setRoomsCount] = useState(1);
   const [roomCfg, setRoomCfg] = useState<RoomCfg[]>([{ adt: 2, chd: 0, ages: [] }]);
   const [formError, setFormError] = useState<string | null>(null);
   const blurTimer = useRef<number | null>(null);
 
-  const checkOut = addDays(checkIn, nights);
+  const checkOut = checkIn ? addDays(checkIn, nights) : '';
   const autoItems = useMemo(() => (showAuto ? searchAutocomplete(destQuery) : []), [destQuery, showAuto]);
 
   // ── 결과 상태 ──
@@ -94,6 +94,10 @@ export default function CreateBookingPage() {
   const runSearch = () => {
     if (!entry) {
       setFormError('Destination을 목록에서 선택해 주세요.');
+      return;
+    }
+    if (!checkIn) {
+      setFormError('Check In/Out 날짜를 선택해 주세요.');
       return;
     }
     setFormError(null);
@@ -261,14 +265,15 @@ export default function CreateBookingPage() {
             <label className="ml-2 text-xs font-medium text-slate-700">
               Check In/Out <b className="text-rose-500">*</b>
             </label>
-            <DatePicker value={checkIn} onChange={(v) => v && setCheckIn(v)} className="w-32" />
+            <DatePicker value={checkIn} onChange={(v) => v && setCheckIn(v)} className="w-32" placeholder=" " />
             <span className="text-slate-400">~</span>
             <DatePicker
               value={checkOut}
               onChange={(v) => {
-                if (v && v > checkIn) setNights(diffNights(checkIn, v));
+                if (v && checkIn && v > checkIn) setNights(diffNights(checkIn, v));
               }}
               className="w-32"
+              placeholder=" "
             />
             <select
               value={nights}
@@ -293,6 +298,7 @@ export default function CreateBookingPage() {
                 type="button"
                 onClick={() => {
                   setDestQuery(''); setEntry(null); setSearched(null); setFormError(null);
+                  setCheckIn(''); setNights(1);
                   setRooms(1); setRoomCfg([{ adt: 2, chd: 0, ages: [] }]);
                 }}
                 className="rounded border border-slate-300 bg-white px-4 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
