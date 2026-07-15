@@ -22,7 +22,8 @@ interface Props {
 export default function HotelRoomTab({ code, params }: Props) {
   const hotel = hotelByCode(code);
 
-  const conditions = useMemo<SearchConditions | null>(() => {
+  /** 검색 조건 — 진입 시 쿼리 파라미터로 초기화, 룸리스트 조건 바에서 변경(재검색) 가능 */
+  const [conditions, setConditions] = useState<SearchConditions | null>(() => {
     if (!hotel) return null;
     const nights = Number(params.get('nights') ?? '1') || 1;
     return {
@@ -42,7 +43,7 @@ export default function HotelRoomTab({ code, params }: Props) {
       budget_currency: 'KRW',
       near_station: null,
     };
-  }, [hotel, params]);
+  });
 
   const group = useMemo(() => {
     if (!conditions) return null;
@@ -91,6 +92,7 @@ export default function HotelRoomTab({ code, params }: Props) {
         standalone
         onBack={() => window.close()}
         onSelectRate={setBookingRate}
+        onConditionsChange={setConditions}
       />
 
       {/* Create Hotel Booking 모달 — 생성 시 localStorage 공유 (원래 탭 Bookings 반영) */}

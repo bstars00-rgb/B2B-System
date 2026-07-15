@@ -3,6 +3,7 @@ import type { HotelGroup, RateResult, SearchConditions } from '../types';
 import { buildCityResults, hotelContentOf } from '../mocks/hotelDb';
 import { nextSearchId } from '../mocks';
 import { formatDateTime } from '../utils/format';
+import DatePicker from './DatePicker';
 
 interface Props {
   group: HotelGroup;
@@ -10,28 +11,75 @@ interface Props {
   onBack: () => void;
   /** 요금제 Select — 기존 Create Hotel Booking 모달로 진행 */
   onSelectRate: (rate: RateResult) => void;
+  /** 조건 변경 재검색 시 부모에 통지 (예약 모달 조건 동기화) */
+  onConditionsChange?: (conditions: SearchConditions) => void;
   /** 새 탭 전용 페이지로 열린 경우 (뒤로가기 버튼 숨김 — 상단 바에 ✕ Close 존재) */
   standalone?: boolean;
 }
 
 const nf = new Intl.NumberFormat('en-US');
 
+function addDays(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function diffNights(ci: string, co: string): number {
+  return Math.max(1, Math.round((new Date(co).getTime() - new Date(ci).getTime()) / 86400000));
+}
+
+const barSelect =
+  'rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 focus:border-brand-400 focus:outline-none';
+
 /**
  * 실제 포털 호텔 룸리스트 화면 클론 (/hotel/room/list/...).
- * 호텔 헤더 → 조건 바 → 요금제 테이블(Billing Curr/Gross/Discount/Sum·취소정책·Select) →
+ * 호텔 헤더 → 조건 바(검색 후에도 체크인/아웃·Nights·Rooms·인원 변경 → Select 재검색) →
+ * 요금제 테이블(Billing Curr/Gross/Discount/Sum·취소정책·Select) →
  * Show more → 지도/호텔정보/Neighborhood → Description → Photo.
  */
-export default function HotelRoomListPage({ group, conditions, onBack, onSelectRate, standalone }: Props) {
+export default function HotelRoomListPage({ group, conditions, onBack, onSelectRate, onConditionsChange, standalone }: Props) {
   const [showAll, setShowAll] = useState(false);
 
-  // 지목 호텔의 전체 요금제 재생성 (target 흐름)
+  /** 적용된 검색 조건 (초기값 = 진입 조건, Select 재검색 시 갱신) */
+  const [conds, setConds] = useState<SearchConditions>(conditions);
+  /** 조건 바 편집값 (Select 전까지는 요금에 미반영) */
+  const [ci, setCi] = useState(conditions.check_in ?? '2026-08-20');
+  const [nights, setNights] = useState(conditions.nights ?? 1);
+  const [rooms, setRooms] = useState(conditions.rooms ?? 1);
+  const [adt, setAdt] = useState(conditions.adults ?? 2);
+  const [chd, setChd] = useState(conditions.children ?? 0);
+  const co = addDays(ci, nights);
+
+  const applyConditions = () => {
+    const next: SearchConditions = {
+      ...conds,
+      check_in: ci,
+      check_out: co,
+      nights,
+      rooms,
+      adults: adt,
+      children: chd,
+    };
+    setConds(next);
+    onConditionsChange?.(next);
+  };
+  const resetConditions = () => {
+    setCi(conds.check_in ?? '2026-08-20');
+    setNights(conds.nights ?? 1);
+    setRooms(conds.rooms ?? 1);
+    setAdt(conds.adults ?? 2);
+    setChd(conds.children ?? 0);
+  };
+
+  // 지목 호텔의 전체 요금제 재생성 (target 흐름) — 조건 재검색 시 갱신
   const rates = useMemo(() => {
     const { results } = buildCityResults(nextSearchId(), {
-      ...conditions,
+      ...conds,
       hotel_name: group.hotel_name,
     });
     return results.length > 0 ? results : group.rates;
-  }, [group, conditions]);
+  }, [group, conds]);
 
   const visibleRates = showAll ? rates : rates.slice(0, 4);
   const content = hotelContentOf(group.hotel_id, group.destination);
@@ -57,31 +105,67 @@ export default function HotelRoomListPage({ group, conditions, onBack, onSelectR
         <p className="mt-0.5 text-xs text-slate-500">{content.address}</p>
       </div>
 
-      {/* 조건 바 */}
-      <div className="mt-3 flex flex-wrap items-center gap-3 rounded border border-slate-200 bg-slate-50/50 px-4 py-3 text-xs text-slate-700">
-        <span>
-          Check-in <b className="text-rose-500">*</b>{' '}
-          <span className="ml-1 rounded border border-slate-300 bg-white px-2.5 py-1">{conditions.check_in}</span>
-        </span>
-        <span>
-          Check-out <b className="text-rose-500">*</b>{' '}
-          <span className="ml-1 rounded border border-slate-300 bg-white px-2.5 py-1">{conditions.check_out}</span>
-        </span>
-        <span className="rounded border border-slate-300 bg-white px-2.5 py-1">{conditions.nights} Nights</span>
-        <span>
-          Rooms <b className="text-rose-500">*</b>{' '}
-          <span className="ml-1 rounded border border-slate-300 bg-white px-2.5 py-1">{conditions.rooms ?? 1}</span>
-        </span>
-        <span className="rounded border border-slate-300 bg-white px-2.5 py-1">ADT {conditions.adults ?? 2}</span>
-        <span className="rounded border border-slate-300 bg-white px-2.5 py-1">CHD {conditions.children ?? 0}</span>
-        <span className="ml-auto flex gap-1.5">
-          <span className="cursor-not-allowed rounded bg-brand-500 px-4 py-1.5 font-semibold text-white opacity-80" title="프로토타입 — 조건 재검색은 이전 화면에서">
-            Select
+      {/* 조건 바 — 검색 후에도 변경 가능 (실사이트 동일: 변경 → Select 재검색) */}
+      <div className="mt-3 rounded border border-slate-200 bg-slate-50/50 px-4 py-3 text-xs text-slate-700">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="font-medium">
+            Check-in <b className="text-rose-500">*</b>
           </span>
-          <span className="cursor-not-allowed rounded border border-slate-300 bg-white px-4 py-1.5 text-slate-500">
-            Reset
+          <DatePicker value={ci} onChange={(v) => v && setCi(v)} className="w-32" />
+          <span className="font-medium">
+            Check-out <b className="text-rose-500">*</b>
           </span>
-        </span>
+          <DatePicker
+            value={co}
+            onChange={(v) => {
+              if (v && v > ci) setNights(diffNights(ci, v));
+            }}
+            className="w-32"
+          />
+          <select value={nights} onChange={(e) => setNights(Number(e.target.value))} className={barSelect}>
+            {Array.from({ length: 14 }, (_, i) => i + 1).map((n) => (
+              <option key={n} value={n}>{n} Nights</option>
+            ))}
+          </select>
+          <span className="text-slate-600">Night</span>
+          <span className="ml-auto flex gap-1.5">
+            <button
+              type="button"
+              onClick={applyConditions}
+              className="rounded bg-brand-500 px-4 py-1.5 font-semibold text-white hover:bg-brand-600"
+            >
+              Select
+            </button>
+            <button
+              type="button"
+              onClick={resetConditions}
+              className="rounded border border-slate-300 bg-white px-4 py-1.5 text-slate-600 hover:bg-slate-50"
+            >
+              Reset
+            </button>
+          </span>
+        </div>
+        <div className="mt-2.5 flex flex-wrap items-center gap-3">
+          <span className="font-medium">
+            Rooms <b className="text-rose-500">*</b>
+          </span>
+          <select value={rooms} onChange={(e) => setRooms(Number(e.target.value))} className={barSelect}>
+            {[1, 2, 3, 4, 5].map((n) => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
+          <span className="text-slate-600">Rooms 1</span>
+          <select value={adt} onChange={(e) => setAdt(Number(e.target.value))} className={barSelect}>
+            {[1, 2, 3, 4, 5, 6].map((n) => (
+              <option key={n} value={n}>ADT {n}</option>
+            ))}
+          </select>
+          <select value={chd} onChange={(e) => setChd(Number(e.target.value))} className={barSelect}>
+            {[0, 1, 2, 3].map((n) => (
+              <option key={n} value={n}>CHD {n}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* 요금제 테이블 */}
