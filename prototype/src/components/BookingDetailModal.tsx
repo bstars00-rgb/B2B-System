@@ -174,9 +174,14 @@ export default function BookingDetailModal({ booking, onClose, onCancelBooking }
                 </button>
                 <button
                   type="button"
+                  disabled={booking.payment_status === 'Unpaid'}
                   onClick={() => setShowInvoice(true)}
-                  className="rounded border border-slate-300 bg-white px-3 py-1 text-xs text-slate-600 hover:border-brand-400 hover:text-brand-600"
-                  title="바우처 (프로토타입 — 인보이스와 동일 뷰)"
+                  className="rounded border border-slate-300 bg-white px-3 py-1 text-xs text-slate-600 hover:border-brand-400 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-slate-300 disabled:hover:text-slate-600"
+                  title={
+                    booking.payment_status === 'Unpaid'
+                      ? 'Unpaid — 결제 완료 전에는 바우처를 발행할 수 없습니다'
+                      : '바우처 (프로토타입 — 인보이스와 동일 뷰)'
+                  }
                 >
                   Voucher
                 </button>
