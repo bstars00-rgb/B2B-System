@@ -29,6 +29,25 @@ function diffNights(ci: string, co: string): number {
   return Math.max(1, Math.round((new Date(co).getTime() - new Date(ci).getTime()) / 86400000));
 }
 
+interface RoomCfg {
+  adt: number;
+  chd: number;
+  ages: number[];
+}
+
+/** 적용 조건(총 인원·객실 수) → 룸별 구성 초기화 (성인 균등 배분, 아동은 Room 1) */
+function cfgFromConditions(c: SearchConditions): RoomCfg[] {
+  const n = Math.max(1, c.rooms ?? 1);
+  const adults = Math.max(1, c.adults ?? 2);
+  const children = Math.max(0, c.children ?? 0);
+  const perRoom = Math.max(1, Math.floor(adults / n));
+  return Array.from({ length: n }, (_, i) => {
+    const adt = i === 0 ? Math.max(1, adults - perRoom * (n - 1)) : perRoom;
+    const chd = i === 0 ? children : 0;
+    return { adt, chd, ages: Array.from({ length: chd }, () => 1) };
+  });
+}
+
 const barSelect =
   'rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 focus:border-brand-400 focus:outline-none';
 
@@ -46,10 +65,28 @@ export default function HotelRoomListPage({ group, conditions, onBack, onSelectR
   /** 조건 바 편집값 (Select 전까지는 요금에 미반영) */
   const [ci, setCi] = useState(conditions.check_in ?? '2026-08-20');
   const [nights, setNights] = useState(conditions.nights ?? 1);
-  const [rooms, setRooms] = useState(conditions.rooms ?? 1);
-  const [adt, setAdt] = useState(conditions.adults ?? 2);
-  const [chd, setChd] = useState(conditions.children ?? 0);
+  /** 룸별 인원 구성 — Rooms 변경 시 룸이 추가/제거되고 룸마다 ADT/CHD(아동 나이) 편집 */
+  const [roomCfg, setRoomCfg] = useState<RoomCfg[]>(() => cfgFromConditions(conditions));
   const co = addDays(ci, nights);
+
+  const setRooms = (n: number) => {
+    setRoomCfg((prev) => {
+      const next = [...prev];
+      while (next.length < n) next.push({ adt: 2, chd: 0, ages: [] });
+      return next.slice(0, n);
+    });
+  };
+  const setRoom = (i: number, patch: Partial<RoomCfg>) => {
+    setRoomCfg((prev) =>
+      prev.map((r, idx) => {
+        if (idx !== i) return r;
+        const merged = { ...r, ...patch };
+        while (merged.ages.length < merged.chd) merged.ages.push(1);
+        merged.ages = merged.ages.slice(0, merged.chd);
+        return merged;
+      }),
+    );
+  };
 
   const applyConditions = () => {
     const next: SearchConditions = {
@@ -57,9 +94,9 @@ export default function HotelRoomListPage({ group, conditions, onBack, onSelectR
       check_in: ci,
       check_out: co,
       nights,
-      rooms,
-      adults: adt,
-      children: chd,
+      rooms: roomCfg.length,
+      adults: roomCfg.reduce((s, r) => s + r.adt, 0),
+      children: roomCfg.reduce((s, r) => s + r.chd, 0),
     };
     setConds(next);
     onConditionsChange?.(next);
@@ -67,9 +104,7 @@ export default function HotelRoomListPage({ group, conditions, onBack, onSelectR
   const resetConditions = () => {
     setCi(conds.check_in ?? '2026-08-20');
     setNights(conds.nights ?? 1);
-    setRooms(conds.rooms ?? 1);
-    setAdt(conds.adults ?? 2);
-    setChd(conds.children ?? 0);
+    setRoomCfg(cfgFromConditions(conds));
   };
 
   // 지목 호텔의 전체 요금제 재생성 (target 흐름) — 조건 재검색 시 갱신
@@ -149,22 +184,40 @@ export default function HotelRoomListPage({ group, conditions, onBack, onSelectR
           <span className="font-medium">
             Rooms <b className="text-rose-500">*</b>
           </span>
-          <select value={rooms} onChange={(e) => setRooms(Number(e.target.value))} className={barSelect}>
+          <select value={roomCfg.length} onChange={(e) => setRooms(Number(e.target.value))} className={barSelect}>
             {[1, 2, 3, 4, 5].map((n) => (
               <option key={n} value={n}>{n}</option>
             ))}
           </select>
-          <span className="text-slate-600">Rooms 1</span>
-          <select value={adt} onChange={(e) => setAdt(Number(e.target.value))} className={barSelect}>
-            {[1, 2, 3, 4, 5, 6].map((n) => (
-              <option key={n} value={n}>ADT {n}</option>
-            ))}
-          </select>
-          <select value={chd} onChange={(e) => setChd(Number(e.target.value))} className={barSelect}>
-            {[0, 1, 2, 3].map((n) => (
-              <option key={n} value={n}>CHD {n}</option>
-            ))}
-          </select>
+          {roomCfg.map((r, i) => (
+            <span key={i} className="flex items-center gap-1.5">
+              <span className="text-slate-600">Room {i + 1}</span>
+              <select value={r.adt} onChange={(e) => setRoom(i, { adt: Number(e.target.value) })} className={barSelect}>
+                {[1, 2, 3, 4, 5, 6].map((n) => (
+                  <option key={n} value={n}>ADT {n}</option>
+                ))}
+              </select>
+              <select value={r.chd} onChange={(e) => setRoom(i, { chd: Number(e.target.value) })} className={barSelect}>
+                {[0, 1, 2, 3].map((n) => (
+                  <option key={n} value={n}>CHD {n}</option>
+                ))}
+              </select>
+              {r.ages.map((age, ai) => (
+                <select
+                  key={ai}
+                  value={age}
+                  onChange={(e) =>
+                    setRoom(i, { ages: r.ages.map((a, x) => (x === ai ? Number(e.target.value) : a)) })
+                  }
+                  className={barSelect}
+                >
+                  {Array.from({ length: 17 }, (_, x) => x + 1).map((y) => (
+                    <option key={y} value={y}>{y}years old</option>
+                  ))}
+                </select>
+              ))}
+            </span>
+          ))}
         </div>
       </div>
 

@@ -450,12 +450,15 @@ export function buildCityResults(
     (conditions?.destination ? genericCity(conditions.destination) : CITIES[0]);
 
   const nights = conditions?.nights ?? 2;
+  /** 객실 수 — 요금은 전체 객실 합계(Billing Sum 의미)로 산출 */
+  const roomsCount = conditions?.rooms && conditions.rooms > 0 ? conditions.rooms : 1;
   const deadline = deadlineFor(conditions?.check_in ?? null, city.tzOffset);
 
   const buildForHotel = (h: HotelSeed, i: number): RateSeed[] => {
     const breakfastBase = i % 2 === 0;
     const roomType = h.roomType ?? ROOM_TYPES[i % ROOM_TYPES.length];
     const supplier = SUPPLIERS[i % SUPPLIERS.length];
+    const stay = h.base * nights * roomsCount;
     const common = {
       hotel_id: h.id,
       hotel_name: displayName(h),
@@ -465,6 +468,7 @@ export function buildCityResults(
       longitude: h.lng,
       currency: city.currency,
       total_nights: nights,
+      total_rooms: roomsCount,
       supplier_id: supplier,
       cancellation_deadline: deadline,
     };
@@ -475,7 +479,7 @@ export function buildCityResults(
         rate_plan_name: '베스트 플렉시블',
         meal_plan: breakfastBase ? '조식 포함' : '조식 불포함',
         cancellation_type: 'free_cancellation',
-        net_price: h.base * nights,
+        net_price: stay,
       },
     ];
     if (i % 3 === 0) {
@@ -485,7 +489,7 @@ export function buildCityResults(
         rate_plan_name: '논리펀더블 특가',
         meal_plan: breakfastBase ? '조식 포함' : '조식 불포함',
         cancellation_type: 'non_refundable',
-        net_price: Math.round(h.base * nights * 0.85),
+        net_price: Math.round(stay * 0.85),
       });
     }
     if (i % 4 === 1 && !breakfastBase) {
@@ -495,7 +499,7 @@ export function buildCityResults(
         rate_plan_name: '조식 포함 플렉시블',
         meal_plan: '조식 포함',
         cancellation_type: 'free_cancellation',
-        net_price: Math.round(h.base * nights * 1.12),
+        net_price: Math.round(stay * 1.12),
       });
     }
     // 상위 룸타입 — 호텔당 룸타입이 2개 이상 존재하도록 (룸타입 선택 UX)
@@ -506,7 +510,7 @@ export function buildCityResults(
         rate_plan_name: '프리미엄 플렉시블',
         meal_plan: '조식 포함',
         cancellation_type: 'free_cancellation',
-        net_price: Math.round(h.base * nights * 1.35),
+        net_price: Math.round(stay * 1.35),
       });
     }
     // 재고 상태 변화 (참고용 요금·온리퀘스트 케이스 재현)
@@ -559,13 +563,15 @@ export function buildCityResults(
       longitude: target.lng,
       currency: city.currency,
       total_nights: nights,
+      total_rooms: roomsCount,
       cancellation_deadline: deadline,
     };
-    const base = target.base * nights;
+    const base = target.base * nights * roomsCount;
+    const targetRoom = target.roomType ?? '스탠다드 트윈';
     const targetSeeds: RateSeed[] = [
       {
         ...common,
-        room_type_name: '스탠다드 트윈',
+        room_type_name: targetRoom,
         rate_plan_name: '베스트 플렉시블',
         meal_plan: '조식 불포함',
         cancellation_type: 'free_cancellation',
@@ -574,7 +580,7 @@ export function buildCityResults(
       },
       {
         ...common,
-        room_type_name: '스탠다드 트윈',
+        room_type_name: targetRoom,
         rate_plan_name: '논리펀더블 특가',
         meal_plan: '조식 불포함',
         cancellation_type: 'non_refundable',
@@ -583,7 +589,7 @@ export function buildCityResults(
       },
       {
         ...common,
-        room_type_name: '디럭스 킹',
+        room_type_name: target.roomType ? `${target.roomType} - High Floor` : '디럭스 킹',
         rate_plan_name: '조식 포함 플렉시블',
         meal_plan: '조식 포함',
         cancellation_type: 'free_cancellation',
