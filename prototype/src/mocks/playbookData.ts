@@ -1,7 +1,10 @@
 /**
  * Ellis Playbook 콘텐츠 — B2B Partner Manual (OHMYHOTEL.Biz) 기반.
  * 원본: File by OMH/B2B Partner Manual_EN.pptx (22 slides) 를 플레이북 형태로 구조화.
+ * 언어팩: 한국어(ko) + 영어(en, 원본 매뉴얼 언어). 섹션 id는 언어 간 동일 — 전환 시 현재 위치 유지.
  */
+
+export type PlaybookLang = 'ko' | 'en';
 
 export interface PlaybookBlock {
   /** 소제목 (없으면 본문만) */
@@ -28,7 +31,7 @@ export interface PlaybookChapter {
   sections: PlaybookSection[];
 }
 
-export const PLAYBOOK: PlaybookChapter[] = [
+const PLAYBOOK_KO: PlaybookChapter[] = [
   {
     id: 'getting-started',
     title: '1. Getting Started',
@@ -293,3 +296,279 @@ export const PLAYBOOK: PlaybookChapter[] = [
     ],
   },
 ];
+
+/** 영문판 — 원본 B2B Partner Manual(EN)의 표현을 따름. 섹션 id는 한국어판과 동일. */
+const PLAYBOOK_EN: PlaybookChapter[] = [
+  {
+    id: 'getting-started',
+    title: '1. Getting Started',
+    sections: [
+      {
+        id: 'login',
+        title: 'Log In',
+        blocks: [
+          {
+            text: 'OHMYHOTEL.Biz is a B2B platform where travel agency and OTA partners (Sellers) search, book, and manage hotels. Access the address below and log in.',
+          },
+          {
+            defs: [
+              { term: 'URL', desc: 'https://ohmyhotel.biz/login' },
+              { term: 'Language', desc: 'Select the display language at the top right.' },
+              { term: 'Log in', desc: 'Enter your account (email) and password, then log in.' },
+            ],
+          },
+          {
+            note: 'If your company does not have an account yet, register via "Create one" on the login screen. To add operating (Staff) accounts, ask your OHMYHOTEL manager.',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'confirm-reservation',
+    title: '2. Confirm a Reservation',
+    sections: [
+      {
+        id: 'bookings-menu',
+        title: 'Bookings — List & Columns',
+        blocks: [
+          {
+            text: 'Open Seller > Bookings to view reservations. The list columns mean the following.',
+          },
+          {
+            defs: [
+              { term: 'Booking Date', desc: 'Date and time the booking was created (e.g. 2023-06-30 11:16:53)' },
+              { term: 'OMH Booking Code', desc: 'OHMYHOTEL booking code (e.g. 230630MQ33P01)' },
+              { term: 'Booking Status', desc: 'Booking status (Pending / Confirmed / Cancelled / Unavailable)' },
+              { term: 'Hotel Name', desc: 'Hotel name (e.g. Hotel WBF Fourstay Sapporo)' },
+              { term: 'Client Cancel D/L', desc: 'Deadline for free cancellation by the client (e.g. 2023-07-08 17:00)' },
+              { term: 'C/In Date & Nts', desc: 'Check-in date and nights (e.g. 2023-07-13[3])' },
+              { term: 'Room Type & Count', desc: 'Room type and count (e.g. Standard Twin Non Smoking [1])' },
+              { term: '1st Traveler Name', desc: 'Lead traveler name (e.g. HONG/GILDONG)' },
+              { term: 'B.Curr', desc: 'Bank Currency — billing currency (e.g. KRW)' },
+              { term: 'B.Sum Amt', desc: 'Bank Summary Amount — total billed amount (e.g. 666,780)' },
+              { term: 'BKG Cancel Date', desc: 'Date and time the booking was cancelled (e.g. 2023-06-28 12:35)' },
+              { term: 'Invoice No.', desc: 'Invoice number (e.g. 456123)' },
+              { term: 'Dispute Y/N', desc: 'Whether a dispute exists' },
+              { term: 'Dispute Remark', desc: 'Dispute remark' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'bookings-search',
+        title: 'Search & Excel',
+        blocks: [
+          {
+            steps: [
+              'Set the filters at the top (booking date type & range, ELLIS/Seller code, BKG Status, Payment Status, Booker/Traveler/Mobile, country, hotel name).',
+              'Click Search to load the list.',
+              'Click an OMH Booking Code to open the reservation detail in a modal.',
+              'Click EXCEL to download all searched bookings as an Excel file.',
+            ],
+          },
+        ],
+      },
+      {
+        id: 'reservation-detail',
+        title: 'Reservation Detail',
+        blocks: [
+          {
+            text: 'Click a booking code to open the detail window with the sections below.',
+          },
+          {
+            defs: [
+              { term: 'Reservation number & status', desc: 'OMH booking number · hotel confirmation number · booking status' },
+              { term: "Booker's Information", desc: 'Booker name · email · phone number' },
+              { term: 'Booking Detail', desc: 'Status · check-in/out · region/hotel name · rooms/travelers · room type · meal · breakfast · cancellation deadline (D/L)' },
+              { term: 'Cancel / Voucher / Invoice', desc: 'Cancel: cancel the booking · Voucher: send by email or print · Invoice: send by email or print' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'reservation-detail-2',
+        title: 'Travelers · Payment · Cancellation',
+        blocks: [
+          {
+            defs: [
+              { term: 'Travelers', desc: 'Name · English name · child date of birth' },
+              { term: 'Special Request', desc: 'Special requests written in English' },
+              { term: 'Billing and Payment', desc: 'Check the billed amount and balance' },
+              { term: 'Select Payment Method', desc: 'Credit Card · Virtual Bank (virtual account)' },
+              { term: 'Cancellation Policy', desc: 'Check the cancellation deadline and the penalty schedule' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'make-reservation',
+    title: '3. Make a Reservation',
+    sections: [
+      {
+        id: 'search-conditions',
+        title: 'Search Conditions',
+        blocks: [
+          {
+            text: 'Search hotels in Seller > Create Booking. Required and optional conditions are:',
+          },
+          {
+            defs: [
+              { term: 'Destination (required)', desc: 'Destination or hotel name (code-name autocomplete)' },
+              { term: 'Hotel Name', desc: 'Search by a specific hotel name' },
+              { term: 'Check In/Out (required)', desc: 'Check-in/out dates (Nights auto-linked)' },
+              { term: 'Rooms (required)', desc: 'Default 1 room (2 adults). If a child is included, you must enter the child\'s age.' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'hotel-list',
+        title: 'Hotel List',
+        blocks: [
+          {
+            text: 'Available hotels are shown as a list.',
+          },
+          {
+            defs: [
+              { term: 'Displayed info', desc: 'Hotel English name · star rating · rate' },
+              { term: 'Sorting', desc: 'Recommendation · Star Rating · Fare' },
+              { term: 'Search & Filter', desc: 'Property-name search · rate / star rating / property type / chain brand filters' },
+            ],
+          },
+          {
+            note: 'Click "Select" to view the hotel\'s information and available rooms.',
+          },
+        ],
+      },
+      {
+        id: 'room-list',
+        title: 'Room List · Hotel Info',
+        blocks: [
+          {
+            defs: [
+              { term: 'Change conditions', desc: 'Change check-in/out · Rooms and search again' },
+              { term: 'Available rooms', desc: 'Room type · breakfast · amount' },
+              { term: 'Hotel Information', desc: 'Hotel address and details' },
+              { term: 'Hotel Photos', desc: 'Hotel photos' },
+            ],
+          },
+          {
+            note: 'If results look wrong when searching with children, contact your manager. Click "Select" to move to the booking form.',
+          },
+        ],
+      },
+      {
+        id: 'booking-form',
+        title: 'Booking Form (Create)',
+        blocks: [
+          {
+            defs: [
+              { term: 'Booker', desc: 'Shows the logged-in OP account information.' },
+              { term: 'Booking Detail', desc: 'Check hotel name · check-in/out · room type' },
+              { term: 'Travelers & Special Request', desc: 'Enter traveler names exactly. Enter date of birth for children. If companion names are unknown, enter them like TBA/TBA, TBB/TBB — each name must be different.' },
+              { term: 'Claim Amount', desc: 'Check the amount to be charged by the hotel' },
+              { term: 'Create button', desc: 'Click to create the booking.' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'booking-success',
+        title: 'Booking Complete',
+        blocks: [
+          { text: 'When the booking is created successfully, a completion window appears and the booking is added to the Bookings list (ELLIS/Seller booking codes are issued).' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'confirm-billing',
+    title: '4. Confirm Billing (Prepaid)',
+    sections: [
+      {
+        id: 'invoice-single',
+        title: 'Invoice per Booking',
+        blocks: [
+          {
+            steps: [
+              'Search bookings > click the OMH Booking Code > click Invoice.',
+              'Check the details and the deposit account in the invoice window.',
+              'You can send it by email or print it (PDF).',
+            ],
+          },
+        ],
+      },
+      {
+        id: 'invoice-list',
+        title: 'Invoice List',
+        blocks: [
+          {
+            steps: [
+              'Click the Seller > Invoice category.',
+              'Set the invoice date and search — the invoice list appears below.',
+              'Click an invoice number > check the target bookings > use "Invoice View" to confirm the billing.',
+            ],
+          },
+          {
+            note: 'Invoices are issued after your OHMYHOTEL manager creates them.',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'staff-list',
+    title: '5. Staff List',
+    sections: [
+      {
+        id: 'staff',
+        title: 'Staff List · Registration',
+        blocks: [
+          {
+            text: 'View and register staff accounts in Member List > Staff list.',
+          },
+          {
+            steps: [
+              'Search by ID / Staff / Super User to list staff members.',
+              'Click New to open the User Information window.',
+              'Fill in the required fields (*), verify ID duplication, then Save to create the new account.',
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'contact',
+    title: '6. Contact',
+    sections: [
+      {
+        id: 'contact',
+        title: 'Contact',
+        blocks: [
+          {
+            text: 'If you have any questions while using the platform, contact us below.',
+          },
+          {
+            defs: [
+              { term: 'Mail', desc: 'sales@ohmyhotel.com' },
+              { term: 'Tel', desc: '+82-2-762-0552' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+];
+
+/** 언어팩 — Playbook 언어 전환용 */
+export const PLAYBOOKS: Record<PlaybookLang, PlaybookChapter[]> = {
+  ko: PLAYBOOK_KO,
+  en: PLAYBOOK_EN,
+};
+
+/** 기존 호환 (기본 한국어) */
+export const PLAYBOOK = PLAYBOOK_KO;

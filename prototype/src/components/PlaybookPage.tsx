@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { PLAYBOOK, type PlaybookBlock } from '../mocks/playbookData';
+import { PLAYBOOKS, type PlaybookBlock, type PlaybookLang } from '../mocks/playbookData';
 
 interface Props {
   onClose: () => void;
@@ -47,9 +47,12 @@ function Block({ b }: { b: PlaybookBlock }) {
  * 좌측 목차(챕터/섹션) + 본문. 전체화면 오버레이로 표시.
  */
 export default function PlaybookPage({ onClose }: Props) {
+  /** 언어팩 — 섹션 id가 언어 간 동일해 전환해도 현재 위치 유지 */
+  const [lang, setLang] = useState<PlaybookLang>('ko');
+  const playbook = PLAYBOOKS[lang];
   const flatSections = useMemo(
-    () => PLAYBOOK.flatMap((c) => c.sections.map((s) => ({ chapterId: c.id, ...s }))),
-    [],
+    () => playbook.flatMap((c) => c.sections.map((s) => ({ chapterId: c.id, ...s }))),
+    [playbook],
   );
   const [activeId, setActiveId] = useState(flatSections[0].id);
   const active = flatSections.find((s) => s.id === activeId) ?? flatSections[0];
@@ -68,19 +71,42 @@ export default function PlaybookPage({ onClose }: Props) {
           </span>
           <span className="ml-2 text-[11px] text-slate-400">OHMYHOTEL.Biz Partner Manual</span>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded border border-slate-500 px-3 py-1 text-xs font-medium text-slate-200 hover:bg-slate-700"
-        >
-          ✕ 닫기
-        </button>
+        <div className="flex items-center gap-3">
+          {/* 언어팩 전환 (영/한) */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-slate-400" aria-hidden>🌐</span>
+            <div className="flex overflow-hidden rounded border border-slate-500 text-[11px]">
+              {(['en', 'ko'] as const).map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  onClick={() => setLang(l)}
+                  aria-pressed={lang === l}
+                  className={
+                    lang === l
+                      ? 'bg-brand-500 px-2.5 py-1 font-bold text-white'
+                      : 'px-2.5 py-1 text-slate-300 hover:bg-slate-700'
+                  }
+                >
+                  {l === 'en' ? 'English' : '한국어'}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded border border-slate-500 px-3 py-1 text-xs font-medium text-slate-200 hover:bg-slate-700"
+          >
+            {lang === 'ko' ? '✕ 닫기' : '✕ Close'}
+          </button>
+        </div>
       </header>
 
       <div className="flex min-h-0 flex-1">
         {/* 좌측 목차 */}
         <nav className="w-[260px] shrink-0 overflow-y-auto border-r border-slate-200 bg-slate-50 py-4">
-          {PLAYBOOK.map((chapter) => (
+          {playbook.map((chapter) => (
             <div key={chapter.id} className="mb-3 px-3">
               <p className="px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-400">
                 {chapter.title}
@@ -110,7 +136,7 @@ export default function PlaybookPage({ onClose }: Props) {
         <main className="min-w-0 flex-1 overflow-y-auto">
           <article className="mx-auto max-w-3xl px-8 py-8">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-500">
-              {PLAYBOOK.find((c) => c.id === active.chapterId)?.title}
+              {playbook.find((c) => c.id === active.chapterId)?.title}
             </p>
             <h1 className="mt-1 text-2xl font-bold text-slate-900">{active.title}</h1>
             <div className="mt-5">
