@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { FAQ_POSTS, NOTICE_POSTS, type BoardPost } from '../mocks/boardData';
+import { FAQ_POSTS, NOTICE_POSTS, postBody, postTitle, type BoardLang, type BoardPost } from '../mocks/boardData';
 
 interface Props {
   kind: 'faq' | 'notice';
@@ -9,6 +9,7 @@ interface Props {
  * 실제 포털 FAQ Board / Notice Board 클론.
  * 검색 바 → 카운트/페이지 크기 → 목록 그리드(Post SEQ 링크) → 페이저,
  * Post SEQ 클릭 시 상세 모달(제목·Register Date·Views·본문·Close).
+ * FAQ는 언어팩(영/한) 토글 지원 — 검색은 양 언어 제목 모두 매칭.
  */
 export default function BoardPage({ kind }: Props) {
   const posts = kind === 'faq' ? FAQ_POSTS : NOTICE_POSTS;
@@ -18,16 +19,19 @@ export default function BoardPage({ kind }: Props) {
   const [query, setQuery] = useState('');
   const [applied, setApplied] = useState('');
   const [detail, setDetail] = useState<BoardPost | null>(null);
+  /** FAQ 언어팩 (Notice는 영문 원문 게시판이라 토글 없음) */
+  const [lang, setLang] = useState<BoardLang>('ko');
   /** 세션 내 조회수 증가분 */
   const [viewBump, setViewBump] = useState<Record<number, number>>({});
 
-  const rows = useMemo(
-    () =>
-      applied.trim()
-        ? posts.filter((p) => p.title.toLowerCase().includes(applied.trim().toLowerCase()))
-        : posts,
-    [posts, applied],
-  );
+  const rows = useMemo(() => {
+    const q = applied.trim().toLowerCase();
+    if (!q) return posts;
+    // 표시 언어와 무관하게 한/영 제목 모두 검색 매칭
+    return posts.filter(
+      (p) => p.title.toLowerCase().includes(q) || (p.titleEn?.toLowerCase().includes(q) ?? false),
+    );
+  }, [posts, applied]);
 
   const openDetail = (p: BoardPost) => {
     setViewBump((prev) => ({ ...prev, [p.seq]: (prev[p.seq] ?? 0) + 1 }));
@@ -65,12 +69,36 @@ export default function BoardPage({ kind }: Props) {
           </button>
         </div>
 
-        {/* 카운트 + 페이지 크기 */}
+        {/* 카운트 + 언어팩(FAQ) + 페이지 크기 */}
         <div className="mt-3 flex items-center justify-between">
           <span className="text-sm font-bold text-brand-500">{rows.length}</span>
-          <select disabled className="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-600">
-            <option>20</option>
-          </select>
+          <div className="flex items-center gap-3">
+            {kind === 'faq' && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-slate-400" aria-hidden>🌐</span>
+                <div className="flex overflow-hidden rounded border border-slate-300 text-[11px]">
+                  {(['en', 'ko'] as const).map((l) => (
+                    <button
+                      key={l}
+                      type="button"
+                      onClick={() => setLang(l)}
+                      aria-pressed={lang === l}
+                      className={
+                        lang === l
+                          ? 'bg-brand-500 px-2.5 py-1 font-bold text-white'
+                          : 'bg-white px-2.5 py-1 text-slate-500 hover:bg-slate-50'
+                      }
+                    >
+                      {l === 'en' ? 'English' : '한국어'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <select disabled className="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-600">
+              <option>20</option>
+            </select>
+          </div>
         </div>
 
         {/* 목록 그리드 */}
@@ -108,7 +136,7 @@ export default function BoardPage({ kind }: Props) {
                     <td className="px-3 py-3 text-center text-slate-600">{p.badge}</td>
                     <td className="px-3 py-3 text-left text-slate-700">
                       <button type="button" onClick={() => openDetail(p)} className="hover:text-brand-600">
-                        {p.title}
+                        {postTitle(p, lang)}
                       </button>
                     </td>
                     <td className="px-3 py-3 text-center text-slate-600">{p.time}</td>
@@ -162,14 +190,14 @@ export default function BoardPage({ kind }: Props) {
             </div>
             <div className="max-h-[75vh] overflow-y-auto p-6">
               <div className="rounded border border-slate-200">
-                <h4 className="px-6 py-5 text-center text-base font-bold text-slate-900">{detail.title}</h4>
+                <h4 className="px-6 py-5 text-center text-base font-bold text-slate-900">{postTitle(detail, lang)}</h4>
                 <div className="flex justify-end gap-4 border-y border-slate-100 bg-slate-50/60 px-4 py-2 text-[11px] text-slate-500">
                   <span>Register Date : {detail.time}</span>
                   <span>|</span>
                   <span>Views : {detail.views + (viewBump[detail.seq] ?? 0)}</span>
                 </div>
                 <div className="whitespace-pre-wrap px-6 py-5 text-[13px] leading-relaxed text-slate-700">
-                  {detail.body}
+                  {postBody(detail, lang)}
                 </div>
               </div>
               <div className="mt-4 flex justify-end">
