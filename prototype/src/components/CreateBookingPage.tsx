@@ -122,6 +122,7 @@ export default function CreateBookingPage() {
       budget_max: null,
       budget_currency: 'KRW',
       near_station: null,
+      child_ages: roomCfg.flatMap((r) => r.ages),
     };
     // 실사이트 동작 재현 — 공급사/ELLIS 요금 조회 지연 후 결과 표시
     setSearching(true);
@@ -206,6 +207,7 @@ export default function CreateBookingPage() {
       adt: String(c.adults ?? 2),
       chd: String(c.children ?? 0),
     });
+    if (c.child_ages && c.child_ages.length > 0) q.set('ages', c.child_ages.join(','));
     window.open(`${window.location.pathname}?${q.toString()}`, '_blank');
   };
 

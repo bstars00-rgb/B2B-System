@@ -26,6 +26,10 @@ export default function HotelRoomTab({ code, params }: Props) {
   const [conditions, setConditions] = useState<SearchConditions | null>(() => {
     if (!hotel) return null;
     const nights = Number(params.get('nights') ?? '1') || 1;
+    const ages = (params.get('ages') ?? '')
+      .split(',')
+      .map(Number)
+      .filter((n) => Number.isFinite(n) && n > 0);
     return {
       raw_query: `[Hotel Room List] ${hotel.hotelName}`,
       destination: hotel.destination,
@@ -42,6 +46,7 @@ export default function HotelRoomTab({ code, params }: Props) {
       budget_max: null,
       budget_currency: 'KRW',
       near_station: null,
+      child_ages: ages.length > 0 ? ages : null,
     };
   });
 

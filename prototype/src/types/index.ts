@@ -57,6 +57,8 @@ export interface SearchConditions {
   budget_currency: string;
   /** 요청 룸타입 (예: ['더블','트윈'] — "더블+트윈 각각 1개씩" 분리 예약 요청) */
   room_types?: string[] | null;
+  /** 검색 시 지정한 아동 나이 목록 (예약 모달 Child Birthday 검증용) */
+  child_ages?: number[] | null;
   /** 역/지하철 인접 호텔만 (후속 정제 질문: "역에서 가까운 곳만") */
   near_station: boolean | null;
 }

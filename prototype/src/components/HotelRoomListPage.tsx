@@ -41,11 +41,12 @@ function cfgFromConditions(c: SearchConditions): RoomCfg[] {
   const n = Math.max(1, c.rooms ?? 1);
   const adults = Math.max(1, c.adults ?? 2);
   const children = Math.max(0, c.children ?? 0);
+  const knownAges = c.child_ages && c.child_ages.length === children ? c.child_ages : null;
   const perRoom = Math.max(1, Math.floor(adults / n));
   return Array.from({ length: n }, (_, i) => {
     const adt = i === 0 ? Math.max(1, adults - perRoom * (n - 1)) : perRoom;
     const chd = i === 0 ? children : 0;
-    return { adt, chd, ages: Array.from({ length: chd }, () => 1) };
+    return { adt, chd, ages: knownAges && i === 0 ? [...knownAges] : Array.from({ length: chd }, () => 1) };
   });
 }
 
@@ -98,6 +99,7 @@ export default function HotelRoomListPage({ group, conditions, onBack, onSelectR
       rooms: roomCfg.length,
       adults: roomCfg.reduce((s, r) => s + r.adt, 0),
       children: roomCfg.reduce((s, r) => s + r.chd, 0),
+      child_ages: roomCfg.flatMap((r) => r.ages),
     };
     setConds(next);
     onConditionsChange?.(next);

@@ -32,12 +32,15 @@ export default function CreateBookingModal({ rate, conditions, onClose, onCreate
   const [lastName, setLastName] = useState('');
   const [firstName, setFirstName] = useState('');
   const [confirmClose, setConfirmClose] = useState(false);
+  /** 아동별 생년월일 입력값 (yyyy-mm-dd) */
+  const [childBirthdays, setChildBirthdays] = useState<string[]>([]);
   const openedAtRef = useRef(0);
-  // 모달이 새로 열릴 때 이전 닫기확인 상태 초기화 (Close→Confirm으로 닫은 뒤 재오픈 시 잔존 방지)
+  // 모달이 새로 열릴 때 이전 닫기확인 상태·아동 생년월일 초기화
   useEffect(() => {
     if (rate) {
       openedAtRef.current = Date.now();
       setConfirmClose(false);
+      setChildBirthdays([]);
     }
   }, [rate]);
   if (!rate) return null;
@@ -47,11 +50,34 @@ export default function CreateBookingModal({ rate, conditions, onClose, onCreate
 
   const nights = rate.total_nights;
   const rooms = conditions?.rooms ?? rate.total_rooms;
-  const travelers = (conditions?.adults ?? 2) + (conditions?.children ?? 0);
-  const travelerRows = Math.min(travelers, 4);
+  const adultCount = conditions?.adults ?? 2;
+  const childCount = conditions?.children ?? 0;
+  const travelers = adultCount + childCount;
   const checkIn = conditions?.check_in ?? '2026-08-20';
   const checkOut = conditions?.check_out ?? '2026-08-22';
   const total = rate.selling_price + rate.tax;
+
+  /** 투숙객 행 — 성인 먼저(최대 4행), 아동은 항상 표시 (실사이트: 아동 행에만 Child Birthday 입력) */
+  const travelerRowDefs = [
+    ...Array.from({ length: Math.min(adultCount, 4) }, () => ({ isChild: false, childIndex: -1 })),
+    ...Array.from({ length: childCount }, (_, k) => ({ isChild: true, childIndex: k })),
+  ];
+
+  /** 생년월일 검증 — 검색 시 지정한 아동 나이와 체크인 기준 만 나이 비교 */
+  const childWarning = (childIndex: number): string | null => {
+    const v = (childBirthdays[childIndex] ?? '').trim();
+    if (!v) return null;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return '형식: yyyy-mm-dd';
+    const ref = new Date(`${checkIn}T00:00:00`);
+    const b = new Date(`${v}T00:00:00`);
+    if (Number.isNaN(b.getTime()) || b > ref) return '생년월일이 올바르지 않습니다';
+    let age = ref.getFullYear() - b.getFullYear();
+    if (ref.getMonth() < b.getMonth() || (ref.getMonth() === b.getMonth() && ref.getDate() < b.getDate())) age -= 1;
+    const expected = conditions?.child_ages?.[childIndex];
+    if (expected != null && age !== expected)
+      return `⚠ 검색한 아동 나이 ${expected}세와 불일치 — 이 생년월일은 체크인 기준 만 ${age}세입니다`;
+    return null;
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-6" role="dialog" aria-modal="true">
@@ -183,7 +209,7 @@ export default function CreateBookingModal({ rate, conditions, onClose, onCreate
                   </tr>
                 </thead>
                 <tbody>
-                  {Array.from({ length: travelerRows }, (_, i) => (
+                  {travelerRowDefs.map((rowDef, i) => (
                     <tr key={i} className="border-b border-slate-100 last:border-b-0">
                       <td className="px-3 py-2 text-center text-slate-600">Room 1</td>
                       <td className="px-3 py-2">
@@ -219,7 +245,35 @@ export default function CreateBookingModal({ rate, conditions, onClose, onCreate
                           />
                         </div>
                       </td>
-                      <td className="px-3 py-2 text-center text-slate-300">—</td>
+                      <td className="px-3 py-2 text-center">
+                        {rowDef.isChild ? (
+                          <div className="mx-auto w-36 text-left">
+                            <input
+                              placeholder="yyyy-mm-dd"
+                              value={childBirthdays[rowDef.childIndex] ?? ''}
+                              onChange={(e) =>
+                                setChildBirthdays((prev) => {
+                                  const next = [...prev];
+                                  next[rowDef.childIndex] = e.target.value;
+                                  return next;
+                                })
+                              }
+                              className={`w-full rounded border px-2 py-1.5 placeholder:italic placeholder:text-slate-400 ${
+                                childWarning(rowDef.childIndex)
+                                  ? 'border-rose-400 bg-rose-50/40'
+                                  : 'border-slate-300'
+                              }`}
+                            />
+                            {childWarning(rowDef.childIndex) && (
+                              <p className="mt-1 text-[10px] font-medium leading-snug text-rose-600">
+                                {childWarning(rowDef.childIndex)}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-slate-300">—</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
