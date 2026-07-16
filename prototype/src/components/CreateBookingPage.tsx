@@ -288,6 +288,7 @@ export default function CreateBookingPage() {
               }}
               className="w-32"
               placeholder=" "
+              minDate={checkIn ? addDays(checkIn, 1) : undefined}
             />
             <select
               value={nights}

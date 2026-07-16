@@ -6,6 +6,8 @@ interface Props {
   onChange: (value: string) => void;
   className?: string;
   placeholder?: string;
+  /** 이 날짜 이전은 선택 불가 (기본: 오늘 — 실사이트처럼 과거 날짜 검색 방지) */
+  minDate?: string;
 }
 
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
@@ -25,9 +27,11 @@ function iso(y: number, m: number, d: number): string {
  * 트리거(입력 모양 + 달력 아이콘) 클릭 시 월 캘린더 팝업:
  * ‹ MON YYYY › 헤더, 일(빨강)·토(파랑) 요일 색상, 선택일 주황 원.
  */
-export default function DatePicker({ value, onChange, className, placeholder }: Props) {
+export default function DatePicker({ value, onChange, className, placeholder, minDate }: Props) {
   const [open, setOpen] = useState(false);
   const parsed = parse(value);
+  const now = new Date();
+  const min = minDate ?? iso(now.getFullYear(), now.getMonth(), now.getDate());
   const [viewY, setViewY] = useState(parsed?.y ?? 2026);
   const [viewM, setViewM] = useState(parsed?.m ?? 6);
   const ref = useRef<HTMLDivElement>(null);
@@ -121,24 +125,34 @@ export default function DatePicker({ value, onChange, className, placeholder }: 
             {grid.map((d, i) => {
               if (d === null) return <span key={`e${i}`} />;
               const dow = i % 7;
+              const dateIso = iso(viewY, viewM, d);
+              // 실사이트 동일 — 오늘(또는 minDate) 이전 날짜는 흐리게 표시·선택 불가
+              const disabled = dateIso < min;
               const selected =
                 parsed && parsed.y === viewY && parsed.m === viewM && parsed.d === d;
               return (
                 <button
                   key={d}
                   type="button"
+                  disabled={disabled}
                   onClick={() => {
-                    onChange(iso(viewY, viewM, d));
+                    onChange(dateIso);
                     setOpen(false);
                   }}
                   className={`mx-auto flex h-7 w-7 items-center justify-center rounded-full transition-colors ${
-                    selected
-                      ? 'bg-brand-500 font-bold text-white'
-                      : dow === 0
-                        ? 'text-rose-500 hover:bg-slate-100'
+                    disabled
+                      ? dow === 0
+                        ? 'cursor-default text-rose-200'
                         : dow === 6
-                          ? 'text-sky-500 hover:bg-slate-100'
-                          : 'text-slate-700 hover:bg-slate-100'
+                          ? 'cursor-default text-sky-200'
+                          : 'cursor-default text-slate-300'
+                      : selected
+                        ? 'bg-brand-500 font-bold text-white'
+                        : dow === 0
+                          ? 'text-rose-500 hover:bg-slate-100'
+                          : dow === 6
+                            ? 'text-sky-500 hover:bg-slate-100'
+                            : 'text-slate-700 hover:bg-slate-100'
                   }`}
                 >
                   {d}

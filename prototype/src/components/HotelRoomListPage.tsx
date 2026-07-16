@@ -167,6 +167,7 @@ export default function HotelRoomListPage({ group, conditions, onBack, onSelectR
               if (v && v > ci) setNights(diffNights(ci, v));
             }}
             className="w-32"
+            minDate={addDays(ci, 1)}
           />
           <select value={nights} onChange={(e) => setNights(Number(e.target.value))} className={barSelect}>
             {Array.from({ length: 14 }, (_, i) => i + 1).map((n) => (
