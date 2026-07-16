@@ -310,6 +310,14 @@ const ROOM_TYPES = [
   '이그제큐티브 트윈',
 ];
 
+/** 룸타입 키워드 사전 — 자연어 파서(요청 인식)와 요금 필터(room_type_name 매칭) 공용 */
+export const ROOM_TYPE_MATCHERS: Record<string, RegExp> = {
+  더블: /더블|double/i,
+  트윈: /트윈|twin/i,
+  싱글: /싱글|single/i,
+  스위트: /스위트|suite/i,
+};
+
 const SUPPLIERS = ['SUP-ELLIS-01', 'SUP-EPS-02', 'SUP-HB-03'];
 
 function cityFor(destination: string | null): CityDef | null {
@@ -528,6 +536,11 @@ export function buildCityResults(
 
   const passes = (s: RateSeed): boolean => {
     if (conditions?.star_rating && (s.star_rating ?? 0) < conditions.star_rating) return false;
+    // 룸타입 요청 ("더블+트윈 각각 1개씩") — 요청 타입 중 하나와 매칭되는 요금제만
+    if (conditions?.room_types && conditions.room_types.length > 0) {
+      const name = s.room_type_name ?? '';
+      if (!conditions.room_types.some((t) => ROOM_TYPE_MATCHERS[t]?.test(name))) return false;
+    }
     if (conditions?.breakfast_included === true && s.meal_plan !== '조식 포함') return false;
     if (conditions?.breakfast_included === false && s.meal_plan === '조식 포함') return false;
     if (conditions?.free_cancellation_only === true && s.cancellation_type !== 'free_cancellation')

@@ -1,5 +1,5 @@
 import type { SearchConditions } from '../types';
-import { matchHotelName } from '../mocks/hotelDb';
+import { matchHotelName, ROOM_TYPE_MATCHERS } from '../mocks/hotelDb';
 
 /**
  * 규칙 기반 mock 자연어 파서 (한국어 기준).
@@ -28,15 +28,25 @@ const KNOWN_DESTINATIONS = [
   '부산',
 ];
 
-const BASE_YEAR = 2026;
-const BASE_MONTH = 7; // 프로토타입 기준일 2026-07
-
 function toIsoDate(year: number, month: number, day: number): string {
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-function resolveYear(month: number): number {
-  return month < BASE_MONTH ? BASE_YEAR + 1 : BASE_YEAR;
+/**
+ * 연도 미지정 날짜의 연도 해석 — 오늘(실행 시점) 기준으로 이미 지난 날짜면 다음 해로.
+ * 예: 오늘이 2026-07-16이면 "4월 15일" → 2027-04-15 (과거 날짜로 임의 단정 금지).
+ */
+function resolveYear(month: number, day: number): number {
+  const now = new Date();
+  const y = now.getFullYear();
+  const todayMid = new Date(y, now.getMonth(), now.getDate());
+  return new Date(y, month - 1, day) < todayMid ? y + 1 : y;
+}
+
+/** 질문에 명시된 연도 ("2027년 4월…") — 없으면 null */
+function explicitYear(q: string): number | null {
+  const m = q.match(/(20\d{2})\s*년/);
+  return m ? Number(m[1]) : null;
 }
 
 interface DateRange {
@@ -46,6 +56,8 @@ interface DateRange {
 }
 
 function parseDates(q: string): DateRange {
+  const yearInQuery = explicitYear(q);
+
   // "8월 20일~23일", "8월 20일부터 8월 23일까지" — 종료일 숫자가 "N박"의 N이면 제외
   let m = q.match(
     /(\d{1,2})\s*월\s*(\d{1,2})\s*일?\s*(?:~|-|부터|에서)\s*(?:(\d{1,2})\s*월\s*)?(\d{1,2})(?!\s*박)\s*일?/,
@@ -55,8 +67,8 @@ function parseDates(q: string): DateRange {
     const d1 = Number(m[2]);
     const m2 = m[3] ? Number(m[3]) : m1;
     const d2 = Number(m[4]);
-    const y1 = resolveYear(m1);
-    const y2 = m2 < m1 ? y1 + 1 : resolveYear(m2);
+    const y1 = yearInQuery ?? resolveYear(m1, d1);
+    const y2 = m2 < m1 ? y1 + 1 : y1; // 월이 거꾸로면 해 넘김 (12월 30일~1월 2일)
     const ci = toIsoDate(y1, m1, d1);
     const co = toIsoDate(y2, m2, d2);
     const nights = Math.max(
@@ -73,8 +85,8 @@ function parseDates(q: string): DateRange {
     const d1 = Number(m[2]);
     const m2 = m[3] ? Number(m[3]) : m1;
     const d2 = Number(m[4]);
-    const y1 = resolveYear(m1);
-    const y2 = m2 < m1 ? y1 + 1 : resolveYear(m2);
+    const y1 = yearInQuery ?? resolveYear(m1, d1);
+    const y2 = m2 < m1 ? y1 + 1 : y1;
     const ci = toIsoDate(y1, m1, d1);
     const co = toIsoDate(y2, m2, d2);
     const nights = Math.max(
@@ -90,7 +102,7 @@ function parseDates(q: string): DateRange {
   if (m) {
     const m1 = Number(m[1]);
     const d1 = Number(m[2]);
-    const y1 = resolveYear(m1);
+    const y1 = yearInQuery ?? resolveYear(m1, d1);
     const nights = nightsMatch ? Number(nightsMatch[1]) : 1;
     const ci = new Date(`${toIsoDate(y1, m1, d1)}T00:00:00`);
     const co = new Date(ci.getTime() + nights * 86400000);
@@ -107,6 +119,7 @@ function parseDates(q: string): DateRange {
 
   return { check_in: null, check_out: null, nights: null };
 }
+
 
 export function parseQuery(query: string): SearchConditions {
   const q = query.trim();
@@ -132,10 +145,20 @@ export function parseQuery(query: string): SearchConditions {
     if (genericMatch) adults = Number(genericMatch[1]);
   }
 
-  // 객실 수
+  // 룸타입 ("더블+트윈", "트윈룸으로") — 분리 예약 요청 인식
+  const room_types = Object.entries(ROOM_TYPE_MATCHERS)
+    .filter(([, re]) => re.test(q))
+    .map(([k]) => k);
+
+  // 객실 수 ("객실 2개", "2룸", "방 1개")
   let rooms: number | null = null;
-  const roomMatch = q.match(/객실\s*(\d+)|(\d+)\s*(?:개\s*)?객실|(\d+)\s*룸/);
-  if (roomMatch) rooms = Number(roomMatch[1] ?? roomMatch[2] ?? roomMatch[3]);
+  const roomMatch = q.match(/객실\s*(\d+)|(\d+)\s*(?:개\s*)?객실|(\d+)\s*룸|(?:방|룸)\s*(\d+)\s*개/);
+  if (roomMatch) rooms = Number(roomMatch[1] ?? roomMatch[2] ?? roomMatch[3] ?? roomMatch[4]);
+  // "더블+트윈 각각 (방)1개씩" → 룸타입 수 × N개
+  if (room_types.length >= 2 && /각각|각\s|씩/.test(q)) {
+    const per = q.match(/각각?\s*(?:방|객실|룸)?\s*(\d+)\s*(?:개|실)?\s*씩?/);
+    rooms = room_types.length * (per ? Number(per[1]) : 1);
+  }
 
   // 성급
   let star_rating: number | null = null;
@@ -178,6 +201,7 @@ export function parseQuery(query: string): SearchConditions {
     budget_max,
     budget_currency: 'KRW',
     near_station,
+    room_types: room_types.length > 0 ? room_types : null,
   };
 }
 
@@ -205,6 +229,7 @@ export function mergeConditions(
     free_cancellation_only: fresh.free_cancellation_only ?? prev.free_cancellation_only,
     budget_max: fresh.budget_max ?? prev.budget_max,
     near_station: fresh.near_station ?? prev.near_station,
+    room_types: fresh.room_types ?? prev.room_types,
   };
 }
 
@@ -222,7 +247,8 @@ export function hasAnySignal(c: SearchConditions): boolean {
       c.breakfast_included !== null ||
       c.free_cancellation_only !== null ||
       c.budget_max ||
-      c.near_station !== null,
+      c.near_station !== null ||
+      (c.room_types && c.room_types.length > 0),
   );
 }
 
@@ -236,6 +262,7 @@ export function describeSignals(c: SearchConditions): string[] {
   if (c.adults) labels.push(`성인 ${c.adults}명`);
   if (c.children) labels.push(`아동 ${c.children}명`);
   if (c.rooms) labels.push(`객실 ${c.rooms}개`);
+  if (c.room_types && c.room_types.length > 0) labels.push(`룸타입 ${c.room_types.join('+')}`);
   if (c.star_rating) labels.push(`${c.star_rating}성급 이상`);
   if (c.breakfast_included === true) labels.push('조식 포함만');
   if (c.breakfast_included === false) labels.push('조식 불포함만');

@@ -55,6 +55,8 @@ export interface SearchConditions {
   free_cancellation_only: boolean | null;
   budget_max: number | null;
   budget_currency: string;
+  /** 요청 룸타입 (예: ['더블','트윈'] — "더블+트윈 각각 1개씩" 분리 예약 요청) */
+  room_types?: string[] | null;
   /** 역/지하철 인접 호텔만 (후속 정제 질문: "역에서 가까운 곳만") */
   near_station: boolean | null;
 }

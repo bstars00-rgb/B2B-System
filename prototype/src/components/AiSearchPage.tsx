@@ -213,15 +213,21 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
         return;
       }
 
-      // 목적지도 호텔도 없는 첫 검색 — 임의 도시로 검색하지 않고 되묻기
+      // 목적지도 호텔도 없는 첫 검색 — 임의 도시로 검색하지 않고, 이해한 조건을 확인시키며 되묻기
       if (!parsed.destination && !parsed.hotel_name) {
-        setMessages((prev) => [
-          ...prev,
-          makeMsg(
-            'assistant',
-            '어느 도시(또는 호텔)의 요금을 찾아드릴까요? 예: "방콕 8월 15일~17일 성인 2명 무료취소" 처럼 목적지와 날짜를 함께 알려주시면 바로 조회하겠습니다.',
-          ),
-        ]);
+        const understood = describeSignals(parsed);
+        // 연도 미지정 날짜를 다음 해로 해석한 경우 가정을 명시 (과거 날짜 임의 단정 금지)
+        const yearNote =
+          parsed.check_in &&
+          !/20\d{2}/.test(query) &&
+          Number(parsed.check_in.slice(0, 4)) > new Date().getFullYear()
+            ? ` (연도가 없어 아직 지나지 않은 ${parsed.check_in.slice(0, 4)}년으로 해석했습니다 — 다르면 알려주세요)`
+            : '';
+        const ask =
+          understood.length > 0
+            ? `조건은 확인했습니다: ${understood.join(' · ')}${yearNote}\n\n목적지(도시)나 호텔명이 없어 아직 조회할 수 없습니다. 어느 도시(또는 호텔)로 찾아드릴까요?`
+            : '어느 도시(또는 호텔)의 요금을 찾아드릴까요? 예: "방콕 8월 15일~17일 성인 2명 무료취소" 처럼 목적지와 날짜를 함께 알려주시면 바로 조회하겠습니다.';
+        setMessages((prev) => [...prev, makeMsg('assistant', ask)]);
         return;
       }
 
