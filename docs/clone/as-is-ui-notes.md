@@ -10,7 +10,8 @@
 | 폰트 패밀리 | `Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", (emoji), sans-serif` | 2026-07-15 실측. **Pretendard 웹폰트 실로딩**(웨이트 100~900 @font-face, 400/500 활성) — 클론은 jsdelivr dynamic-subset CSS 사용 |
 | 기본 폰트 크기 | 12px (body) | 버튼 12px/500, 인풋 12px/400 |
 | 기본 텍스트 색 | `#333333` | body color 실측 |
-| 브랜드 오렌지 | (측정 예정) | Search 버튼·활성 메뉴 |
+| 브랜드 오렌지 | `#EF7F29` (rgb 239,127,41) | 2026-07-15 로그인 화면 실측. 클론 tailwind brand-500 반영 |
+| 버튼/인풋 | radius 5px · 높이 30px · 버튼 12px/500 | 로그인 화면 실측. 인풋 보더 `#E0E0E0` |
 | 사이드바 폭 | (측정 예정) | |
 | 로고 바 배경 | (측정 예정) | 다크 블록 |
 | 그리드 헤더 | (측정 예정) | Kendo UI 여부 확인 — Roboto·Material Icons·FontAwesome·WebComponentsIcons 폰트 등록 확인(Kendo 계열 정황) |
