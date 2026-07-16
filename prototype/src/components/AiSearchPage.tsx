@@ -367,6 +367,8 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
             ))}
           </div>
 
+          {/* 데모/개발용 컨트롤 — AI 요금 검색 탭에서만 표시 (다른 화면은 실사이트와 동일한 셸) */}
+          {view === 'ai' && (
           <div className="flex items-center gap-3 pb-1.5">
             {/* 권한 토글 — 내부 뷰 (net/markup) */}
             <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-slate-600">
@@ -415,6 +417,7 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
               기존 검색 화면 ↗
             </a>
           </div>
+          )}
         </div>
 
         {/* ── 본문: Bookings / Create Booking / AI 검색 (좌 채팅 / 우 조건+결과) ── */}
@@ -507,29 +510,31 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
         </div>
         )}
 
-        {/* ── 하단: 상태 바 + 실제 포털 푸터 ── */}
+        {/* ── 하단: 상태 바(AI 탭 전용) + 실제 포털 푸터 ── */}
         <footer className="shrink-0 border-t border-slate-200 bg-white px-4 py-1.5 text-[10px] text-slate-400">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="flex items-center gap-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                MCP 미연결 — Mock Data 모드
-              </span>
-              <span>
-                시나리오: <b className="text-slate-600">{scenarioMeta?.label}</b> (
-                {scenarioMeta?.description})
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              {response && (
-                <span>
-                  마지막 검색: {response.search_id} · {formatDateTime(response.searched_at)}
+          {view === 'ai' && (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                  MCP 미연결 — Mock Data 모드
                 </span>
-              )}
-              <span>ellis-mcp v0.1 · 조회 전용 (예약/결제 도구 없음)</span>
+                <span>
+                  시나리오: <b className="text-slate-600">{scenarioMeta?.label}</b> (
+                  {scenarioMeta?.description})
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                {response && (
+                  <span>
+                    마지막 검색: {response.search_id} · {formatDateTime(response.searched_at)}
+                  </span>
+                )}
+                <span>ellis-mcp v0.1 · 조회 전용 (예약/결제 도구 없음)</span>
+              </div>
             </div>
-          </div>
-          <div className="mt-1 flex items-center justify-between border-t border-slate-100 pt-1 text-[9px] text-slate-300">
+          )}
+          <div className={`flex items-center justify-between text-[9px] text-slate-300 ${view === 'ai' ? 'mt-1 border-t border-slate-100 pt-1' : ''}`}>
             <span>
               © 2025 OHMYHOTEL GLOBAL PTE. LTD. All rights reserved. · Business number 105-87-71311
               · Ceo : Lee Mi Soon
