@@ -17,7 +17,7 @@ function Row({ label, value, valueClass }: { label: ReactNode; value: ReactNode;
       <div className="w-[190px] shrink-0 bg-slate-50 px-4 py-2.5 font-medium text-slate-600">
         {label}
       </div>
-      <div className={`flex-1 px-4 py-2.5 text-slate-800 ${valueClass ?? ''}`}>{value}</div>
+      <div className={`min-w-0 flex-1 px-4 py-2.5 text-slate-800 ${valueClass ?? ''}`}>{value}</div>
     </div>
   );
 }
@@ -149,8 +149,8 @@ export default function CreateBookingModal({ rate, conditions, onClose, onCreate
                 label="Mobile No"
                 value={
                   <div className="flex gap-2">
-                    <input defaultValue="81" className="w-16 rounded border border-slate-300 px-2.5 py-1.5 text-[13px]" />
-                    <input defaultValue="9080863551" className="flex-1 rounded border border-slate-300 px-2.5 py-1.5 text-[13px]" />
+                    <input defaultValue="81" className="w-14 shrink-0 rounded border border-slate-300 px-2.5 py-1.5 text-[13px]" />
+                    <input defaultValue="9080863551" className="min-w-0 flex-1 rounded border border-slate-300 px-2.5 py-1.5 text-[13px]" />
                   </div>
                 }
               />
