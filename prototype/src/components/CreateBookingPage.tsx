@@ -64,6 +64,10 @@ export default function CreateBookingPage() {
     groups: HotelGroup[];
     conditions: SearchConditions;
   } | null>(null);
+  /** 조회 중 (실사이트: 데이터 조회 지연) */
+  const [searching, setSearching] = useState(false);
+  const searchTimer = useRef<number | null>(null);
+  useEffect(() => () => { if (searchTimer.current) window.clearTimeout(searchTimer.current); }, []);
   const [sort, setSort] = useState<SortKey>('rec');
   const [nameFilter, setNameFilter] = useState('');
   const [starSel, setStarSel] = useState<number[]>([]);
@@ -119,17 +123,24 @@ export default function CreateBookingPage() {
       budget_currency: 'KRW',
       near_station: null,
     };
-    // 지역 검색은 상한 없이 전체 호텔 반환 (실사이트: "601 Properties" + 페이저)
-    const { results } = buildCityResults(nextSearchId(), conditions, { maxHotels: 999, maxRates: 999 });
-    const groups = groupByHotel(results);
-    setSearched({ groups, conditions });
-    setSort('rec');
-    setNameFilter('');
-    setStarSel([]);
-    setTypeSel([]);
-    setBrandSel([]);
-    setRateMax(null);
-    setPage(1);
+    // 실사이트 동작 재현 — 공급사/ELLIS 요금 조회 지연 후 결과 표시
+    setSearching(true);
+    setSearched(null);
+    if (searchTimer.current) window.clearTimeout(searchTimer.current);
+    searchTimer.current = window.setTimeout(() => {
+      // 지역 검색은 상한 없이 전체 호텔 반환 (실사이트: "601 Properties" + 페이저)
+      const { results } = buildCityResults(nextSearchId(), conditions, { maxHotels: 999, maxRates: 999 });
+      const groups = groupByHotel(results);
+      setSearched({ groups, conditions });
+      setSort('rec');
+      setNameFilter('');
+      setStarSel([]);
+      setTypeSel([]);
+      setBrandSel([]);
+      setRateMax(null);
+      setPage(1);
+      setSearching(false);
+    }, 1300 + Math.random() * 1200);
   };
 
   // ── 필터·정렬 적용 ──
@@ -291,9 +302,10 @@ export default function CreateBookingPage() {
               <button
                 type="button"
                 onClick={runSearch}
-                className="rounded bg-brand-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-600"
+                disabled={searching}
+                className="rounded bg-brand-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-600 disabled:cursor-wait disabled:opacity-60"
               >
-                Search
+                {searching ? 'Searching…' : 'Search'}
               </button>
               <button
                 type="button"
@@ -353,7 +365,14 @@ export default function CreateBookingPage() {
         </div>
 
         {/* ── 결과 ── */}
-        {!searched ? (
+        {searching ? (
+          /* 실사이트 동작 재현 — 공급사/ELLIS 요금 조회 중 */
+          <div className="px-6 py-24 text-center">
+            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-brand-500" />
+            <p className="text-sm font-medium text-slate-600">Searching…</p>
+            <p className="mt-1 text-xs text-slate-400">호텔·요금 데이터를 조회하고 있습니다. 잠시만 기다려 주세요.</p>
+          </div>
+        ) : !searched ? (
           <div className="px-6 py-24 text-center">
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-400 text-2xl font-black text-white">!</div>
             <p className="text-sm text-slate-500">Please search for a hotel to reserve.</p>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { HotelGroup, RateResult, SearchConditions } from '../types';
 import { buildCityResults, hotelContentOf } from '../mocks/hotelDb';
 import { nextSearchId } from '../mocks';
@@ -108,13 +108,21 @@ export default function HotelRoomListPage({ group, conditions, onBack, onSelectR
     setRoomCfg(cfgFromConditions(conds));
   };
 
-  // 지목 호텔의 전체 요금제 재생성 (target 흐름) — 조건 재검색 시 갱신
-  const rates = useMemo(() => {
-    const { results } = buildCityResults(nextSearchId(), {
-      ...conds,
-      hotel_name: group.hotel_name,
-    });
-    return results.length > 0 ? results : group.rates;
+  // 지목 호텔의 전체 요금제 재생성 (target 흐름) — 조건 재검색 시 갱신.
+  // 실사이트 동작 재현: 요금 데이터 조회 지연 후 표시 (최초 진입·Select 재검색 공통)
+  const [rates, setRates] = useState<RateResult[]>([]);
+  const [loadingRates, setLoadingRates] = useState(true);
+  useEffect(() => {
+    setLoadingRates(true);
+    const t = window.setTimeout(() => {
+      const { results } = buildCityResults(nextSearchId(), {
+        ...conds,
+        hotel_name: group.hotel_name,
+      });
+      setRates(results.length > 0 ? results : group.rates);
+      setLoadingRates(false);
+    }, 1000 + Math.random() * 900);
+    return () => window.clearTimeout(t);
   }, [group, conds]);
 
   const visibleRates = showAll ? rates : rates.slice(0, 4);
@@ -168,14 +176,16 @@ export default function HotelRoomListPage({ group, conditions, onBack, onSelectR
             <button
               type="button"
               onClick={applyConditions}
-              className="rounded bg-brand-500 px-4 py-1.5 font-semibold text-white hover:bg-brand-600"
+              disabled={loadingRates}
+              className="rounded bg-brand-500 px-4 py-1.5 font-semibold text-white hover:bg-brand-600 disabled:cursor-wait disabled:opacity-60"
             >
-              Select
+              {loadingRates ? 'Searching…' : 'Select'}
             </button>
             <button
               type="button"
               onClick={resetConditions}
-              className="rounded border border-slate-300 bg-white px-4 py-1.5 text-slate-600 hover:bg-slate-50"
+              disabled={loadingRates}
+              className="rounded border border-slate-300 bg-white px-4 py-1.5 text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Reset
             </button>
@@ -237,7 +247,16 @@ export default function HotelRoomListPage({ group, conditions, onBack, onSelectR
             </tr>
           </thead>
           <tbody>
-            {visibleRates.map((r) => {
+            {loadingRates && (
+              <tr>
+                <td colSpan={7} className="px-4 py-16 text-center">
+                  <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-brand-500" />
+                  <p className="text-xs font-medium text-slate-500">Searching…</p>
+                  <p className="mt-0.5 text-[11px] text-slate-400">요금 데이터를 조회하고 있습니다</p>
+                </td>
+              </tr>
+            )}
+            {!loadingRates && visibleRates.map((r) => {
               const sum = r.selling_price + r.tax;
               return (
                 <tr key={r.rate_plan_id} className="border-b border-slate-100 last:border-b-0">
@@ -279,7 +298,7 @@ export default function HotelRoomListPage({ group, conditions, onBack, onSelectR
             })}
           </tbody>
         </table>
-        {rates.length > 4 && (
+        {!loadingRates && rates.length > 4 && (
           <button
             type="button"
             onClick={() => setShowAll((v) => !v)}
