@@ -18,13 +18,21 @@ export default {
         },
       },
       fontFamily: {
+        // 실사이트(ohmyhotel.biz) body font-family 실측값 그대로 (2026-07-15)
         sans: [
           'Pretendard',
           '-apple-system',
           'BlinkMacSystemFont',
-          '"Malgun Gothic"',
-          '"Apple SD Gothic Neo"',
           'system-ui',
+          'Roboto',
+          '"Helvetica Neue"',
+          '"Segoe UI"',
+          '"Apple SD Gothic Neo"',
+          '"Noto Sans KR"',
+          '"Malgun Gothic"',
+          '"Apple Color Emoji"',
+          '"Segoe UI Emoji"',
+          '"Segoe UI Symbol"',
           'sans-serif',
         ],
       },
