@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { RateResult, SearchConditions } from '../types';
 import { formatDateTime, formatMoney } from '../utils/format';
 
@@ -32,6 +32,14 @@ export default function CreateBookingModal({ rate, conditions, onClose, onCreate
   const [lastName, setLastName] = useState('');
   const [firstName, setFirstName] = useState('');
   const [confirmClose, setConfirmClose] = useState(false);
+  const openedAtRef = useRef(0);
+  // 모달이 새로 열릴 때 이전 닫기확인 상태 초기화 (Close→Confirm으로 닫은 뒤 재오픈 시 잔존 방지)
+  useEffect(() => {
+    if (rate) {
+      openedAtRef.current = Date.now();
+      setConfirmClose(false);
+    }
+  }, [rate]);
   if (!rate) return null;
 
   const travelerName =
@@ -50,7 +58,11 @@ export default function CreateBookingModal({ rate, conditions, onClose, onCreate
       <button
         type="button"
         aria-label="닫기"
-        onClick={() => setConfirmClose(true)}
+        onClick={() => {
+          // 요금 Select 더블클릭이 배경을 때리는 오작동 방지 — 오픈 직후 클릭 무시
+          if (Date.now() - openedAtRef.current < 400) return;
+          setConfirmClose(true);
+        }}
         className="fixed inset-0 h-full w-full cursor-default bg-slate-900/50"
       />
 
