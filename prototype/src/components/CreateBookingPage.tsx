@@ -12,6 +12,7 @@ import { nextSearchId } from '../mocks';
 import { groupByHotel } from '../utils/group';
 import { formatMoney } from '../utils/format';
 import DatePicker from './DatePicker';
+import HotelPhoto from './HotelPhoto';
 
 interface RoomCfg {
   adt: number;
@@ -486,9 +487,13 @@ export default function CreateBookingPage() {
                 )}
                 {pagedGroups.map((g) => (
                   <div key={g.hotel_id} className="flex items-center gap-4 rounded border border-slate-200 bg-white p-4">
-                    <div className="flex h-20 w-28 shrink-0 items-center justify-center rounded bg-slate-200 text-[10px] text-slate-400">
-                      HOTEL PHOTO
-                    </div>
+                    <HotelPhoto
+                      hotelId={g.hotel_id}
+                      alt={g.hotel_name}
+                      width={224}
+                      height={160}
+                      className="h-20 w-28 shrink-0 rounded"
+                    />
                     <div className="min-w-0 flex-1">
                       <p className="text-[11px] text-slate-500">
                         [Hotel Code : {hotelCodeOf(g.hotel_id)}]{' '}
@@ -555,7 +560,7 @@ export default function CreateBookingPage() {
         )}
       </div>
       <p className="mt-2 text-[10px] text-slate-400">
-        실제 포털 Create Booking 화면 클론 (Mock Data) — 호텔 사진·지도는 자리 표시자입니다.
+        실제 포털 Create Booking 화면 클론 (Mock Data) — 호텔 사진은 데모용 실사진, 지도는 자리 표시자입니다.
       </p>
     </div>
   );

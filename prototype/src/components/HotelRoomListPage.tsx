@@ -4,6 +4,7 @@ import { buildCityResults, hotelContentOf } from '../mocks/hotelDb';
 import { nextSearchId } from '../mocks';
 import { formatDateTime } from '../utils/format';
 import DatePicker from './DatePicker';
+import HotelPhoto from './HotelPhoto';
 
 interface Props {
   group: HotelGroup;
@@ -344,16 +345,19 @@ export default function HotelRoomListPage({ group, conditions, onBack, onSelectR
         </div>
       </div>
 
-      {/* Photo */}
+      {/* Photo — 호텔별 결정론적 갤러리 (데모용 실사진) */}
       <h4 className="mt-5 text-sm font-bold text-slate-900">Photo</h4>
       <div className="mt-2 flex flex-wrap gap-3 rounded border border-slate-200 p-4">
         {Array.from({ length: content.photoCount }, (_, i) => (
-          <div
+          <HotelPhoto
             key={i}
-            className="flex h-24 w-36 items-center justify-center rounded bg-slate-200 text-[10px] text-slate-400"
-          >
-            PHOTO {i + 1}
-          </div>
+            hotelId={group.hotel_id}
+            alt={`${group.hotel_name} photo ${i + 1}`}
+            variant={i}
+            width={288}
+            height={192}
+            className="h-24 w-36 rounded"
+          />
         ))}
       </div>
     </div>
