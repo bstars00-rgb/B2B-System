@@ -1,18 +1,20 @@
 import { useMemo, useState } from 'react';
 import { FAQ_POSTS, NOTICE_POSTS, postBody, postTitle, type BoardLang, type BoardPost } from '../mocks/boardData';
-import EnhBadge from './EnhBadge';
+import type { PortalLang } from '../utils/portalLang';
 
 interface Props {
   kind: 'faq' | 'notice';
+  /** 포털 전역 언어 설정 — 게시판 콘텐츠는 이 설정을 따라감 (닷비즈 원본 동작) */
+  portalLang: PortalLang;
 }
 
 /**
  * 실제 포털 FAQ Board / Notice Board 클론.
  * 검색 바 → 카운트/페이지 크기 → 목록 그리드(Post SEQ 링크) → 페이저,
  * Post SEQ 클릭 시 상세 모달(제목·Register Date·Views·본문·Close).
- * FAQ는 언어팩(영/한) 토글 지원 — 검색은 양 언어 제목 모두 매칭.
+ * 언어는 포털 전역 설정을 따라감(닷비즈 원본에 언어팩 영·한·중·베·일 존재) — 미번역 언어는 영어 폴백.
  */
-export default function BoardPage({ kind }: Props) {
+export default function BoardPage({ kind, portalLang }: Props) {
   const posts = kind === 'faq' ? FAQ_POSTS : NOTICE_POSTS;
   const badgeCol = kind === 'faq' ? 'FAQ Type' : 'Pin to top';
   const timeCol = kind === 'faq' ? 'Last Update Time' : 'First Insert Time';
@@ -20,8 +22,9 @@ export default function BoardPage({ kind }: Props) {
   const [query, setQuery] = useState('');
   const [applied, setApplied] = useState('');
   const [detail, setDetail] = useState<BoardPost | null>(null);
-  /** FAQ 언어팩 (Notice는 영문 원문 게시판이라 토글 없음) */
-  const [lang, setLang] = useState<BoardLang>('ko');
+  /** 표시 언어 — 전역 설정 기준 (한국어 외 미번역 언어는 영어 폴백, 번역 콘텐츠팀 진행 중) */
+  const lang: BoardLang = portalLang === 'ko' ? 'ko' : 'en';
+  const fallback = portalLang !== 'ko' && portalLang !== 'en';
   /** 세션 내 조회수 증가분 */
   const [viewBump, setViewBump] = useState<Record<number, number>>({});
 
@@ -70,32 +73,14 @@ export default function BoardPage({ kind }: Props) {
           </button>
         </div>
 
-        {/* 카운트 + 언어팩(FAQ) + 페이지 크기 */}
+        {/* 카운트 + 페이지 크기 — 언어는 포털 전역 설정을 따라감 */}
         <div className="mt-3 flex items-center justify-between">
           <span className="text-sm font-bold text-brand-500">{rows.length}</span>
           <div className="flex items-center gap-3">
-            {kind === 'faq' && (
-              <div className="flex items-center gap-1.5">
-                <EnhBadge note="FAQ 언어팩(영/한) — 표시 언어와 무관한 양언어 검색. 일/베/중 번역 콘텐츠팀 진행 중" />
-                <span className="text-[11px] text-slate-400" aria-hidden>🌐</span>
-                <div className="flex overflow-hidden rounded border border-slate-300 text-[11px]">
-                  {(['en', 'ko'] as const).map((l) => (
-                    <button
-                      key={l}
-                      type="button"
-                      onClick={() => setLang(l)}
-                      aria-pressed={lang === l}
-                      className={
-                        lang === l
-                          ? 'bg-brand-500 px-2.5 py-1 font-bold text-white'
-                          : 'bg-white px-2.5 py-1 text-slate-500 hover:bg-slate-50'
-                      }
-                    >
-                      {l === 'en' ? 'English' : '한국어'}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            {kind === 'faq' && fallback && (
+              <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">
+                번역 준비 중 — English로 표시됩니다
+              </span>
             )}
             <select disabled className="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-600">
               <option>20</option>

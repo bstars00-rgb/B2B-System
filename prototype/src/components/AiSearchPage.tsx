@@ -141,7 +141,6 @@ function PortalAccountMenu({
             <option key={l.code} value={l.code}>{l.label}</option>
           ))}
         </select>
-        <EnhBadge note="전역 언어 설정 실작동 — 로그인·헤더에서 변경, 콘텐츠가 설정을 따라감 (localStorage 유지)" />
       </span>
       <span className="text-slate-300">|</span>
       <AccountMenu />
@@ -484,9 +483,9 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
         ) : view === 'staff' ? (
           <StaffPage />
         ) : view === 'faq' ? (
-          <BoardPage kind="faq" />
+          <BoardPage kind="faq" portalLang={portalLang} />
         ) : view === 'notice' ? (
-          <BoardPage kind="notice" />
+          <BoardPage kind="notice" portalLang={portalLang} />
         ) : view === 'create-booking' ? (
           <CreateBookingPage />
         ) : (
