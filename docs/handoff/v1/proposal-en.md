@@ -1,8 +1,8 @@
 # DOTBIZ Feature Enhancement — Proposal v1 (for PD Team)
 
 > **Delivered**: 2026-07-17 · **From**: CEO Office · **Version**: v1 (based on validated prototype)
-> **Development Specification (EN)**: [dev-spec-dotbiz-enhancement-v1-en.md](dev-spec-dotbiz-enhancement-v1-en.md) — feature specs, data contracts, QA scenarios, code map
-> **Detailed spec (KO)**: [spec-b-dotbiz-enhancement.md](spec-b-dotbiz-enhancement.md) (25 improvements logged per commit) · AI search track: [spec-a](spec-a-ellis-ai-search.md)
+> **Development Specification (EN)**: [dev-spec-en.md](dev-spec-en.md) — feature specs, data contracts, QA scenarios, code map
+> **Detailed spec (KO)**: [spec-b-dotbiz-enhancement.md](../../plan/spec-b-dotbiz-enhancement.md) (25 improvements logged per commit) · AI search track: [spec-a](../../plan/spec-a-ellis-ai-search.md)
 > **Live demo**: https://bstars00-rgb.github.io/B2B-System/
 
 ---
@@ -49,7 +49,7 @@ The 25 completed items fall into two categories — **① Enhancements (new; not
 - **Legal documents**: full original Terms & Privacy texts, plus the portal footer links.
 - **Measured UI parity**: font (Pretendard webfont), brand orange (#EF7F29), base 12px/#333 — matched to production measurements.
 
-> The full per-item commit history for all 25 items: [detailed spec §3.1](spec-b-dotbiz-enhancement.md) (Korean).
+> The full per-item commit history for all 25 items: [detailed spec §3.1](../../plan/spec-b-dotbiz-enhancement.md) (Korean).
 
 ## 4. New Initiatives Proposed (H2)
 

@@ -1,9 +1,9 @@
 # 닷비즈 기능 고도화 — 1차 기획안 (기획팀 전달용)
 
-> **English version (PD팀 Tracy 전달본)**: [proposal-dotbiz-enhancement-v1-en.md](proposal-dotbiz-enhancement-v1-en.md)
-> **개발 명세서 (EN, PD팀 전달본)**: [dev-spec-dotbiz-enhancement-v1-en.md](dev-spec-dotbiz-enhancement-v1-en.md) — 기능 스펙·데이터 계약·QA 시나리오·코드 맵
+> **English version (PD팀 Tracy 전달본)**: [proposal-en.md](proposal-en.md)
+> **개발 명세서 (EN, PD팀 전달본)**: [dev-spec-en.md](dev-spec-en.md) — 기능 스펙·데이터 계약·QA 시나리오·코드 맵
 > **전달일**: 2026-07-17 · **작성**: CEO Office · **버전**: v1 (프로토타입 검증 완료 기준)
-> **상세 명세**: [spec-b-dotbiz-enhancement.md](spec-b-dotbiz-enhancement.md) (개선 이력 25건 커밋 단위 기록) · AI 검색 트랙은 [spec-a](spec-a-ellis-ai-search.md) 별도
+> **상세 명세**: [spec-b-dotbiz-enhancement.md](../../plan/spec-b-dotbiz-enhancement.md) (개선 이력 25건 커밋 단위 기록) · AI 검색 트랙은 [spec-a](../../plan/spec-a-ellis-ai-search.md) 별도
 > **라이브 데모**: https://bstars00-rgb.github.io/B2B-System/
 
 ---
@@ -50,7 +50,7 @@
 - **약관·개인정보**: 원본 문서 전문 수록 + 포털 푸터 링크
 - **실측 UI 동일화**: 폰트(Pretendard 웹폰트)·브랜드 오렌지(#EF7F29)·기본 12px/#333 등 원본 실측값 그대로
 
-> 25건 전체의 항목별 커밋 이력은 [상세 명세 §3.1](spec-b-dotbiz-enhancement.md) 참조.
+> 25건 전체의 항목별 커밋 이력은 [상세 명세 §3.1](../../plan/spec-b-dotbiz-enhancement.md) 참조.
 
 ## 4. 신규 기획 제안 (하반기 실행)
 

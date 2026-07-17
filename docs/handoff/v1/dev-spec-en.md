@@ -1,7 +1,7 @@
 # DOTBIZ Enhancement — Development Specification v1
 
 > **For**: PD Team (Tracy) · **From**: CEO Office · **Date**: 2026-07-17
-> **Companion docs**: [Proposal v1 (EN)](proposal-dotbiz-enhancement-v1-en.md) · [Proposal v1 (KO)](proposal-dotbiz-enhancement-v1.md) · [Working spec (KO)](spec-b-dotbiz-enhancement.md) · [Measured UI tokens](../clone/as-is-ui-notes.md)
+> **Companion docs**: [Proposal v1 (EN)](proposal-en.md) · [Proposal v1 (KO)](proposal-ko.md) · [Working spec (KO)](../../plan/spec-b-dotbiz-enhancement.md) · [Measured UI tokens](../../clone/as-is-ui-notes.md)
 > **Reference implementation**: every feature below is working in the prototype — https://bstars00-rgb.github.io/B2B-System/ (source: `prototype/` in this repo). File pointers are given per feature so engineers can read running code instead of guessing.
 
 ---
@@ -215,4 +215,4 @@ New-tab room-list deep link carries: `hotel, ci, co, nights, rooms, adt, chd, ag
 | Mock data engine | `mocks/hotelDb.ts` (hotels, codes, filters, pricing) · `utils/parser.ts` (AI NLU — Track A) |
 | Badges | `components/EnhBadge.tsx` |
 
-— Questions on any section: CEO Office. The five open decisions are listed in [Proposal v1 §5](proposal-dotbiz-enhancement-v1-en.md).
+— Questions on any section: CEO Office. The five open decisions are listed in [Proposal v1 §5](proposal-en.md).
