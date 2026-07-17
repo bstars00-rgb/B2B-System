@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react';
 import { PLAYBOOKS, type PlaybookBlock, type PlaybookLang } from '../mocks/playbookData';
+import type { PortalLang } from '../utils/portalLang';
 
 interface Props {
+  /** 포털 전역 언어 설정 — Playbook은 이 설정을 따라가며 내부에서 언어를 바꾸지 않는다 */
+  lang: PortalLang;
   onClose: () => void;
 }
 
@@ -46,10 +49,11 @@ function Block({ b }: { b: PlaybookBlock }) {
  * Ellis Playbook — B2B Partner Manual 을 문서 사이트(플레이북) 형태로.
  * 좌측 목차(챕터/섹션) + 본문. 전체화면 오버레이로 표시.
  */
-export default function PlaybookPage({ onClose }: Props) {
-  /** 언어팩 — 섹션 id가 언어 간 동일해 전환해도 현재 위치 유지 */
-  const [lang, setLang] = useState<PlaybookLang>('ko');
-  const playbook = PLAYBOOKS[lang];
+export default function PlaybookPage({ lang, onClose }: Props) {
+  /** 포털 언어 설정을 따라감 — 미번역 언어(일/베/중)는 영어 폴백 */
+  const contentLang: PlaybookLang = lang === 'ko' ? 'ko' : 'en';
+  const fallback = lang !== 'ko' && lang !== 'en';
+  const playbook = PLAYBOOKS[contentLang];
   const flatSections = useMemo(
     () => playbook.flatMap((c) => c.sections.map((s) => ({ chapterId: c.id, ...s }))),
     [playbook],
@@ -72,33 +76,18 @@ export default function PlaybookPage({ onClose }: Props) {
           <span className="ml-2 text-[11px] text-slate-400">OHMYHOTEL.Biz Partner Manual</span>
         </div>
         <div className="flex items-center gap-3">
-          {/* 언어팩 전환 (영/한) */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11px] text-slate-400" aria-hidden>🌐</span>
-            <div className="flex overflow-hidden rounded border border-slate-500 text-[11px]">
-              {(['en', 'ko'] as const).map((l) => (
-                <button
-                  key={l}
-                  type="button"
-                  onClick={() => setLang(l)}
-                  aria-pressed={lang === l}
-                  className={
-                    lang === l
-                      ? 'bg-brand-500 px-2.5 py-1 font-bold text-white'
-                      : 'px-2.5 py-1 text-slate-300 hover:bg-slate-700'
-                  }
-                >
-                  {l === 'en' ? 'English' : '한국어'}
-                </button>
-              ))}
-            </div>
-          </div>
+          {/* 언어는 포털 설정(헤더 🌐 셀렉트)을 따라감 — 미번역 언어는 영어 폴백 안내 */}
+          {fallback && (
+            <span className="rounded bg-slate-600 px-2 py-0.5 text-[10px] text-slate-200">
+              번역 준비 중 — English로 표시됩니다
+            </span>
+          )}
           <button
             type="button"
             onClick={onClose}
             className="rounded border border-slate-500 px-3 py-1 text-xs font-medium text-slate-200 hover:bg-slate-700"
           >
-            {lang === 'ko' ? '✕ 닫기' : '✕ Close'}
+            {contentLang === 'ko' ? '✕ 닫기' : '✕ Close'}
           </button>
         </div>
       </header>

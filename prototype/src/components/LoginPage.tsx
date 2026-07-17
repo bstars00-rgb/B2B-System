@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { loadPortalLang, savePortalLang, PORTAL_LANGS, type PortalLang } from '../utils/portalLang';
 
 interface Props {
   /** stay = Stay signed in 체크 여부 (localStorage 로그인 유지) */
@@ -14,7 +15,8 @@ export default function LoginPage({ onLogin }: Props) {
   const [email, setEmail] = useState('tyosales@attic-tours.com');
   const [password, setPassword] = useState('demo-password');
   const [stay, setStay] = useState(true);
-  const [lang, setLang] = useState('English');
+  /** 포털 전역 언어 설정과 공유 — 여기서 고른 언어가 로그인 후 포털·Playbook에 이어짐 */
+  const [lang, setLang] = useState<PortalLang>(loadPortalLang);
   const [error, setError] = useState<string | null>(null);
 
   const submit = (e: React.FormEvent) => {
@@ -33,11 +35,15 @@ export default function LoginPage({ onLogin }: Props) {
         <div className="mb-4 flex justify-end">
           <select
             value={lang}
-            onChange={(e) => setLang(e.target.value)}
+            onChange={(e) => {
+              const code = e.target.value as PortalLang;
+              setLang(code);
+              savePortalLang(code);
+            }}
             className="rounded border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-700 focus:border-brand-400 focus:outline-none"
           >
-            {['English', '한국어', '日本語', 'Tiếng Việt', '中文', '繁體中文'].map((l) => (
-              <option key={l}>{l}</option>
+            {PORTAL_LANGS.map((l) => (
+              <option key={l.code} value={l.code}>{l.label}</option>
             ))}
           </select>
         </div>

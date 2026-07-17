@@ -28,6 +28,7 @@ import HotelComparisonPanel from './HotelComparisonPanel';
 import SearchHistoryPanel from './SearchHistoryPanel';
 import StaffPage from './StaffPage';
 import { buildBooking, loadBookings, saveBookings, subscribeBookings } from '../utils/bookingStore';
+import { loadPortalLang, savePortalLang, PORTAL_LANGS, type PortalLang } from '../utils/portalLang';
 import ErrorAlert from './ErrorAlert';
 import EmptyResult from './EmptyResult';
 import LoadingSkeleton, { LOADING_STEPS } from './LoadingSkeleton';
@@ -87,7 +88,17 @@ function assistantSummary(
 }
 
 /** 상단 우측 계정 메뉴 (실제 포털과 동일 구성 + Playbook) — 계정 드롭다운/모달은 AccountMenu */
-function PortalAccountMenu({ onLogout, onPlaybook }: { onLogout: () => void; onPlaybook: () => void }) {
+function PortalAccountMenu({
+  onLogout,
+  onPlaybook,
+  lang,
+  onLangChange,
+}: {
+  onLogout: () => void;
+  onPlaybook: () => void;
+  lang: PortalLang;
+  onLangChange: (lang: PortalLang) => void;
+}) {
   return (
     <div className="flex items-center gap-3">
       <button
@@ -99,8 +110,19 @@ function PortalAccountMenu({ onLogout, onPlaybook }: { onLogout: () => void; onP
         📖 Playbook
       </button>
       <span className="text-slate-300">|</span>
-      <span className="cursor-not-allowed text-[12px] text-slate-600 hover:text-slate-800" title="프로토타입 — 더미">
-        🌐 English
+      {/* 포털 표시 언어 — 전역 설정 (Playbook 등 콘텐츠가 이 설정을 따라감) */}
+      <span className="flex items-center gap-1 text-[12px] text-slate-600">
+        <span aria-hidden>🌐</span>
+        <select
+          value={lang}
+          onChange={(e) => onLangChange(e.target.value as PortalLang)}
+          aria-label="표시 언어"
+          className="cursor-pointer border-none bg-transparent text-[12px] text-slate-600 focus:outline-none"
+        >
+          {PORTAL_LANGS.map((l) => (
+            <option key={l.code} value={l.code}>{l.label}</option>
+          ))}
+        </select>
       </span>
       <span className="text-slate-300">|</span>
       <AccountMenu />
@@ -120,6 +142,12 @@ interface AiSearchPageProps {
 export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
   const [logoutConfirm, setLogoutConfirm] = useState(false);
   const [playbookOpen, setPlaybookOpen] = useState(false);
+  /** 포털 전역 표시 언어 — Playbook 등 콘텐츠가 이 설정을 따라감 */
+  const [portalLang, setPortalLang] = useState<PortalLang>(loadPortalLang);
+  const changePortalLang = useCallback((l: PortalLang) => {
+    setPortalLang(l);
+    savePortalLang(l);
+  }, []);
   const [scenario, setScenario] = useState<ScenarioId>('normal');
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [conditions, setConditions] = useState<SearchConditions | null>(null);
@@ -338,7 +366,12 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
               Ohmy Partners · <b className="text-brand-500">ELLIS AI 요금 검색</b> Prototype
             </span>
           </div>
-          <PortalAccountMenu onLogout={() => setLogoutConfirm(true)} onPlaybook={() => setPlaybookOpen(true)} />
+          <PortalAccountMenu
+            onLogout={() => setLogoutConfirm(true)}
+            onPlaybook={() => setPlaybookOpen(true)}
+            lang={portalLang}
+            onLangChange={changePortalLang}
+          />
         </header>
 
         {/* ── 포털 탭 스트립 + 프로토타입 컨트롤 ── */}
@@ -580,8 +613,8 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
         onCancelBooking={cancelBooking}
       />
 
-      {/* Ellis Playbook (시스템 매뉴얼) 전체화면 */}
-      {playbookOpen && <PlaybookPage onClose={() => setPlaybookOpen(false)} />}
+      {/* Ellis Playbook (시스템 매뉴얼) 전체화면 — 포털 언어 설정을 따라감 */}
+      {playbookOpen && <PlaybookPage lang={portalLang} onClose={() => setPlaybookOpen(false)} />}
 
       {/* 로그아웃 확인 (실제 포털과 동일) */}
       {logoutConfirm && (
