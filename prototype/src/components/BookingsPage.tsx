@@ -216,7 +216,12 @@ export default function BookingsPage({ bookings, onOpenDetail }: Props) {
         {/* ── 예약 목록 그리드 (고정 높이 · 헤더 고정 · 컬럼 리사이즈 — 실사이트 Kendo 그리드 동일) ── */}
         <div className="mt-2 max-h-[440px] overflow-auto rounded border border-slate-200">
           <table
-            className="text-xs [&_td]:overflow-hidden [&_td]:text-ellipsis [&_th]:overflow-hidden [&_th]:text-ellipsis [&_th]:whitespace-nowrap"
+            className={
+              'text-xs [&_td]:overflow-hidden [&_td]:text-ellipsis [&_th]:overflow-hidden [&_th]:text-ellipsis [&_th]:whitespace-nowrap ' +
+              /* 컬럼 세로 구분선 (실사이트 Kendo 그리드 동일) — 칸 경계가 보여야 폭 조절 핸들을 잡을 수 있다 */
+              '[&_th]:relative [&_th]:border-r [&_th]:border-slate-300 [&_td]:border-r [&_td]:border-slate-100 ' +
+              '[&_th:last-child]:border-r-0 [&_td:last-child]:border-r-0'
+            }
             style={{ tableLayout: 'fixed', width: 32 + colW.reduce((s, w) => s + w, 0) }}
           >
             <colgroup>
@@ -245,12 +250,18 @@ export default function BookingsPage({ bookings, onOpenDetail }: Props) {
                 {GRID_COLUMNS.map((c, i) => (
                   <th key={c.label} className="px-3 py-2.5 font-semibold">
                     {c.label}
-                    {/* 컬럼 폭 조절 핸들 (엑셀 스타일 드래그) */}
+                    {/*
+                      컬럼 폭 조절 핸들 (엑셀 스타일 드래그).
+                      구분선 위에 정확히 걸치도록 경계를 가로지르게 두고(-right-[3px] w-[7px]),
+                      호버 시 구분선이 브랜드색으로 굵어져 '여기를 끌면 된다'를 드러낸다.
+                    */}
                     <span
                       onMouseDown={startResize(i)}
-                      className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize select-none hover:bg-brand-300/70"
+                      className="group absolute -right-[3px] top-0 z-10 flex h-full w-[7px] cursor-col-resize select-none justify-center"
                       aria-hidden
-                    />
+                    >
+                      <span className="h-full w-[3px] group-hover:bg-brand-500" />
+                    </span>
                   </th>
                 ))}
               </tr>
@@ -258,7 +269,8 @@ export default function BookingsPage({ bookings, onOpenDetail }: Props) {
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={17} className="px-3 py-14 text-center text-slate-400">
+                  {/* +1 = 체크박스 열. 숫자를 박아두면 컬럼을 늘릴 때 어긋난다 */}
+                  <td colSpan={GRID_COLUMNS.length + 1} className="px-3 py-14 text-center text-slate-400">
                     No records available.
                   </td>
                 </tr>
