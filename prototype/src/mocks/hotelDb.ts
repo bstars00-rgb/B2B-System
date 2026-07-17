@@ -25,6 +25,11 @@ interface HotelSeed {
   chainBrand?: string;
   /** 대표 룸타입명 (실사이트 표기 — 없으면 제네릭) */
   roomType?: string;
+  /**
+   * 추천 호텔 — 목록 카드에 `Recommendation` 오렌지 배지 표시 + Recommendation 정렬 시 상단 노출.
+   * (닷비즈 원본 기능 — 오사카 데이터는 2026-07-15 실사이트 스크린샷 기준)
+   */
+  recommended?: boolean;
 }
 
 interface CityDef {
@@ -90,16 +95,16 @@ const CITIES: CityDef[] = [
       { id: 'HTL-OSA-08', name: '소테츠 그랜드 프레사 오사카-난바', nameEn: 'Sotetsu Grand Fresa Osaka-Namba', code: '746262', star: 3, lat: 34.6626, lng: 135.5017, base: 19700, chainBrand: 'Sotetsu' },
       { id: 'HTL-OSA-09', name: '소테츠 프레사 인 오사카 신사이바시', nameEn: 'Sotetsu Fresa Inn Osaka-Shinsaibashi', code: '262604', star: 3, lat: 34.672, lng: 135.5011, base: 17500, chainBrand: 'Sotetsu' },
       // ── 실사이트 지역검색(102156 - Osaka) 결과 재현 — 실코드·실브랜드 (2026-07-15 스크린샷 명세) ──
-      { id: 'HTL-OSA-10', name: '호텔 아마넥 오사카 난바', nameEn: 'Hotel AMANEK Osaka Namba', code: '1001586', star: 4, lat: 34.6659, lng: 135.5035, base: 7812, chainBrand: 'amaneku Co., Ltd.', roomType: 'Standard Double (Non Smoking)' },
-      { id: 'HTL-OSA-11', name: '다이와 로이넷 호텔 오사카 우에혼마치', nameEn: 'Daiwa Roynet Hotel Osaka Uehonmachi', code: '453378', star: 3, lat: 34.6656, lng: 135.5192, base: 7726, chainBrand: 'Daiwa Roynet Hotels', roomType: 'Standard Double Non Smoking' },
-      { id: 'HTL-OSA-12', name: '스마일 호텔 프리미엄 오사카 히가시 신사이바시', nameEn: 'Smile Hotel Premium Osaka Higashi Shinsaibashi', code: '285030', star: 3.5, lat: 34.6733, lng: 135.5064, base: 6421, chainBrand: 'K.K. Hospitality Operations', roomType: 'Standard Double (Non Smoking)' },
-      { id: 'HTL-OSA-13', name: '신오사카 워싱턴 호텔 플라자', nameEn: 'Shin Osaka Washington Hotel Plaza', code: '551313', star: 3, lat: 34.7331, lng: 135.4997, base: 5151, chainBrand: 'Washington Hotel Corporation', roomType: '(A)Semi Double Room Non Smoking' },
-      { id: 'HTL-OSA-14', name: '젠티스 오사카', nameEn: 'Zentis Osaka', code: '655329', star: 4, lat: 34.6953, lng: 135.4933, base: 15219, propertyType: 'Boutique', chainBrand: 'Independent Hotels', roomType: 'Studio King No Smoking' },
-      { id: 'HTL-OSA-15', name: '다이와 로이넷 호텔 오사카 사카이스지 혼마치 프리미어', nameEn: 'Daiwa Roynet Hotel Osaka Sakaisuji Honmachi PREMIER', code: '725693', star: 3.5, lat: 34.6829, lng: 135.5066, base: 10036, chainBrand: 'Daiwa Roynet Hotels', roomType: 'MODERATE, TWIN BEDS, SMOKING' },
-      { id: 'HTL-OSA-16', name: '코코 호텔 오사카 난바 에비스초', nameEn: 'KOKO HOTEL Osaka Namba Ebisucho', code: '731117', star: 3, lat: 34.6567, lng: 135.5017, base: 4102, chainBrand: 'Independent Hotels', roomType: 'Moderate Twin Non Smoking' },
-      { id: 'HTL-OSA-17', name: '다이와 로이넷 호텔 요츠바시', nameEn: 'Daiwa Roynet Hotel Yotsubashi', code: '214867', star: 3, lat: 34.6742, lng: 135.4941, base: 8493, chainBrand: 'Daiwa Roynet Hotels', roomType: 'ROOM, DOUBLE BED, SMOKING' },
+      { id: 'HTL-OSA-10', name: '호텔 아마넥 오사카 난바', nameEn: 'Hotel AMANEK Osaka Namba', code: '1001586', star: 4, lat: 34.6659, lng: 135.5035, base: 7812, chainBrand: 'amaneku Co., Ltd.', roomType: 'Standard Double (Non Smoking)', recommended: true },
+      { id: 'HTL-OSA-11', name: '다이와 로이넷 호텔 오사카 우에혼마치', nameEn: 'Daiwa Roynet Hotel Osaka Uehonmachi', code: '453378', star: 3, lat: 34.6656, lng: 135.5192, base: 7726, chainBrand: 'Daiwa Roynet Hotels', roomType: 'Standard Double Non Smoking', recommended: true },
+      { id: 'HTL-OSA-12', name: '스마일 호텔 프리미엄 오사카 히가시 신사이바시', nameEn: 'Smile Hotel Premium Osaka Higashi Shinsaibashi', code: '285030', star: 3.5, lat: 34.6733, lng: 135.5064, base: 6421, chainBrand: 'K.K. Hospitality Operations', roomType: 'Standard Double (Non Smoking)', recommended: true },
+      { id: 'HTL-OSA-13', name: '신오사카 워싱턴 호텔 플라자', nameEn: 'Shin Osaka Washington Hotel Plaza', code: '551313', star: 3, lat: 34.7331, lng: 135.4997, base: 5151, chainBrand: 'Washington Hotel Corporation', roomType: '(A)Semi Double Room Non Smoking', recommended: true },
+      { id: 'HTL-OSA-14', name: '젠티스 오사카', nameEn: 'Zentis Osaka', code: '655329', star: 4, lat: 34.6953, lng: 135.4933, base: 15219, propertyType: 'Boutique', chainBrand: 'Independent Hotels', roomType: 'Studio King No Smoking', recommended: true },
+      { id: 'HTL-OSA-15', name: '다이와 로이넷 호텔 오사카 사카이스지 혼마치 프리미어', nameEn: 'Daiwa Roynet Hotel Osaka Sakaisuji Honmachi PREMIER', code: '725693', star: 3.5, lat: 34.6829, lng: 135.5066, base: 10036, chainBrand: 'Daiwa Roynet Hotels', roomType: 'MODERATE, TWIN BEDS, SMOKING', recommended: true },
+      { id: 'HTL-OSA-16', name: '코코 호텔 오사카 난바 에비스초', nameEn: 'KOKO HOTEL Osaka Namba Ebisucho', code: '731117', star: 3, lat: 34.6567, lng: 135.5017, base: 4102, chainBrand: 'Independent Hotels', roomType: 'Moderate Twin Non Smoking', recommended: true },
+      { id: 'HTL-OSA-17', name: '다이와 로이넷 호텔 요츠바시', nameEn: 'Daiwa Roynet Hotel Yotsubashi', code: '214867', star: 3, lat: 34.6742, lng: 135.4941, base: 8493, chainBrand: 'Daiwa Roynet Hotels', roomType: 'ROOM, DOUBLE BED, SMOKING', recommended: true },
       { id: 'HTL-OSA-18', name: '호텔 비스타 오사카 난바', nameEn: 'Hotel Vista Osaka Namba', code: '497098', star: 3, lat: 34.6648, lng: 135.4996, base: 10794, chainBrand: 'VISTA HOTEL MANAGEMENT CO., Ltd.', roomType: 'Standard Double Non Smoking' },
-      { id: 'HTL-OSA-19', name: '스마일 호텔 오사카 텐노지', nameEn: 'Smile Hotel Osaka Tennoji', code: '985233', star: 3, lat: 34.6499, lng: 135.5134, base: 4834, chainBrand: 'K.K. Hospitality Operations', roomType: 'Standard Double Non Smoking' },
+      { id: 'HTL-OSA-19', name: '스마일 호텔 오사카 텐노지', nameEn: 'Smile Hotel Osaka Tennoji', code: '985233', star: 3, lat: 34.6499, lng: 135.5134, base: 4834, chainBrand: 'K.K. Hospitality Operations', roomType: 'Standard Double Non Smoking', recommended: true },
       { id: 'HTL-OSA-20', name: '스마일 호텔 프리미엄 오사카 혼마치', nameEn: 'Smile Hotel Premium Osaka Hommachi', code: '229742', star: 4, lat: 34.6822, lng: 135.4979, base: 5282, chainBrand: 'K.K. Hospitality Operations', roomType: 'Standard Double Smoking' },
       { id: 'HTL-OSA-21', name: '델 스타일 오사카 신사이바시 바이 다이와 로이넷 호텔', nameEn: 'DEL style Osaka - Shinsaibashi by Daiwa Roynet Hotel', code: '398300', star: 3.5, lat: 34.6714, lng: 135.5042, base: 13777, chainBrand: 'Daiwa Roynet Hotels', roomType: 'MODERATE, QUEEN BED' },
       { id: 'HTL-OSA-22', name: '코코 호텔 오사카 신사이바시', nameEn: 'KOKO HOTEL Osaka Shinsaibashi', code: '768491', star: 4, lat: 34.6759, lng: 135.5008, base: 4808, chainBrand: 'Independent Hotels', roomType: 'Standard Double Room - Non-Smoking' },
@@ -697,9 +702,11 @@ export interface HotelMeta {
   code: string;
   propertyType: string;
   chainBrand: string;
+  /** 추천 호텔 — 목록 카드 Recommendation 배지 · Recommendation 정렬 상단 노출 */
+  recommended: boolean;
 }
 
-/** 좌측 필터용 호텔 메타 (Property Type · Hotel Chain Brand) */
+/** 좌측 필터·카드용 호텔 메타 (Property Type · Hotel Chain Brand · Recommendation) */
 export function hotelMetaOf(hotelId: string): HotelMeta {
   for (const c of CITIES) {
     const h = c.hotels.find((x) => x.id === hotelId);
@@ -708,9 +715,15 @@ export function hotelMetaOf(hotelId: string): HotelMeta {
         code: hotelCodeOf(h.id),
         propertyType: h.propertyType ?? 'Hotel',
         chainBrand: h.chainBrand ?? 'Independent Hotels',
+        recommended: h.recommended ?? false,
       };
   }
-  return { code: hotelCodeOf(hotelId), propertyType: 'Hotel', chainBrand: 'Independent Hotels' };
+  return {
+    code: hotelCodeOf(hotelId),
+    propertyType: 'Hotel',
+    chainBrand: 'Independent Hotels',
+    recommended: false,
+  };
 }
 
 /** 호텔 코드 → 호텔 식별 (새 탭 룸리스트 페이지 라우팅용) */

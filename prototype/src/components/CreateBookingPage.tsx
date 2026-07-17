@@ -180,7 +180,13 @@ export default function CreateBookingPage() {
       case 'starDesc': list.sort((a, b) => b.star_rating - a.star_rating); break;
       case 'rateAsc': list.sort((a, b) => priceOf(a) - priceOf(b)); break;
       case 'rateDesc': list.sort((a, b) => priceOf(b) - priceOf(a)); break;
-      default: break;
+      // Recommendation — 추천 호텔을 상단에 (실사이트 기본 정렬)
+      default:
+        list.sort(
+          (a, b) =>
+            Number(hotelMetaOf(b.hotel_id).recommended) - Number(hotelMetaOf(a.hotel_id).recommended),
+        );
+        break;
     }
     return list;
   }, [searched, sort, nameFilter, starSel, typeSel, brandSel, rateMax]);
@@ -517,8 +523,14 @@ export default function CreateBookingPage() {
                       className="h-20 w-28 shrink-0 rounded"
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="text-[11px] text-slate-500">
-                        [Hotel Code : {hotelCodeOf(g.hotel_id)}]{' '}
+                      <p className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
+                        {/* 추천 호텔 배지 (실사이트 동일) */}
+                        {hotelMetaOf(g.hotel_id).recommended && (
+                          <span className="rounded-sm bg-brand-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                            Recommendation
+                          </span>
+                        )}
+                        <span>[Hotel Code : {hotelCodeOf(g.hotel_id)}]</span>
                         <span className="font-medium text-amber-500">{g.star_rating} Star</span>
                       </p>
                       <h4 className="truncate text-sm font-bold text-slate-900">{g.hotel_name}</h4>
