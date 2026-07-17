@@ -146,9 +146,10 @@
 - Ledger draft: `{ id, op_user_id, type: earn|revoke|adjust, amount, booking_code?, reason, created_at }`; accrual event = stay completed; full revoke on cancellation.
 - Open policy items (proposal §5-3): accrual rate, expiry, tax treatment (rebate), eligibility.
 
-### P-5 Volume Migration Program (ops, not code)
+### P-5 DOTBIZ Channel Growth (business, not code)
 
-- Needs from engineering: a report separating **API-routed vs. direct DOTBIZ bookings per client**, monthly. This metric is the initiative's success measure; the source system is an open question (proposal §5-5).
+- Goal: **win new DOTBIZ client accounts and grow DOTBIZ booking volume** — not migrating API clients. The product work above (usability, multilingual, Playbook, Oppy Point) is the lever.
+- Needs from engineering: a **monthly DOTBIZ-channel report** — bookings, GMV, new client accounts, bookings per seller, active OPs. This is the initiative's success measure; the source system is an open question (proposal §5-5).
 
 ## 4. Data Contracts & Rules (backend requirements)
 

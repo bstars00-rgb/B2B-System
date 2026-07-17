@@ -11,7 +11,7 @@
 
 | Item | Description |
 |------|-------------|
-| Goals | ① Remove the daily friction that operating partners (OPs) face and turn DOTBIZ into a **customer-friendly platform** ② **Migrate booking volume that currently relies on external API integrations to direct DOTBIZ bookings** — winning client accounts and volume at the same time |
+| Goals | ① Remove the daily friction that operating partners (OPs) face and turn DOTBIZ into a **customer-friendly platform** ② Today most of our booking volume comes from API-integrated clients — **use the DOTBIZ upgrade to win additional DOTBIZ clients and grow DOTBIZ volume substantially** (this is **not** about migrating API clients onto DOTBIZ; it is about **growing the DOTBIZ channel itself**) |
 | Approach | We cloned the production site (ohmyhotel.biz) 1:1 as a prototype, validate every UX change there first, and then propose the validated changes for production |
 | Scope of v1 | **25 completed improvements** (original-feature restoration = parity + new enhancements) + **4 new initiatives proposed** (§4) |
 | Working principle | One pain point = one improvement = shipped same day · Measurement-based fidelity (font Pretendard, brand color #EF7F29 — identical to production) |
@@ -58,7 +58,7 @@ The 25 completed items fall into two categories — **① Enhancements (new; not
 | 1 | 5-language content build-out | EN·KO·JA·VI·ZH — the structure is ready; **waiting on content-team translations** | In progress (finalize in Aug) |
 | 2 | OP convenience features for booking creation (3) | ⑴ Room-type sorting/filtering (twin/double) ⑵ **Split-room booking** (double + twin in one flow) ⑶ **Rate/room-type copy** (quote text to clipboard) | Draft done — detailed spec finalized in Aug |
 | 3 | Oppy Point (OP rewards mall) | Points accrue to individual OPs on completed stays → redeemable in a rewards mall → locks in the people who actually book. MVP = ledger + balance display | Policy finalized in Aug (incl. legal/finance review) |
-| 4 | Volume migration program | Onboard top API-volume clients onto DOTBIZ (training + point incentives) → track monthly direct-booking share | Targets & measurement finalized in Aug |
+| 4 | DOTBIZ channel growth | Use the upgraded portal as a sales asset to win **new client accounts** (multilingual · self-serve onboarding) and to increase usage among existing clients → grow DOTBIZ channel volume; track monthly growth metrics | Plan & measurement finalized in Aug |
 
 ## 5. Decisions Requested from PD
 
@@ -66,14 +66,14 @@ The 25 completed items fall into two categories — **① Enhancements (new; not
 2. **Split-room booking unit** — does ELLIS issue one booking code with two room lines, or one code per room? Needs confirmation against production/ELLIS.
 3. **Oppy Point policy** — accrual rate, redemption catalogue, and tax treatment (rebate implications); legal/finance review.
 4. **Child-age validation strictness** — currently a strict age-at-check-in warning. Given Korean colloquial age conventions, alternatives are a ±1-year tolerance or a one-click "re-search with corrected age" action.
-5. **Volume migration measurement** — an internal data source that separates API-routed vs. direct DOTBIZ bookings.
+5. **DOTBIZ channel growth measurement** — an internal data source that reports DOTBIZ channel bookings, GMV, and new client accounts monthly.
 
 ## 6. Planning Schedule — complete by end of August
 
 | Period | Milestone |
 |--------|-----------|
 | Jul (done) | Clone-parity restoration + first wave of enhancements built & validated on the prototype · **this Proposal v1 delivered** |
-| Aug | Incorporate the §5 decisions → finalize detailed plans for the 4 initiatives (OP convenience ×3 · Oppy Point policy · language content · volume migration design) → **planning wrap-up** |
+| Aug | Incorporate the §5 decisions → finalize detailed plans for the 4 initiatives (OP convenience ×3 · Oppy Point policy · language content · DOTBIZ channel growth design) → **planning wrap-up** |
 | After | Implementation and production-rollout scheduling to be set separately with the PD team and the DOTBIZ platform engineering team, based on the finalized plans |
 
 — This proposal reflects what has been validated on the prototype. Production rollout requires separate alignment with the DOTBIZ platform engineering team.

@@ -24,7 +24,7 @@ B2B Frontend (Chat UI)
 | 기획서 | 내용 |
 |--------|------|
 | [plan/spec-a-ellis-ai-search.md](docs/plan/spec-a-ellis-ai-search.md) | 기획서 ① — ELLIS MCP를 통한 AI 요금 검색 (설계 12종 총괄 + 하반기 실행 계획) |
-| [plan/spec-b-dotbiz-enhancement.md](docs/plan/spec-b-dotbiz-enhancement.md) | 기획서 ② — 닷비즈 내부기능 고도화 (불편 개선 백로그 · 언어팩 5종 · 예약 편의 · 오피포인트 · 물량 전환) |
+| [plan/spec-b-dotbiz-enhancement.md](docs/plan/spec-b-dotbiz-enhancement.md) | 기획서 ② — 닷비즈 내부기능 고도화 (불편 개선 백로그 · 언어팩 5종 · 예약 편의 · 오피포인트 · 닷비즈 채널 성장) |
 | [handoff/v1/](docs/handoff/v1/README.md) | **기획팀(PD·Tracy) 전달 패키지 1차** — 기획안(영/한) + 개발 명세서(EN, F1~F6·P1~P5·데이터 계약·QA 14종·코드 맵). 차수 규칙: [handoff/README.md](docs/handoff/README.md) — 2차는 handoff/v2/ |
 
 **설계 상세**
