@@ -130,10 +130,16 @@
 ### P-2 Split-Room Booking (double + twin in one flow)
 
 > **Detailed plan (KO, scope fixed 2026-07-17)**: [feature-split-room-booking.md](../../plan/feature-split-room-booking.md) — 11 customer scenarios verified against production, room-slot UX, data contracts, booking-unit recommendation.
-> **Confirmed scope**: let each room slot take a **different product** (room type · rate plan · meal · cancellation policy · grade) — this single mechanism covers 4 scenarios. Per-room *occupancy* mixing already works in production (out of scope). **Partial cancellation is explicitly not supported** (settlement policy) → cancel is always whole-booking → booking unit = **one code with N rooms** (fallback: per-room codes shown/cancelled as one group if ELLIS cannot hold mixed room types under one code). Different stay lengths per room = out of scope (book twice).
+> **Confirmed scope**: let each room slot take a **different product** (room type · rate plan · meal · cancellation policy · grade) — this single mechanism covers 4 scenarios. Per-room *occupancy* mixing already works in production (out of scope). Different stay lengths per room = out of scope (book twice).
+> **Confirmed decisions (2026-07-17)**: **Partial cancellation is not supported** (settlement policy) → cancel is always whole-booking. **ELLIS can hold different room types under one booking code** (confirmed by Tracy) → booking unit = **one code with N rooms (`rooms[]`)**. `Client Cancel DL` shows the **earliest deadline**; if **any** room is non-refundable the whole booking is shown as non-refundable (cancel is whole-booking, so the earliest free-cancel deadline would mislead).
+> **Status**: implemented and validated in the prototype (commit `9f58bb7`) — see the live demo.
 
 - Flow draft: search Rooms=2 → each rate row gets "assign to Room 1 / Room 2" → summary bar shows the combined total → one Create produces a booking whose Travelers map to room+room-type.
-- **Prerequisites surfaced by the detailed plan**: rates must be exposed **per single room** (today they are all-rooms totals, so mixed baskets cannot be summed), search must return **rate lists per occupancy group**, and **availability counts** are needed to cap how many of a rate can be added.
+- **Prerequisites surfaced by the detailed plan**:
+  1. Rates must be exposed **per single room** (today they are all-rooms totals, so mixed baskets cannot be summed).
+  2. Search must query **1-room availability**, not N-room: with the old "N rooms of this type" filter, a type with only 1 room left drops out of the list — which kills the very use case (1 twin + 1 double).
+  3. Search must return **rate lists per occupancy group** (a 2-adult slot and a 2-adult+1-child slot have different valid rates).
+  4. **Open**: how to prevent over-booking a single type across slots (availability count vs. fail-at-confirm), and **group pricing at 4+ rooms** — per **Terms Article 4-③**, 4+ rooms at the same hotel/date may be re-priced as a group booking, so per-room sums no longer hold. Proposal: warn on the total when 4+ slots are filled.
 - **Blocking question for ELLIS/production (proposal §5-2)**: does a split booking issue *one* booking code with two room lines, or one code per room? The data model (one booking with `rooms[]` vs. linked bookings) hinges on this.
 - Ties into the AI parser, which already recognizes "더블+트윈 각각 1개씩" (`room_types`, `rooms` inference).
 
