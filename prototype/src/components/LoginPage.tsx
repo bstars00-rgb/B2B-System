@@ -139,12 +139,12 @@ export default function LoginPage({ onLogin }: Props) {
           <p className="mt-8 max-w-3xl whitespace-pre-line text-2xl leading-relaxed text-slate-200">{c.subEn}</p>
           <p className="mt-5 max-w-2xl whitespace-pre-line text-[15px] leading-relaxed text-slate-400">{c.subKo}</p>
 
-          {/* 특장점 칩 */}
-          <div className="mt-10 flex max-w-3xl flex-wrap gap-3">
+          {/* 특장점 칩 — 폭 제한 없이 한 줄 우선 배치 */}
+          <div className="mt-10 flex flex-wrap gap-2.5">
             {c.chips.map((chip) => (
               <span
                 key={chip}
-                className="rounded-full border border-brand-500/60 bg-brand-500/10 px-5 py-2 text-[13px] font-medium text-brand-300 backdrop-blur-sm"
+                className="whitespace-nowrap rounded-full border border-brand-500/60 bg-brand-500/10 px-4 py-2 text-[12.5px] font-medium text-brand-300 backdrop-blur-sm"
               >
                 {chip}
               </span>
