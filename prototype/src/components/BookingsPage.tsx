@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { Booking } from '../types';
 import { formatDateTime } from '../utils/format';
+import { summarizeRooms } from '../utils/bookingStore';
 import DatePicker from './DatePicker';
 
 interface Props {
@@ -120,9 +121,10 @@ export default function BookingsPage({ bookings, onOpenDetail }: Props) {
                   <option key={k}>{k}</option>
                 ))}
               </select>
-              <DatePicker value={f.from} onChange={(v) => set({ from: v })} className="w-32" />
+              {/* 조회 필터 — 지난 예약을 찾아야 하므로 과거 날짜 허용 */}
+              <DatePicker value={f.from} onChange={(v) => set({ from: v })} className="w-32" allowPast />
               <span className="text-slate-400">~</span>
-              <DatePicker value={f.to} onChange={(v) => set({ to: v })} className="w-32" />
+              <DatePicker value={f.to} onChange={(v) => set({ to: v })} className="w-32" allowPast />
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-xs text-slate-600">ELLIS BKG Co...</span>
@@ -304,7 +306,10 @@ export default function BookingsPage({ bookings, onOpenDetail }: Props) {
                       {b.check_in}[{b.nights}]
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">
-                      {b.room_type}[{b.room_count}]
+                      {/* 분리 예약이면 룸타입별 개수로 요약 — "Twin[1] + Suite[1]" */}
+                      {b.rooms && b.rooms.length > 0
+                        ? summarizeRooms(b.rooms)
+                        : `${b.room_type}[${b.room_count}]`}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">
                       {b.traveler_name}

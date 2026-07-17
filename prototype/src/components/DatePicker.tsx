@@ -6,8 +6,13 @@ interface Props {
   onChange: (value: string) => void;
   className?: string;
   placeholder?: string;
-  /** 이 날짜 이전은 선택 불가 (기본: 오늘 — 실사이트처럼 과거 날짜 검색 방지) */
+  /** 이 날짜 이전은 선택 불가 (기본: 오늘 — 실사이트처럼 과거 날짜로 예약 방지) */
   minDate?: string;
+  /**
+   * 과거 날짜 허용 — **조회 필터용**(Bookings의 예약일·취소일 기간 등)에 사용.
+   * 예약 흐름(체크인/아웃)은 기본값(오늘 이후만) 유지.
+   */
+  allowPast?: boolean;
 }
 
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
@@ -27,11 +32,11 @@ function iso(y: number, m: number, d: number): string {
  * 트리거(입력 모양 + 달력 아이콘) 클릭 시 월 캘린더 팝업:
  * ‹ MON YYYY › 헤더, 일(빨강)·토(파랑) 요일 색상, 선택일 주황 원.
  */
-export default function DatePicker({ value, onChange, className, placeholder, minDate }: Props) {
+export default function DatePicker({ value, onChange, className, placeholder, minDate, allowPast }: Props) {
   const [open, setOpen] = useState(false);
   const parsed = parse(value);
   const now = new Date();
-  const min = minDate ?? iso(now.getFullYear(), now.getMonth(), now.getDate());
+  const min = allowPast ? '' : (minDate ?? iso(now.getFullYear(), now.getMonth(), now.getDate()));
   const [viewY, setViewY] = useState(parsed?.y ?? 2026);
   const [viewM, setViewM] = useState(parsed?.m ?? 6);
   const ref = useRef<HTMLDivElement>(null);

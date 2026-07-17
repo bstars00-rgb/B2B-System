@@ -1,4 +1,4 @@
-import type { Booking, RateResult, SearchConditions } from '../types';
+import type { Booking, BookingRoom, RateResult, SearchConditions } from '../types';
 import { SEED_BOOKINGS } from '../mocks/seedBookings';
 
 /**
@@ -58,9 +58,23 @@ function nextSeq(): number {
   return next;
 }
 
-/** 요금·조건으로 예약 객체 생성 (ELLIS/Seller 코드 발번) — AI 검색·Create Booking·새 탭 공용 */
+/** 룸타입별 개수 요약 — "Twin[2]" · 혼합이면 "Twin[1] + Suite[1]" (Bookings 그리드 Room Type/Count) */
+export function summarizeRooms(rooms: BookingRoom[]): string {
+  const counts = new Map<string, number>();
+  rooms.forEach((r) => counts.set(r.room_type, (counts.get(r.room_type) ?? 0) + 1));
+  return [...counts.entries()].map(([type, n]) => `${type}[${n}]`).join(' + ');
+}
+
+/**
+ * 요금·조건으로 예약 객체 생성 (ELLIS/Seller 코드 발번) — AI 검색·Create Booking·새 탭 공용.
+ *
+ * 분리 예약(A안: 1코드 + N룸): `rates`에 룸별 요금을 담으면 예약 1건에 룸 명세가 함께 저장된다.
+ * - 청구액 = 룸별 합
+ * - 취소 마감 = **하나라도 환불불가면 예약 전체가 환불불가(null)**, 아니면 가장 이른 마감
+ *   (취소는 예약 전체 단위 — 부분 취소 미지원 정책. feature-split-room-booking.md §5 참조)
+ */
 export function buildBooking(
-  rate: RateResult,
+  rates: RateResult[],
   conditions: SearchConditions | null,
   travelerName: string,
 ): Booking {
@@ -68,26 +82,47 @@ export function buildBooking(
   const p = (n: number) => String(n).padStart(2, '0');
   const ymd = `${String(now.getFullYear()).slice(-2)}${p(now.getMonth() + 1)}${p(now.getDate())}`;
   const seq = nextSeq();
+  const first = rates[0];
+  const split = rates.length > 1;
+
+  const rooms: BookingRoom[] = rates.map((r) => ({
+    room_type: r.room_type_name,
+    rate_plan_name: r.rate_plan_name,
+    meal_plan: r.meal_plan,
+    sum_amt: r.selling_price + r.tax,
+    cancellation_deadline: r.cancellation_deadline,
+  }));
+
+  // 취소 마감 합성: 환불불가 룸이 하나라도 있으면 전체 환불불가, 아니면 가장 이른 마감
+  const anyNonRefundable = rooms.some((r) => r.cancellation_deadline === null);
+  const earliestDl = anyNonRefundable
+    ? null
+    : rooms
+        .map((r) => r.cancellation_deadline)
+        .filter((d): d is string => Boolean(d))
+        .sort()[0] ?? null;
+
   return {
     ellis_code: `J${ymd}1${String(seq).padStart(4, '0')}H01`,
     seller_code: `ATTIC20${ymd}${String(seq).padStart(4, '0')}`,
     booking_date: now.toISOString(),
     status: 'Confirmed',
     payment_status: 'Unpaid',
-    hotel_id: rate.hotel_id,
-    hotel_name: rate.hotel_name,
-    region: rate.destination,
+    hotel_id: first.hotel_id,
+    hotel_name: first.hotel_name,
+    region: first.destination,
     check_in: conditions?.check_in ?? '2026-08-20',
     check_out: conditions?.check_out ?? '2026-08-22',
-    nights: rate.total_nights,
-    room_type: rate.room_type_name,
-    room_count: conditions?.rooms ?? rate.total_rooms,
+    nights: first.total_nights,
+    room_type: split ? rooms.map((r) => r.room_type).join(' + ') : first.room_type_name,
+    room_count: split ? rooms.length : (conditions?.rooms ?? first.total_rooms),
     traveler_name: travelerName,
     travelers: (conditions?.adults ?? 2) + (conditions?.children ?? 0),
-    currency: rate.currency,
-    sum_amt: rate.selling_price + rate.tax,
-    client_cancel_dl: rate.cancellation_deadline,
+    currency: first.currency,
+    sum_amt: rooms.reduce((s, r) => s + r.sum_amt, 0),
+    client_cancel_dl: split ? earliestDl : first.cancellation_deadline,
     cancel_date: null,
+    rooms: split ? rooms : undefined,
   };
 }
 
