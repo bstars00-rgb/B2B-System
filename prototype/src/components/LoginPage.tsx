@@ -74,15 +74,50 @@ export default function LoginPage({ onLogin }: Props) {
 
   return (
     <div className="flex min-h-screen text-slate-900">
-      {/* ── 좌측 광고판 — 주기 교체형 캠페인 (우리는 누구인가 / 무엇을 하는가) ── */}
-      <div className="relative hidden flex-1 flex-col justify-center overflow-hidden bg-[#101A3A] bg-gradient-to-br from-[#0C1430] via-[#14204A] to-[#1A2C5E] px-16 lg:flex">
-        {/* 장식 점 */}
-        <span className="absolute left-[14%] top-[20%] h-1.5 w-1.5 rounded-full bg-brand-500/80" aria-hidden />
-        <span className="absolute right-[28%] top-[40%] h-1.5 w-1.5 rounded-full bg-slate-400/50" aria-hidden />
-        <span className="absolute bottom-[22%] left-[58%] h-1.5 w-1.5 rounded-full bg-slate-400/40" aria-hidden />
+      {/* ── 좌측 광고판 — 주기 교체형 캠페인 (우리는 누구인가 / 무엇을 하는가) · AI 시대 무드 ── */}
+      <div className="relative hidden flex-1 flex-col overflow-hidden bg-[#0B1330] px-20 py-12 lg:flex">
+        {/* 배경 레이어: 그라데이션 + 도트 그리드 + 글로우 + 뉴럴 네트워크 */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0A1128] via-[#111D44] to-[#1A2C5E]" aria-hidden />
+        <div
+          className="absolute inset-0 opacity-60"
+          style={{
+            backgroundImage: 'radial-gradient(rgba(148,163,184,0.12) 1px, transparent 1px)',
+            backgroundSize: '30px 30px',
+          }}
+          aria-hidden
+        />
+        <span className="absolute -bottom-48 -left-40 h-[560px] w-[560px] rounded-full bg-brand-500/15 blur-[130px]" aria-hidden />
+        <span className="absolute -right-32 -top-40 h-[480px] w-[480px] rounded-full bg-indigo-500/15 blur-[120px]" aria-hidden />
+        {/* 뉴럴 네트워크 — AI 시대에 발맞춰 간다는 무드 */}
+        <svg className="absolute inset-0 h-full w-full opacity-40" viewBox="0 0 1200 900" preserveAspectRatio="xMidYMid slice" aria-hidden>
+          <g stroke="#64748B" strokeOpacity="0.28" strokeWidth="1">
+            <line x1="150" y1="120" x2="420" y2="240" />
+            <line x1="420" y1="240" x2="760" y2="150" />
+            <line x1="760" y1="150" x2="1080" y2="300" />
+            <line x1="420" y1="240" x2="620" y2="480" />
+            <line x1="620" y1="480" x2="1000" y2="560" />
+            <line x1="620" y1="480" x2="380" y2="720" />
+            <line x1="380" y1="720" x2="820" y2="800" />
+            <line x1="1000" y1="560" x2="820" y2="800" />
+            <line x1="150" y1="120" x2="120" y2="520" />
+            <line x1="120" y1="520" x2="380" y2="720" />
+            <line x1="1080" y1="300" x2="1000" y2="560" />
+          </g>
+          <g fill="#F1964A">
+            <circle cx="150" cy="120" r="4" className="animate-pulse" />
+            <circle cx="420" cy="240" r="3" fill="#94A3B8" />
+            <circle cx="760" cy="150" r="4" className="animate-pulse" style={{ animationDelay: '0.7s' }} />
+            <circle cx="1080" cy="300" r="3" fill="#94A3B8" />
+            <circle cx="620" cy="480" r="5" className="animate-pulse" style={{ animationDelay: '1.4s' }} />
+            <circle cx="120" cy="520" r="3" fill="#94A3B8" />
+            <circle cx="1000" cy="560" r="4" className="animate-pulse" style={{ animationDelay: '2.1s' }} />
+            <circle cx="380" cy="720" r="3" fill="#94A3B8" />
+            <circle cx="820" cy="800" r="4" className="animate-pulse" style={{ animationDelay: '2.8s' }} />
+          </g>
+        </svg>
 
-        {/* 로고 */}
-        <div className="mb-10 flex items-center gap-3">
+        {/* 로고 (상단) */}
+        <div className="relative flex items-center gap-3">
           <span className="relative flex h-12 w-12 items-center justify-center rounded-full border-[3px] border-brand-500">
             <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" aria-hidden />
           </span>
@@ -92,38 +127,50 @@ export default function LoginPage({ onLogin }: Props) {
           </span>
         </div>
 
-        {/* 캠페인 카피 */}
-        <h1 className="whitespace-pre-line bg-gradient-to-r from-brand-400 to-orange-300 bg-clip-text text-[44px] font-extrabold leading-[1.15] text-transparent">
-          {c.headline}
-        </h1>
-        <p className="mt-6 whitespace-pre-line text-lg leading-relaxed text-slate-200">{c.subEn}</p>
-        <p className="mt-4 whitespace-pre-line text-[13px] leading-relaxed text-slate-400">{c.subKo}</p>
+        {/* 캠페인 카피 (중앙 — 화면을 채우는 대형 타이포) */}
+        <div className="relative flex flex-1 flex-col justify-center">
+          <p className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[0.3em] text-brand-300">
+            <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-brand-400" aria-hidden />
+            AI-Powered B2B Travel Platform
+          </p>
+          <h1 className="mt-6 max-w-4xl whitespace-pre-line bg-gradient-to-r from-brand-400 via-orange-300 to-amber-200 bg-clip-text text-[56px] font-extrabold leading-[1.1] text-transparent xl:text-[68px]">
+            {c.headline}
+          </h1>
+          <p className="mt-8 max-w-3xl whitespace-pre-line text-2xl leading-relaxed text-slate-200">{c.subEn}</p>
+          <p className="mt-5 max-w-2xl whitespace-pre-line text-[15px] leading-relaxed text-slate-400">{c.subKo}</p>
 
-        {/* 특장점 칩 */}
-        <div className="mt-8 flex max-w-xl flex-wrap gap-2.5">
-          {c.chips.map((chip) => (
-            <span
-              key={chip}
-              className="rounded-full border border-brand-500/60 px-4 py-1.5 text-[12px] font-medium text-brand-300"
-            >
-              {chip}
-            </span>
-          ))}
+          {/* 특장점 칩 */}
+          <div className="mt-10 flex max-w-3xl flex-wrap gap-3">
+            {c.chips.map((chip) => (
+              <span
+                key={chip}
+                className="rounded-full border border-brand-500/60 bg-brand-500/10 px-5 py-2 text-[13px] font-medium text-brand-300 backdrop-blur-sm"
+              >
+                {chip}
+              </span>
+            ))}
+          </div>
         </div>
 
-        {/* 캠페인 인디케이터 — 운영: loginCampaigns.ts에 추가하면 자동 로테이션 */}
-        <div className="mt-10 flex items-center gap-2">
-          {LOGIN_CAMPAIGNS.map((cam, i) => (
-            <button
-              key={cam.id}
-              type="button"
-              aria-label={`캠페인 ${i + 1}`}
-              onClick={() => setSlide(i)}
-              className={`h-1.5 rounded-full transition-all ${
-                i === slide ? 'w-6 bg-brand-500' : 'w-1.5 bg-slate-500/60 hover:bg-slate-400'
-              }`}
-            />
-          ))}
+        {/* 하단: 캠페인 인디케이터 + AI 엔진 상태 */}
+        <div className="relative flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {LOGIN_CAMPAIGNS.map((cam, i) => (
+              <button
+                key={cam.id}
+                type="button"
+                aria-label={`캠페인 ${i + 1}`}
+                onClick={() => setSlide(i)}
+                className={`h-2 rounded-full transition-all ${
+                  i === slide ? 'w-8 bg-brand-500' : 'w-2 bg-slate-500/60 hover:bg-slate-400'
+                }`}
+              />
+            ))}
+          </div>
+          <span className="flex items-center gap-2 text-[12px] text-slate-400">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" aria-hidden />
+            AI Rate Engine — Online
+          </span>
         </div>
       </div>
 
