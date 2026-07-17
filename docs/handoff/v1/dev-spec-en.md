@@ -129,7 +129,10 @@
 
 ### P-2 Split-Room Booking (double + twin in one flow)
 
+> **Detailed plan (KO, 2026-07-17)**: [feature-split-room-booking.md](../../plan/feature-split-room-booking.md) — 11 customer scenarios, room-slot UX, data contracts, booking-unit options.
+
 - Flow draft: search Rooms=2 → each rate row gets "assign to Room 1 / Room 2" → summary bar shows the combined total → one Create produces a booking whose Travelers map to room+room-type.
+- **Prerequisites surfaced by the detailed plan**: rates must be exposed **per single room** (today they are all-rooms totals, so mixed baskets cannot be summed), search must return **rate lists per occupancy group**, and **availability counts** are needed to cap how many of a rate can be added.
 - **Blocking question for ELLIS/production (proposal §5-2)**: does a split booking issue *one* booking code with two room lines, or one code per room? The data model (one booking with `rooms[]` vs. linked bookings) hinges on this.
 - Ties into the AI parser, which already recognizes "더블+트윈 각각 1개씩" (`room_types`, `rooms` inference).
 
