@@ -161,7 +161,6 @@ export default function DashboardPage({
 
   const [destView, setDestView] = useState(DEST_VIEWS[0]);
   const [bestCountry, setBestCountry] = useState('All');
-  const [accountLevel, setAccountLevel] = useState('All');
   const [dailyMetric, setDailyMetric] = useState<DailyMetricKey>('bookingCount');
   const [dailyFrom, setDailyFrom] = useState(() => {
     const d = new Date(`${today}T00:00:00Z`);
@@ -561,19 +560,12 @@ export default function DashboardPage({
       {/* ══════ Data Center — Booking ══════ */}
       {tab === 'dc-booking' && (
         <div className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-[13px] font-bold text-slate-800">Booking Statistics (6개월)</p>
-            <select
-              value={accountLevel}
-              onChange={(e) => setAccountLevel(e.target.value)}
-              className={filterCls}
-              aria-label="계정 구분"
-            >
-              {['All', 'Master', 'Sub-accounts'].map((l) => (
-                <option key={l}>{l}</option>
-              ))}
-            </select>
-          </div>
+          {/*
+            Account Level 필터 삭제 (2026-07-17 PD팀 확정):
+            셀러는 **자기 예약만** 본다 — 서브계정 합산이 없으므로 계정 구분이 나눌 대상이 없다.
+            원본 명세의 필터 값(Direct/DIDA/Hotelbeds)도 공급사명이라 노출 대상이 아님이 확정됨.
+          */}
+          <p className="text-[13px] font-bold text-slate-800">Booking Statistics (6개월)</p>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             <Kpi label={`Confirmed (${latest.month})`} value={latest.confirmed.toLocaleString('ko-KR')} />
             <Kpi label="Cancelled" value={latest.cancelled.toLocaleString('ko-KR')} />
@@ -781,8 +773,9 @@ export default function DashboardPage({
 
       <p className="mt-3 text-[10px] leading-relaxed text-slate-400">
         프로토타입 — 읽기 전용 스냅샷입니다. 모든 수치는 Bookings 목록의 예약 {bookings.length}건에서 집계되며, 집계
-        기준일·기간·목적지·지표 필터가 실제로 동작합니다. Bestselling 랭킹은 셀러 실적이 아닌 플랫폼 전체 랭킹(별도
-        목데이터)이고, Account Level 필터는 서브계정 구조가 없어 화면만 동작합니다.
+        기준일·기간·목적지·지표 필터가 실제로 동작합니다. 셀러는 <b>자기 예약만</b> 봅니다(서브계정 합산 없음).
+        집계는 <b>실시간</b>이라 방금 만든 예약이 즉시 반영됩니다. Bestselling 랭킹은 판매량 집계가 아니라{' '}
+        <b>마케팅이 정하는 편집 목록</b>입니다 — 프로토타입은 코드 파일, 운영은 배포 없이 편집 가능해야 합니다.
       </p>
     </div>
   );

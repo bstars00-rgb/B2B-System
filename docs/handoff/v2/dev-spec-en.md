@@ -124,9 +124,9 @@ Contract: `{ code, destination, hotelName }` + a nonce (so clicking the same hot
 
 - 3 KPI cards: Confirmed / Cancelled / **Deferred Credit** (current month).
 - 6-month grouped BarChart (Confirmed / Cancelled / Deferred), bucketed by **booking month** — a cancelled booking must stay in the month it was *booked*, otherwise the cancel-rate denominator in D-3 stops matching.
-- Account Level filter (`All | Master | Sub-accounts`) — **display only in the prototype** (no sub-account structure exists). See open question ①.
+- **No filters.** The Account Level filter was **removed** (2026-07-17, §10-①⑦): sellers see only their own bookings, so there is nothing to split by — and the values your spec carried (`Direct/DIDA/Hotelbeds`) are supplier names, which are not exposed.
 
-> **`Deferred Credit` is our interpretation, not a confirmed definition**: `count(status = Confirmed ∧ payment_status = Unpaid)` — booked on credit, not yet settled. **Finance must confirm** (open question ⑤).
+> **`Deferred Credit` is still our interpretation**: `count(status = Confirmed ∧ payment_status = Unpaid)` — booked on credit, not yet settled. **This is the one decision still outstanding** (§10-⑤).
 
 ### D-3 Cancellation (`dc-cancel`)
 
@@ -227,13 +227,15 @@ We **did not fabricate history to fill these**. Inventing 2024–2025 bookings w
 
 ## 7. Backend Requirements (production)
 
-1. **Server-side aggregation.** The prototype aggregates in the browser over the full booking list. Production must expose an endpoint that takes `{ basis, from, to, prevFrom, prevTo }` and returns the shapes in §4 — do not ship a seller's whole booking history to the client.
+1. **Server-side aggregation — as a live query.** The prototype aggregates in the browser over the full booking list; production must expose an endpoint taking `{ basis, from, to, prevFrom, prevTo }` and returning the shapes in §4. Two consequences of the **realtime** decision (§10-③):
+   - It is a query per view, not a read of a batch table. Index on **`(seller_id, booking_date)`, `(seller_id, check_in)`, `(seller_id, check_out)`** — the three date bases hit three different columns.
+   - One dashboard view needs KPIs + TTV + daily + destination + monthly + cancellation + year-end. **Return them in one response**; do not make the client fan out to seven endpoints.
+   - Scope is **the seller's own bookings only** (§10-①) — no sub-account joins.
 2. **`cancel_reason` capture.** D-3 has no data source unless cancellation records a reason. Needs a reason picker (enum above + free text) at cancel time, plus a decision on what to do with historical cancellations that have none (suggest bucketing as `Unspecified`).
-3. **Deferred Credit definition** — confirm ours (Confirmed ∧ Unpaid) or supply the real one (open question ⑤).
-4. **Data scope** — whether a seller's dashboard shows only their own bookings or aggregates sub-accounts decides both the API contract and whether the Account Level filter is real (open question ①).
-5. **Bestselling ranking source** — platform-wide ranking is a separate service/table, not the seller's bookings (open question ②). The response must carry, per row: `hotel_code`, **last month's rank** (for the MoM column), and an **indicative nightly-from rate**; and every ranked hotel must be bookable (§D-1.1).
-6. **Aggregation cadence** — realtime query vs nightly batch (open question ③). Affects whether a booking made 5 minutes ago appears.
-7. **Currency handling** — see §4.1.
+3. **Deferred Credit definition** — confirm ours (Confirmed ∧ Unpaid) or supply the real one. **The one open item** (§10-⑤).
+4. **Bestselling ranking — an editing tool, not an aggregation** (§10-②). Marketing must be able to reorder **without a deploy** (admin screen or CMS table); the source must retain **last month's rank** (for MoM) and guarantee **every listed hotel is bookable**. Per row the client needs `hotel_code` (deep-link into search) and an indicative `nightly_from` from the rate service.
+5. **Same source as the channel-growth metrics** (§10-④, v1 proposal §5-5) — one definition of "a booking".
+6. **Currency handling** — see §4.1.
 
 ## 8. QA Acceptance Scenarios (all pass on the prototype)
 
@@ -268,16 +270,31 @@ We **did not fabricate history to fill these**. Inventing 2024–2025 bookings w
 
 **Charts**: Recharts 2.15 (React 18-compatible line). Adds ~350 kB to the bundle — acceptable for a prototype; **production should code-split the dashboard route.**
 
-## 10. Open Decisions for PD
+## 10. Decisions — PD answers received (2026-07-17)
 
-| # | Question | Why it blocks |
-|---|----------|---------------|
-| ① | **Data scope** — own bookings only, or sub-accounts aggregated? What does `Account Level` actually mean? | Decides the API contract and whether that filter is real or gets removed |
-| ② | **Bestselling ranking basis** — platform-wide or the seller's own? (built as platform-wide) | Different data source entirely |
-| ③ | **Aggregation cadence** — realtime or daily batch? | Determines whether a just-made booking appears |
-| ④ | **Same data source** as the DOTBIZ channel-growth metrics (v1 proposal §5-5)? | Avoids two conflicting definitions of "bookings" |
-| ⑤ | **Deferred Credit definition** — confirm Confirmed ∧ Unpaid | Currently our interpretation |
-| ⑥ | **Year-End tab** — keep, drop, or defer? (§6) | Meaningless below 1 year of history |
-| ⑦ | **Account Level values in your spec** (§5.1) — `Direct/DIDA/Hotelbeds` contradicts both implementations | Spec/code mismatch, plus supplier-exposure concern |
+**Six of seven settled; ⑤ outstanding.** All settled answers are already reflected in the prototype and in this document.
+
+| # | Question | Decision | What changed |
+|---|----------|----------|--------------|
+| ① | Data scope | ✅ **Seller sees only their own bookings** — no sub-account aggregation | **`Account Level` filter removed** — with no sub-accounts there is nothing to split by. §D-2 updated |
+| ② | Bestselling ranking basis | ✅ **Marketing surface — we decide the order** | Not a computed metric but an **editorial list**. The requirement flips from "ranking API" to **"editing tool"** — see §10.1 |
+| ③ | Aggregation cadence | ✅ **Realtime** | A booking made 5 minutes ago appears immediately. No batch, so no "as of" timestamp. Server-side aggregation becomes a **live query** — see §7 |
+| ④ | Same source as channel-growth metrics | ✅ **Yes, required** | One definition of "a booking" |
+| ⑤ | Deferred Credit definition | ⏳ **Outstanding — Tracy to confirm** | Still implemented as `Confirmed ∧ Unpaid` |
+| ⑥ | Year-End tab | ✅ **Keep** | Stays. The empty 2024–2025 is a prototype-data artifact only (§6) |
+| ⑦ | Account Level values (supplier names) | ✅ **Supplier names are not included** | `Direct/DIDA/Hotelbeds` gone; resolved together with ① since the filter itself is removed |
+
+### 10.1 Consequence of ② — the ranking is an editorial artefact, not a metric
+
+If we decide the order, what is needed is not ranking logic but **an editing tool**:
+
+| Requirement | Detail |
+|-------------|--------|
+| Editable without deploy | Marketing must be able to change the order through an admin screen or CMS table — the same class of asset as the gateway campaigns (v1 spec F-1.1). Only the prototype keeps it in a code file. |
+| Stores last month's rank | The MoM column is **the difference against last month's edit**, not a computation. The editing source must retain it. |
+| Bookable invariant | More important for a promotion, not less — **promoting a hotel that cannot be booked is an incident**, not marketing (§D-1.1) |
+| `Nightly from` | Comes from the rate service, not from the editorial list |
+
+> **Question back to you**: if we choose the order, the label **`Bestselling`** asserts a sales fact we are not computing. Keep the label, or rename to `Featured` / `Recommended`? Your call — flagging it because the current wording claims something the data no longer supports.
 
 — Questions on any section: CEO Office.

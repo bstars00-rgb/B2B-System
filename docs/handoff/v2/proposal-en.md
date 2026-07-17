@@ -111,17 +111,29 @@ Our prototype's bookings start **2026-05-01**, so anything needing longer histor
 
 For **production this is likely a non-issue**: real sellers have real history. It is a prototype-data artifact. But it does raise a genuine question for new seller accounts — see §6-⑥.
 
-## 6. Decisions Requested from PD
+## 6. Decisions — your answers, received 2026-07-17
 
-| # | Question | Our position |
-|---|----------|--------------|
-| ① | **Data scope** — does a seller's dashboard show only their own bookings, or aggregate sub-accounts? What does `Account Level` actually mean? | Blocks the API contract; the filter is display-only until answered |
-| ② | **Bestselling ranking basis** — platform-wide, or the seller's own top hotels? | Built as platform-wide; needs its own data source either way |
-| ③ | **Aggregation cadence** — realtime or nightly batch? | Decides whether a booking made 5 minutes ago appears |
-| ④ | **Shared data source** with the DOTBIZ channel-growth metrics (v1 §5-5)? | Strongly recommend yes — two definitions of "bookings" will diverge |
-| ⑤ | **Deferred Credit definition** — we implemented `Confirmed ∧ Unpaid` (booked on credit, unsettled) | Needs finance confirmation |
-| ⑥ | **Year-End tab** — keep, drop, or defer? | Recommend **keep**; it fills in naturally with production history |
-| ⑦ | **Account Level values in your spec** — §4 documents `Direct / DIDA / Hotelbeds`, but **both your code and ours use `All / Master / Sub-accounts`** | Spec contradicts both implementations, and those values are supplier names (same concern as ④). We left that line untouched — it is yours to resolve, and it depends on ① |
+**Six of seven settled. All settled answers are already built into the prototype and this spec.**
+
+| # | Question | Your decision | What we changed |
+|---|----------|---------------|-----------------|
+| ① | Data scope | **Sellers see only their own bookings** | **Removed the `Account Level` filter** — with no sub-account aggregation there is nothing to split by |
+| ② | Bestselling ranking basis | **Marketing surface — we decide the order** | Reframed: it is an **editorial list, not a metric**. See §6.1 — this changes what engineering has to build |
+| ③ | Aggregation cadence | **Realtime** | A booking made 5 minutes ago appears immediately. No batch means no "as of" label; server-side aggregation becomes a live query (§7) |
+| ④ | Shared source with channel-growth metrics | **Required** | One definition of "a booking" across both |
+| ⑤ | Deferred Credit definition | ⏳ **Still open — you will confirm** | Left as `Confirmed ∧ Unpaid`. **This is the only item we are still waiting on.** |
+| ⑥ | Year-End tab | **Keep** | Stays as built. The empty 2024–2025 is a prototype-data artifact and resolves itself on production history |
+| ⑦ | Account Level values (supplier names) | **Supplier names are not included** | `Direct/DIDA/Hotelbeds` removed from the spec; resolved along with ① since the filter is gone |
+
+### 6.1 What ② changes
+
+"We decide the order" is a bigger answer than it looks. It means the ranking is **not a computed metric at all** — so engineering does not need ranking logic, it needs an **editing tool**:
+
+- Marketing must be able to reorder **without a deploy** — an admin screen or CMS table, the same class of asset as the gateway campaigns in v1.
+- The editing source must **retain last month's order**, because the MoM column is the difference against the previous edit — not a calculation.
+- The **bookable invariant matters more, not less**: promoting a hotel that cannot be booked is an incident, not marketing.
+
+> **One question back to you.** If we choose the order, the label **"Bestselling"** asserts a sales fact we are not computing. Keep it, or rename to "Featured" / "Recommended"? We have left the label as-is pending your call.
 
 ## 7. Production Readiness
 
