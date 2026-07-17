@@ -14,7 +14,7 @@ export default function LegalModal({ doc, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto p-6" role="dialog" aria-modal="true">
       <button type="button" aria-label="닫기" onClick={onClose} className="fixed inset-0 h-full w-full cursor-default bg-slate-900/60 backdrop-blur-sm" />
-      <div className="relative my-6 w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <div className="relative my-6 w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-2xl">
         {/* 헤더 */}
         <div className="flex items-start justify-between gap-3 border-b border-slate-100 bg-gradient-to-b from-orange-50/70 to-white px-5 py-4">
           <div className="flex items-start gap-3">

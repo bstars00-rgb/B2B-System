@@ -13,6 +13,7 @@ import { formatDateTime } from '../utils/format';
 import type { Booking, RateResult } from '../types';
 import AccountMenu from './AccountMenu';
 import EnhBadge from './EnhBadge';
+import LegalModal from './LegalModal';
 import BoardPage from './BoardPage';
 import BookingDetailModal from './BookingDetailModal';
 import BookingsPage from './BookingsPage';
@@ -162,6 +163,8 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
   const [playbookOpen, setPlaybookOpen] = useState(false);
   /** 포털 전역 표시 언어 — Playbook 등 콘텐츠가 이 설정을 따라감 */
   const [portalLang, setPortalLang] = useState<PortalLang>(loadPortalLang);
+  /** 약관·개인정보 모달 (푸터 링크 — 실사이트 동일) */
+  const [legalDoc, setLegalDoc] = useState<'agreement' | 'privacy' | null>(null);
   const changePortalLang = useCallback((l: PortalLang) => {
     setPortalLang(l);
     savePortalLang(l);
@@ -596,9 +599,19 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
               © 2025 OHMYHOTEL GLOBAL PTE. LTD. All rights reserved. · Business number 105-87-71311
               · Ceo : Lee Mi Soon
             </span>
-            <span>
-              6th floor, GT Dongdaemun Building, 328 Jong-ro, Jongno-gu, Seoul ·
-              cscenter@ohmyhotel.com · 02-733-0550
+            <span className="flex items-center gap-2">
+              <span>
+                6th floor, GT Dongdaemun Building, 328 Jong-ro, Jongno-gu, Seoul ·
+                cscenter@ohmyhotel.com · 02-733-0550
+              </span>
+              <span className="text-slate-200">|</span>
+              <button type="button" onClick={() => setLegalDoc('privacy')} className="hover:text-slate-500">
+                Privacy Policy
+              </button>
+              <span className="text-slate-200">|</span>
+              <button type="button" onClick={() => setLegalDoc('agreement')} className="hover:text-slate-500">
+                Terms &amp; Condition
+              </button>
             </span>
           </div>
         </footer>
@@ -633,6 +646,9 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
 
       {/* Ellis Playbook (시스템 매뉴얼) 전체화면 — 포털 언어 설정을 따라감 */}
       {playbookOpen && <PlaybookPage lang={portalLang} onClose={() => setPlaybookOpen(false)} />}
+
+      {/* 약관·개인정보 모달 (푸터 링크) */}
+      {legalDoc && <LegalModal doc={legalDoc} onClose={() => setLegalDoc(null)} />}
 
       {/* 로그아웃 확인 (실제 포털과 동일) */}
       {logoutConfirm && (
