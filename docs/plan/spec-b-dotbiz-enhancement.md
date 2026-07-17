@@ -1,7 +1,7 @@
 # 기획서 ② — 닷비즈 내부기능 고도화 (고객 친화 플랫폼 전환)
 
 > **작성일**: 2026-07-16 (최종 갱신 2026-07-17) · **트랙**: B (기존 기능 업그레이드) · **상태**: 백로그 방식으로 상시 진행 중
-> **기획팀 전달본**: [1차 기획안 (proposal-dotbiz-enhancement-v1.md)](proposal-dotbiz-enhancement-v1.md) — 본 문서의 스냅샷 요약
+> **기획팀 전달본**: [1차 기획안 (proposal-dotbiz-enhancement-v1.md)](proposal-dotbiz-enhancement-v1.md) — 본 문서의 스냅샷 요약 · [개발 명세서 EN (dev-spec)](dev-spec-dotbiz-enhancement-v1-en.md)
 > **자매 문서**: [기획서 ① ELLIS MCP AI 요금 검색](spec-a-ellis-ai-search.md) — AI/MCP와 무관하게 독립 배포 가능
 > **선행 문서**: [dotbiz-clone-plan.md](dotbiz-clone-plan.md) (클론 구축 단계 — 완료 기반 위에서 본 기획 진행)
 

@@ -1,6 +1,7 @@
 # DOTBIZ Feature Enhancement — Proposal v1 (for PD Team)
 
 > **Delivered**: 2026-07-17 · **From**: CEO Office · **Version**: v1 (based on validated prototype)
+> **Development Specification (EN)**: [dev-spec-dotbiz-enhancement-v1-en.md](dev-spec-dotbiz-enhancement-v1-en.md) — feature specs, data contracts, QA scenarios, code map
 > **Detailed spec (KO)**: [spec-b-dotbiz-enhancement.md](spec-b-dotbiz-enhancement.md) (25 improvements logged per commit) · AI search track: [spec-a](spec-a-ellis-ai-search.md)
 > **Live demo**: https://bstars00-rgb.github.io/B2B-System/
 

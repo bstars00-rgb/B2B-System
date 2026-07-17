@@ -27,6 +27,7 @@ B2B Frontend (Chat UI)
 | [plan/spec-b-dotbiz-enhancement.md](docs/plan/spec-b-dotbiz-enhancement.md) | 기획서 ② — 닷비즈 내부기능 고도화 (불편 개선 백로그 · 언어팩 5종 · 예약 편의 · 오피포인트 · 물량 전환) |
 | [plan/proposal-dotbiz-enhancement-v1.md](docs/plan/proposal-dotbiz-enhancement-v1.md) | **닷비즈 기능 고도화 1차 기획안 (기획팀 전달용)** — 완료 25건 요약 · 데모 가이드 · 의사결정 요청 |
 | [plan/proposal-dotbiz-enhancement-v1-en.md](docs/plan/proposal-dotbiz-enhancement-v1-en.md) | DOTBIZ Feature Enhancement — Proposal v1 (English, for PD team) |
+| [plan/dev-spec-dotbiz-enhancement-v1-en.md](docs/plan/dev-spec-dotbiz-enhancement-v1-en.md) | **Development Specification v1** (English, for PD team) — 기능 스펙 F1~F6 · 신규 기획 초안 P1~P5 · 데이터 계약 · QA 시나리오 14종 · 코드 맵 |
 
 **설계 상세**
 
