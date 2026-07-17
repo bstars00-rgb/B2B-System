@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
+import EnhBadge from './EnhBadge';
 
 /**
  * 실제 Ohmy Partners 포털(ohmyhotel.biz)의 좌측 사이드바를 재현한 셸.
- * Seller 메뉴 전체(Bookings/Create Booking/AI 요금 검색/FAQ Board/Notice)가 화면 전환 동작하고,
+ * Seller 메뉴 전체(Dashboard/Bookings/Create Booking/AI 요금 검색/FAQ Board/Notice)가 화면 전환 동작하고,
  * 상단 "Enter Menu name" 검색으로 메뉴를 필터링(한/영 키워드·일치 부분 하이라이트)한다.
  */
 
-export type PortalView = 'ai' | 'bookings' | 'create-booking' | 'faq' | 'notice' | 'staff';
+export type PortalView = 'dashboard' | 'ai' | 'bookings' | 'create-booking' | 'faq' | 'notice' | 'staff';
 
 interface Props {
   view: PortalView;
@@ -17,6 +18,8 @@ interface MenuItem {
   view: PortalView;
   label: string;
   badge?: string;
+  /** 닷비즈 원본에 없는 메뉴 — UP 배지로 표기 */
+  enh?: string;
   /** 검색 보조 키워드 (한/영) — 라벨 외 검색어 매칭용 */
   keywords: string[];
 }
@@ -34,6 +37,12 @@ const MENU: MenuSection[] = [
     icon: '▦',
     title: 'Seller',
     items: [
+      {
+        view: 'dashboard',
+        label: 'Dashboard',
+        enh: '닷비즈에 없던 통계 화면 — 예약·매출·목적지·베스트셀러를 한 화면에서 확인',
+        keywords: ['대시보드', '통계', 'statistics', 'data center', '리포트', 'report'],
+      },
       { view: 'bookings', label: 'Bookings', keywords: ['예약', '예약목록', 'reservation'] },
       { view: 'create-booking', label: 'Create Booking', keywords: ['예약생성', '호텔검색', 'hotel search'] },
       { view: 'ai', label: 'AI 요금 검색', badge: 'New', keywords: ['ai search', '자연어', 'rate', '요금검색'] },
@@ -68,12 +77,14 @@ function NavItem({
   query,
   active,
   badge,
+  enh,
   onClick,
 }: {
   label: string;
   query: string;
   active: boolean;
   badge?: string;
+  enh?: string;
   onClick: () => void;
 }) {
   return (
@@ -95,6 +106,7 @@ function NavItem({
             {badge}
           </span>
         )}
+        {enh && <EnhBadge note={enh} />}
       </button>
     </li>
   );
@@ -180,6 +192,7 @@ export default function PortalSidebar({ view, onNavigate }: Props) {
                     label={it.label}
                     query={query}
                     badge={it.badge}
+                    enh={it.enh}
                     active={view === it.view}
                     onClick={() => onNavigate(it.view)}
                   />
@@ -207,6 +220,7 @@ export default function PortalSidebar({ view, onNavigate }: Props) {
                     label={it.label}
                     query={query}
                     badge={it.badge}
+                    enh={it.enh}
                     active={view === it.view}
                     onClick={() => onNavigate(it.view)}
                   />

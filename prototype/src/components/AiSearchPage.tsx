@@ -17,6 +17,7 @@ import LegalModal from './LegalModal';
 import BoardPage from './BoardPage';
 import BookingDetailModal from './BookingDetailModal';
 import BookingsPage from './BookingsPage';
+import DashboardPage from './DashboardPage';
 import ChatPanel from './ChatPanel';
 import CreateBookingModal from './CreateBookingModal';
 import CreateBookingPage from './CreateBookingPage';
@@ -39,6 +40,7 @@ type Phase = 'idle' | 'loading' | 'done';
 
 /** 탭 스트립 라벨 (실제 포털: 방문한 메뉴가 탭으로 열림) */
 const TAB_LABELS: Record<PortalView, string> = {
+  dashboard: 'Dashboard',
   bookings: 'Bookings',
   'create-booking': 'Create Booking',
   ai: 'AI 요금 검색',
@@ -481,7 +483,9 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
         </div>
 
         {/* ── 본문: Bookings / Create Booking / AI 검색 (좌 채팅 / 우 조건+결과) ── */}
-        {view === 'bookings' ? (
+        {view === 'dashboard' ? (
+          <DashboardPage />
+        ) : view === 'bookings' ? (
           <BookingsPage bookings={bookings} onOpenDetail={setDetailBooking} />
         ) : view === 'staff' ? (
           <StaffPage />
