@@ -460,7 +460,6 @@ export default function DashboardPage() {
                     <th className="w-24 px-2 py-1.5 text-left font-medium">Star</th>
                     <th className="w-28 px-2 py-1.5 text-left font-medium">City</th>
                     <th className="w-36 px-2 py-1.5 text-left font-medium">Country/Region</th>
-                    <th className="w-24 px-2 py-1.5 text-left font-medium">Supplier</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -482,7 +481,6 @@ export default function DashboardPage() {
                       <td className="px-2 py-1.5 text-amber-500">{h.starRating} ★</td>
                       <td className="px-2 py-1.5 text-slate-700">{h.city}</td>
                       <td className="px-2 py-1.5 text-slate-700">{h.country}</td>
-                      <td className="px-2 py-1.5 text-slate-500">{h.supplier}</td>
                     </tr>
                   ))}
                 </tbody>
