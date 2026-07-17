@@ -1,5 +1,6 @@
 # 닷비즈 기능 고도화 — 1차 기획안 (기획팀 전달용)
 
+> **English version (PD팀 Tracy 전달본)**: [proposal-dotbiz-enhancement-v1-en.md](proposal-dotbiz-enhancement-v1-en.md)
 > **전달일**: 2026-07-17 · **작성**: CEO Office · **버전**: v1 (프로토타입 검증 완료 기준)
 > **상세 명세**: [spec-b-dotbiz-enhancement.md](spec-b-dotbiz-enhancement.md) (개선 이력 25건 커밋 단위 기록) · AI 검색 트랙은 [spec-a](spec-a-ellis-ai-search.md) 별도
 > **라이브 데모**: https://bstars00-rgb.github.io/B2B-System/
