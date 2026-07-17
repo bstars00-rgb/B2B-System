@@ -22,48 +22,42 @@
 3. Language: the **🌐 selector** in the header is a global setting — Playbook and FAQ follow it. Japanese/Vietnamese/Chinese fall back to English with a "translation in progress" notice.
 4. Suggested walkthrough: Gateway (rotating billboard · legal modals) → Create Booking, search "osaka" (loading → 26 properties · filters · photos) → Select (room list opens in a new tab) → change Rooms to 2 and re-search (rates recalculate) → Select a rate → booking modal (child birthday validation) → Create → the booking appears in the original tab's Bookings list.
 
-## 3. What Was Built & Validated (by screen)
+## 3. What Was Built & Validated
 
-### 3.1 Gateway (Login) — first new initiative, implemented
+The 25 completed items fall into two categories — **① Enhancements (new; not in the original DOTBIZ)** and **② Clone-parity restoration (original DOTBIZ features rebuilt as instructed)**. The purple `UP` badges in the demo mark only ①.
 
-- **Billboard**: the left half is a campaign area answering "who we are / what we do" — 3 campaigns auto-rotate (8s); adding an entry to the campaign file is all it takes to refresh the creative (**a periodically refreshed marketing surface**). Large typography (68px) with an AI-era background (neural-network lines, pulsing nodes, glow, "AI Rate Engine — Online" status).
-- **Modern sign-in panel**: DOTBIZ branding, password show/hide, Remember me, dark-mode toggle, Create Account.
-- **Legal documents accessible before login**: full **Terms & Condition (26 articles, effective 2026-03-14)** and full Privacy Policy open as modals from the gateway; sign-in is gated on agreement. The same links exist in the portal footer.
+### 3.1 Enhancements — new, not in the original DOTBIZ (what this proposal actually proposes)
 
-### 3.2 Hotel Search & Booking Flow (Create Booking → Room List → Booking)
+- **Gateway (Login) renewal — first new initiative**
+  - Billboard: the left half is a campaign area answering "who we are / what we do" — 3 campaigns auto-rotate (8s); adding an entry to the campaign file refreshes the creative (**a periodically refreshed marketing surface**). Large typography (68px) with an AI-era background (neural-network lines, pulsing nodes, glow, "AI Rate Engine — Online" status).
+  - Modern sign-in panel: DOTBIZ branding, password show/hide, Remember me, dark-mode toggle, Create Account.
+  - Legal documents accessible before login: full **Terms & Condition (26 articles, effective 2026-03-14)** and full Privacy Policy as gateway modals, with an agreement gate.
+- **Ellis Playbook built in**: a 6-chapter documentation-style manual (the original keeps it on a separate site), following the portal language setting.
+- **Sidebar menu search works** (KO/EN keyword matching with highlight — inactive in the original).
+- **Child birthday vs. searched-age mismatch warning** (age at check-in — the original accepts the input without validation).
+- **`UP` badge system**: enhancement spots are identifiable on screen (✨ toggle).
+- (Reference — AI Rate Search, Track A): never assumes past dates, asks back when the destination is missing, understands **"one double + one twin" split-room requests**. Details in Spec ①.
 
-- Destination search returns a real hotel list (26 Osaka properties with real hotel codes), result-driven filters (star rating · property type · chain brand), pagination.
-- Production-like **query latency with a "Searching…" loader**, and **real photos** (list cards + an 11-image detail gallery).
-- Select opens the room list **in a new tab**, keeping the search results intact for further comparison.
-- **Conditions are editable after searching** on the room list: check-in/out, nights, rooms (per-room adults/children with child ages) → re-search; with 2 rooms, rates recalculate as the whole-stay total.
-- Input safeguards: dates start empty on first visit (as in production), **past dates disabled in the calendar**, check-out selectable only after check-in, and a **warning when a child's birthday contradicts the searched child age** (age at check-in).
-- Business rule: **vouchers cannot be issued for Unpaid bookings** (production rule).
-- A booking created in the new tab **appears in the original tab's Bookings list in real time** and survives refreshes.
+### 3.2 Clone-Parity Restoration — original DOTBIZ features, rebuilt as instructed
 
-### 3.3 Bookings (Reservation Management)
+> The items below are **features the original DOTBIZ already had**. They were re-created 1:1 on the prototype per instruction and validated — they are not new proposals.
 
-- Row **checkboxes actually work** (select-all + per-row), and **column widths drag-resize like Excel** — same grid feel as production.
+- **Hotel search & booking flow**: destination search with a real hotel list (26 Osaka properties, real codes), filters (star/type/chain), pagination, query latency with a "Searching…" loader, hotel photos, Select opening the room list **in a new tab** (search results kept), editable conditions after search with multi-room rate recalculation, empty dates on first visit, past dates disabled, the Unpaid-booking voucher restriction, and bookings flowing into the Bookings list.
+- **Bookings (reservation management)**: working row checkboxes (select-all/per-row) and Excel-style column drag-resize — same grid feel as production.
+- **Language packs**: the original ships 5 languages (EN·KO·ZH·VI·JA); the structure is restored with EN/KO content complete, language changed in exactly one global place, JA/VI/ZH translations in progress with the content team.
+- **Legal documents**: full original Terms & Privacy texts, plus the portal footer links.
+- **Measured UI parity**: font (Pretendard webfont), brand orange (#EF7F29), base 12px/#333 — matched to production measurements.
 
-### 3.4 Manual, Boards & Language
-
-- **Ellis Playbook built in** (an enhancement — not in the original): a 6-chapter documentation-style manual that follows the portal language setting.
-- FAQ and Playbook **language packs (EN/KO)** — language changes in exactly one place (global setting, by principle); JA/VI/ZH translations are in progress with the content team.
-- Sidebar **menu search works** (KO/EN keyword matching with highlight).
-
-### 3.5 Reference — AI Rate Search (Track A) improvements
-
-- Never assumes past dates (rolls to the next occurrence and states the assumption), asks back when the destination is missing, and understands **"one double + one twin" split-room requests**. Details in Proposal/Spec ①.
-
-> The full per-item commit history for all 25 improvements: [detailed spec §3.1](spec-b-dotbiz-enhancement.md) (Korean).
+> The full per-item commit history for all 25 items: [detailed spec §3.1](spec-b-dotbiz-enhancement.md) (Korean).
 
 ## 4. New Initiatives Proposed (H2)
 
-| # | Initiative | Essence | Status |
-|---|-----------|---------|--------|
-| 1 | 5-language content build-out | EN·KO·JA·VI·ZH — the structure is ready; **waiting on content-team translations** | In progress |
-| 2 | OP convenience features for booking creation (3) | ⑴ Room-type sorting/filtering (twin/double) ⑵ **Split-room booking** (double + twin in one flow) ⑶ **Rate/room-type copy** (quote text to clipboard) | Planned; build Sep–Oct |
-| 3 | Oppy Point (OP rewards mall) | Points accrue to individual OPs on completed stays → redeemable in a rewards mall → locks in the people who actually book. MVP = ledger + balance display | Nov (legal/finance review first) |
-| 4 | Volume migration program | Onboard top API-volume clients onto DOTBIZ (training + point incentives) → track monthly direct-booking share | Target list needed |
+| # | Initiative | Essence | Planning status |
+|---|-----------|---------|-----------------|
+| 1 | 5-language content build-out | EN·KO·JA·VI·ZH — the structure is ready; **waiting on content-team translations** | In progress (finalize in Aug) |
+| 2 | OP convenience features for booking creation (3) | ⑴ Room-type sorting/filtering (twin/double) ⑵ **Split-room booking** (double + twin in one flow) ⑶ **Rate/room-type copy** (quote text to clipboard) | Draft done — detailed spec finalized in Aug |
+| 3 | Oppy Point (OP rewards mall) | Points accrue to individual OPs on completed stays → redeemable in a rewards mall → locks in the people who actually book. MVP = ledger + balance display | Policy finalized in Aug (incl. legal/finance review) |
+| 4 | Volume migration program | Onboard top API-volume clients onto DOTBIZ (training + point incentives) → track monthly direct-booking share | Targets & measurement finalized in Aug |
 
 ## 5. Decisions Requested from PD
 
@@ -73,15 +67,12 @@
 4. **Child-age validation strictness** — currently a strict age-at-check-in warning. Given Korean colloquial age conventions, alternatives are a ±1-year tolerance or a one-click "re-search with corrected age" action.
 5. **Volume migration measurement** — an internal data source that separates API-routed vs. direct DOTBIZ bookings.
 
-## 6. H2 Roadmap
+## 6. Planning Schedule — complete by end of August
 
-| Month | Milestone |
-|-------|-----------|
-| Jul (done) | Gateway renewal · 25 improvements shipped · EN/KO language packs · measured UI parity |
-| Aug | Japanese content · remaining backlog (dual-handle rate slider, real Excel export, etc.) |
-| Sep | Room-type sorting · rate/room-type copy |
-| Oct | Split-room booking · all 5 languages complete |
-| Nov | Oppy Point build |
-| Dec | Rewards mall launch · volume-migration review |
+| Period | Milestone |
+|--------|-----------|
+| Jul (done) | Clone-parity restoration + first wave of enhancements built & validated on the prototype · **this Proposal v1 delivered** |
+| Aug | Incorporate the §5 decisions → finalize detailed plans for the 4 initiatives (OP convenience ×3 · Oppy Point policy · language content · volume migration design) → **planning wrap-up** |
+| After | Implementation and production-rollout scheduling to be set separately with the PD team and the DOTBIZ platform engineering team, based on the finalized plans |
 
 — This proposal reflects what has been validated on the prototype. Production rollout requires separate alignment with the DOTBIZ platform engineering team.
