@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { FAQ_POSTS, NOTICE_POSTS, postBody, postTitle, type BoardLang, type BoardPost } from '../mocks/boardData';
+import EnhBadge from './EnhBadge';
 
 interface Props {
   kind: 'faq' | 'notice';
@@ -75,6 +76,7 @@ export default function BoardPage({ kind }: Props) {
           <div className="flex items-center gap-3">
             {kind === 'faq' && (
               <div className="flex items-center gap-1.5">
+                <EnhBadge note="FAQ 언어팩(영/한) — 표시 언어와 무관한 양언어 검색. 일/베/중 번역 콘텐츠팀 진행 중" />
                 <span className="text-[11px] text-slate-400" aria-hidden>🌐</span>
                 <div className="flex overflow-hidden rounded border border-slate-300 text-[11px]">
                   {(['en', 'ko'] as const).map((l) => (

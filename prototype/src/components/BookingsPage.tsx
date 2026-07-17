@@ -36,10 +36,49 @@ const EMPTY = {
   bookerType: 'Booker', bookerText: '', country: '', hotel: '', seller: '',
 };
 
+/** 그리드 컬럼 정의 — 기본 폭(px). 실사이트처럼 헤더 경계 드래그로 조절 */
+const GRID_COLUMNS: Array<{ label: string; w: number }> = [
+  { label: 'Booking Date', w: 130 },
+  { label: 'ELLIS Booking Code', w: 150 },
+  { label: 'Seller Booking Code', w: 160 },
+  { label: 'Booking Status', w: 110 },
+  { label: 'Payment Status', w: 115 },
+  { label: 'Hotel Name', w: 150 },
+  { label: 'Client Cancel DL', w: 140 },
+  { label: 'Check-in Date / Nts', w: 135 },
+  { label: 'Room Type / Count', w: 170 },
+  { label: '1st Traveler Name', w: 125 },
+  { label: 'B.Currency', w: 90 },
+  { label: 'B.Sum Amt', w: 100 },
+  { label: 'BKG Cancel Date', w: 130 },
+  { label: 'Invoice No.', w: 100 },
+  { label: 'Dispute', w: 80 },
+  { label: 'Dispute Remark', w: 140 },
+];
+
 export default function BookingsPage({ bookings, onOpenDetail }: Props) {
   const [f, setF] = useState({ ...EMPTY });
   const [applied, setApplied] = useState({ ...EMPTY });
   const set = (patch: Partial<typeof EMPTY>) => setF((p) => ({ ...p, ...patch }));
+
+  /** 행 선택 (실사이트 동일 — 헤더 전체선택 + 행별 체크) */
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  /** 컬럼 폭 — 헤더 경계 드래그로 조절 (엑셀 스타일) */
+  const [colW, setColW] = useState<number[]>(GRID_COLUMNS.map((c) => c.w));
+  const startResize = (i: number) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = colW[i];
+    const onMove = (me: MouseEvent) => {
+      setColW((prev) => prev.map((w, x) => (x === i ? Math.max(60, startW + (me.clientX - startX)) : w)));
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
 
   const rows = useMemo(
     () =>
@@ -167,30 +206,46 @@ export default function BookingsPage({ bookings, onOpenDetail }: Props) {
           </div>
         </div>
 
-        {/* ── 예약 목록 그리드 (고정 높이 · 헤더 고정 — 실사이트 Kendo 그리드 동일) ── */}
+        {/* ── 예약 목록 그리드 (고정 높이 · 헤더 고정 · 컬럼 리사이즈 — 실사이트 Kendo 그리드 동일) ── */}
         <div className="mt-2 max-h-[440px] overflow-auto rounded border border-slate-200">
-          <table className="w-full min-w-[1500px] text-xs">
+          <table
+            className="text-xs [&_td]:overflow-hidden [&_td]:text-ellipsis [&_th]:overflow-hidden [&_th]:text-ellipsis [&_th]:whitespace-nowrap"
+            style={{ tableLayout: 'fixed', width: 32 + colW.reduce((s, w) => s + w, 0) }}
+          >
+            <colgroup>
+              <col style={{ width: 32 }} />
+              {colW.map((w, i) => (
+                <col key={i} style={{ width: w }} />
+              ))}
+            </colgroup>
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 [&>th]:sticky [&>th]:top-0 [&>th]:bg-slate-50">
-                <th className="w-8 px-2 py-2.5">
-                  <input type="checkbox" disabled />
+                <th className="px-2 py-2.5">
+                  <input
+                    type="checkbox"
+                    aria-label="전체 선택"
+                    className="accent-brand-500"
+                    checked={rows.length > 0 && rows.every((r) => selected.has(r.ellis_code))}
+                    onChange={(e) =>
+                      setSelected((prev) => {
+                        const next = new Set(prev);
+                        rows.forEach((r) => (e.target.checked ? next.add(r.ellis_code) : next.delete(r.ellis_code)));
+                        return next;
+                      })
+                    }
+                  />
                 </th>
-                <th className="px-3 py-2.5 font-semibold">Booking Date</th>
-                <th className="px-3 py-2.5 font-semibold">ELLIS Booking Code</th>
-                <th className="px-3 py-2.5 font-semibold">Seller Booking Code</th>
-                <th className="px-3 py-2.5 font-semibold">Booking Status</th>
-                <th className="px-3 py-2.5 font-semibold">Payment Status</th>
-                <th className="px-3 py-2.5 font-semibold">Hotel Name</th>
-                <th className="px-3 py-2.5 font-semibold">Client Cancel DL</th>
-                <th className="px-3 py-2.5 font-semibold">Check-in Date / Nts</th>
-                <th className="px-3 py-2.5 font-semibold">Room Type / Count</th>
-                <th className="px-3 py-2.5 font-semibold">1st Traveler Name</th>
-                <th className="px-3 py-2.5 font-semibold">B.Currency</th>
-                <th className="px-3 py-2.5 font-semibold">B.Sum Amt</th>
-                <th className="px-3 py-2.5 font-semibold">BKG Cancel Date</th>
-                <th className="px-3 py-2.5 font-semibold">Invoice No.</th>
-                <th className="px-3 py-2.5 font-semibold">Dispute</th>
-                <th className="px-3 py-2.5 font-semibold">Dispute Remark</th>
+                {GRID_COLUMNS.map((c, i) => (
+                  <th key={c.label} className="px-3 py-2.5 font-semibold">
+                    {c.label}
+                    {/* 컬럼 폭 조절 핸들 (엑셀 스타일 드래그) */}
+                    <span
+                      onMouseDown={startResize(i)}
+                      className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize select-none hover:bg-brand-300/70"
+                      aria-hidden
+                    />
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -204,7 +259,20 @@ export default function BookingsPage({ bookings, onOpenDetail }: Props) {
                 rows.map((b) => (
                   <tr key={b.ellis_code} className="border-b border-slate-100 hover:bg-slate-50/70">
                     <td className="px-2 py-2.5 text-center">
-                      <input type="checkbox" disabled />
+                      <input
+                        type="checkbox"
+                        aria-label={`${b.ellis_code} 선택`}
+                        className="accent-brand-500"
+                        checked={selected.has(b.ellis_code)}
+                        onChange={() =>
+                          setSelected((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(b.ellis_code)) next.delete(b.ellis_code);
+                            else next.add(b.ellis_code);
+                            return next;
+                          })
+                        }
+                      />
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">
                       {formatDateTime(b.booking_date)}

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import EnhBadge from './EnhBadge';
 
 /**
  * 실제 Ohmy Partners 포털(ohmyhotel.biz)의 좌측 사이드바를 재현한 셸.
@@ -133,6 +134,9 @@ export default function PortalSidebar({ view, onNavigate }: Props) {
 
       {/* 메뉴 검색 (실사이트 Enter Menu name — 한/영 키워드 필터) */}
       <div className="px-3 py-3">
+        <div className="mb-1 flex justify-end">
+          <EnhBadge note="메뉴 검색 실작동 — 한/영 키워드 매칭·일치 하이라이트 (원본은 비활성)" />
+        </div>
         <div className="relative">
           <input
             type="text"

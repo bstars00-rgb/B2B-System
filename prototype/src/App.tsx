@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import AiSearchPage from './components/AiSearchPage';
 import HotelRoomTab from './components/HotelRoomTab';
 import LoginPage from './components/LoginPage';
@@ -9,6 +9,15 @@ const urlParams = new URLSearchParams(window.location.search);
 const hotelParam = urlParams.get('hotel');
 
 export default function App() {
+  // 고도화 표기 배지 표시 여부 — 저장된 설정을 body 클래스로 적용 (새 탭 포함)
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('omh_enh') === 'off') document.body.classList.add('enh-off');
+    } catch {
+      // 무시
+    }
+  }, []);
+
   // Stay signed in — localStorage 유지로 새 탭(룸리스트)에서도 로그인 상태 공유
   const [loggedIn, setLoggedIn] = useState(() => {
     try {

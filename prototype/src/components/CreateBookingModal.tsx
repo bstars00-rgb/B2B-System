@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { RateResult, SearchConditions } from '../types';
 import { formatDateTime, formatMoney } from '../utils/format';
+import EnhBadge from './EnhBadge';
 
 interface Props {
   rate: RateResult | null;
@@ -205,7 +206,12 @@ export default function CreateBookingModal({ rate, conditions, onClose, onCreate
                     <th className="px-3 py-2 font-medium">Gender</th>
                     <th className="px-3 py-2 font-medium">Name(Local Language)</th>
                     <th className="px-3 py-2 font-medium">Last Name / First Name (EN)</th>
-                    <th className="px-3 py-2 font-medium">Child Birthday</th>
+                    <th className="px-3 py-2 font-medium">
+                      <span className="inline-flex items-center gap-1">
+                        Child Birthday
+                        <EnhBadge note="검색한 아동 나이와 생년월일(체크인 기준 만 나이) 불일치 경고" />
+                      </span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>

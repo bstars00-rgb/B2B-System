@@ -12,6 +12,7 @@ import { groupByHotel } from '../utils/group';
 import { formatDateTime } from '../utils/format';
 import type { Booking, RateResult } from '../types';
 import AccountMenu from './AccountMenu';
+import EnhBadge from './EnhBadge';
 import BoardPage from './BoardPage';
 import BookingDetailModal from './BookingDetailModal';
 import BookingsPage from './BookingsPage';
@@ -101,6 +102,22 @@ function PortalAccountMenu({
 }) {
   return (
     <div className="flex items-center gap-3">
+      {/* 고도화 표기 토글 — 기획자 설명용 배지(UP) 표시/숨김 */}
+      <button
+        type="button"
+        onClick={() => {
+          const off = document.body.classList.toggle('enh-off');
+          try {
+            localStorage.setItem('omh_enh', off ? 'off' : 'on');
+          } catch {
+            // 무시
+          }
+        }}
+        className="text-[13px] opacity-70 hover:opacity-100"
+        title="고도화 표기(UP 배지) 표시/숨김 — 닷비즈 원본과 다른 지점을 확인"
+      >
+        ✨
+      </button>
       <button
         type="button"
         onClick={onPlaybook}
@@ -108,6 +125,7 @@ function PortalAccountMenu({
         title="시스템 사용 가이드 (Playbook)"
       >
         📖 Playbook
+        <EnhBadge note="Ellis Playbook 내장 매뉴얼 + 언어팩(포털 언어 설정 연동)" />
       </button>
       <span className="text-slate-300">|</span>
       {/* 포털 표시 언어 — 전역 설정 (Playbook 등 콘텐츠가 이 설정을 따라감) */}
@@ -123,6 +141,7 @@ function PortalAccountMenu({
             <option key={l.code} value={l.code}>{l.label}</option>
           ))}
         </select>
+        <EnhBadge note="전역 언어 설정 실작동 — 로그인·헤더에서 변경, 콘텐츠가 설정을 따라감 (localStorage 유지)" />
       </span>
       <span className="text-slate-300">|</span>
       <AccountMenu />
