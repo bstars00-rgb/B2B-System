@@ -56,8 +56,7 @@ export default function HotelRoomTab({ code, params }: Props) {
     return groupByHotel(results)[0] ?? null;
   }, [conditions]);
 
-  /** 예약 진행 중인 룸별 요금 (분리 예약이면 룸 수만큼) */
-  const [bookingRates, setBookingRates] = useState<RateResult[] | null>(null);
+  const [bookingRate, setBookingRate] = useState<RateResult | null>(null);
   const [created, setCreated] = useState<Booking | null>(null);
 
   if (!hotel || !conditions || !group) {
@@ -97,20 +96,20 @@ export default function HotelRoomTab({ code, params }: Props) {
         conditions={conditions}
         standalone
         onBack={() => window.close()}
-        onProceed={setBookingRates}
+        onSelectRate={setBookingRate}
         onConditionsChange={setConditions}
       />
 
       {/* Create Hotel Booking 모달 — 생성 시 localStorage 공유 (원래 탭 Bookings 반영) */}
       <CreateBookingModal
-        rates={bookingRates}
+        rate={bookingRate}
         conditions={conditions}
-        onClose={() => setBookingRates(null)}
+        onClose={() => setBookingRate(null)}
         onCreate={(travelerName) => {
-          if (!bookingRates || bookingRates.length === 0) return;
-          const booking = buildBooking(bookingRates, conditions, travelerName);
+          if (!bookingRate) return;
+          const booking = buildBooking(bookingRate, conditions, travelerName);
           addBooking(booking);
-          setBookingRates(null);
+          setBookingRate(null);
           setCreated(booking);
         }}
       />

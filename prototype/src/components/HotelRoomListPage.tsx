@@ -3,17 +3,15 @@ import type { HotelGroup, RateResult, SearchConditions } from '../types';
 import { buildCityResults, hotelContentOf } from '../mocks/hotelDb';
 import { nextSearchId } from '../mocks';
 import { formatDateTime } from '../utils/format';
-import { allSameOccupancy, cfgFromConditions, cfgLabel, type RoomCfg } from '../utils/roomConfig';
 import DatePicker from './DatePicker';
-import EnhBadge from './EnhBadge';
 import HotelPhoto from './HotelPhoto';
 
 interface Props {
   group: HotelGroup;
   conditions: SearchConditions;
   onBack: () => void;
-  /** 예약 진행 — 룸 슬롯에 담긴 요금들(단일 객실이면 1개)로 Create Hotel Booking 모달 오픈 */
-  onProceed: (rates: RateResult[]) => void;
+  /** 요금제 Select — 기존 Create Hotel Booking 모달로 진행 */
+  onSelectRate: (rate: RateResult) => void;
   /** 조건 변경 재검색 시 부모에 통지 (예약 모달 조건 동기화) */
   onConditionsChange?: (conditions: SearchConditions) => void;
   /** 새 탭 전용 페이지로 열린 경우 (뒤로가기 버튼 숨김 — 상단 바에 ✕ Close 존재) */
@@ -32,6 +30,26 @@ function diffNights(ci: string, co: string): number {
   return Math.max(1, Math.round((new Date(co).getTime() - new Date(ci).getTime()) / 86400000));
 }
 
+interface RoomCfg {
+  adt: number;
+  chd: number;
+  ages: number[];
+}
+
+/** 적용 조건(총 인원·객실 수) → 룸별 구성 초기화 (성인 균등 배분, 아동은 Room 1) */
+function cfgFromConditions(c: SearchConditions): RoomCfg[] {
+  const n = Math.max(1, c.rooms ?? 1);
+  const adults = Math.max(1, c.adults ?? 2);
+  const children = Math.max(0, c.children ?? 0);
+  const knownAges = c.child_ages && c.child_ages.length === children ? c.child_ages : null;
+  const perRoom = Math.max(1, Math.floor(adults / n));
+  return Array.from({ length: n }, (_, i) => {
+    const adt = i === 0 ? Math.max(1, adults - perRoom * (n - 1)) : perRoom;
+    const chd = i === 0 ? children : 0;
+    return { adt, chd, ages: knownAges && i === 0 ? [...knownAges] : Array.from({ length: chd }, () => 1) };
+  });
+}
+
 const barSelect =
   'rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 focus:border-brand-400 focus:outline-none';
 
@@ -40,12 +58,8 @@ const barSelect =
  * 호텔 헤더 → 조건 바(검색 후에도 체크인/아웃·Nights·Rooms·인원 변경 → Select 재검색) →
  * 요금제 테이블(Billing Curr/Gross/Discount/Sum·취소정책·Select) →
  * Show more → 지도/호텔정보/Neighborhood → Description → Photo.
- *
- * 고도화 — 분리 예약(룸 슬롯): 객실 2개 이상이면 룸마다 **다른 상품**(룸타입·요금제·식사·취소정책)을
- * 담아 한 번에 예약한다. 이때 요금표는 **1실 단가**로 표기하고 슬롯 합계를 별도로 보여준다.
- * 기획: docs/plan/feature-split-room-booking.md
  */
-export default function HotelRoomListPage({ group, conditions, onBack, onProceed, onConditionsChange, standalone }: Props) {
+export default function HotelRoomListPage({ group, conditions, onBack, onSelectRate, onConditionsChange, standalone }: Props) {
   const [showAll, setShowAll] = useState(false);
 
   /** 적용된 검색 조건 (초기값 = 진입 조건, Select 재검색 시 갱신) */
@@ -96,27 +110,15 @@ export default function HotelRoomListPage({ group, conditions, onBack, onProceed
     setRoomCfg(cfgFromConditions(conds));
   };
 
-  /** 적용 조건의 룸별 구성 (슬롯 = 이 배열의 각 룸) */
-  const appliedCfgs = cfgFromConditions(conds);
-  const roomCount = appliedCfgs.length;
-  const splitMode = roomCount > 1;
-
-  /** 룸 슬롯에 담긴 요금 (분리 예약) — 재검색 시 초기화 */
-  const [slots, setSlots] = useState<(RateResult | null)[]>(() => Array(roomCount).fill(null));
-
   // 지목 호텔의 전체 요금제 재생성 (target 흐름) — 조건 재검색 시 갱신.
   // 실사이트 동작 재현: 요금 데이터 조회 지연 후 표시 (최초 진입·Select 재검색 공통)
-  // ※ rooms:1로 조회해 **1실 단가**를 받는다 — 혼합 구성은 배수 계산이 성립하지 않으므로
-  //   슬롯에 담긴 단가의 합으로 총액을 만든다 (기획 §4.1).
   const [rates, setRates] = useState<RateResult[]>([]);
   const [loadingRates, setLoadingRates] = useState(true);
   useEffect(() => {
     setLoadingRates(true);
-    setSlots(Array(Math.max(1, conds.rooms ?? 1)).fill(null));
     const t = window.setTimeout(() => {
       const { results } = buildCityResults(nextSearchId(), {
         ...conds,
-        rooms: 1,
         hotel_name: group.hotel_name,
       });
       setRates(results.length > 0 ? results : group.rates);
@@ -124,15 +126,6 @@ export default function HotelRoomListPage({ group, conditions, onBack, onProceed
     }, 1000 + Math.random() * 900);
     return () => window.clearTimeout(t);
   }, [group, conds]);
-
-  const assignSlot = (i: number, rate: RateResult) =>
-    setSlots((prev) => prev.map((s, x) => (x === i ? rate : s)));
-  const clearSlot = (i: number) => setSlots((prev) => prev.map((s, x) => (x === i ? null : s)));
-  const assignAll = (rate: RateResult) => setSlots((prev) => prev.map(() => rate));
-
-  const slotTotal = slots.reduce((sum, s) => sum + (s ? s.selling_price + s.tax : 0), 0);
-  const allFilled = slots.length > 0 && slots.every(Boolean);
-  const quickFill = splitMode && allSameOccupancy(appliedCfgs);
 
   const visibleRates = showAll ? rates : rates.slice(0, 4);
   const content = hotelContentOf(group.hotel_id, group.destination);
@@ -242,91 +235,6 @@ export default function HotelRoomListPage({ group, conditions, onBack, onProceed
         </div>
       </div>
 
-      {/* ── 룸 슬롯 바 (분리 예약) — 객실 2개 이상일 때만 ── */}
-      {splitMode && !loadingRates && (
-        <div className="mt-3 rounded border border-violet-200 bg-violet-50/40 px-4 py-3">
-          <div className="flex items-center gap-2">
-            <span className="text-[13px] font-bold text-slate-800">룸 구성</span>
-            <EnhBadge note="분리 예약 — 룸마다 다른 룸타입·요금제를 담아 한 번에 예약 (원본은 전 객실 동일 상품만 가능)" />
-            <span className="text-[11px] text-slate-500">
-              아래 요금표에서 각 룸에 담아주세요 · 요금은 <b>1실 단가</b>입니다
-            </span>
-          </div>
-
-          <div className="mt-2.5 flex flex-wrap gap-2">
-            {slots.map((s, i) => (
-              <div
-                key={i}
-                className={`flex min-w-[240px] flex-1 items-center justify-between gap-3 rounded border px-3 py-2 ${
-                  s ? 'border-brand-300 bg-white' : 'border-dashed border-slate-300 bg-white/60'
-                }`}
-              >
-                <div className="min-w-0">
-                  <p className="text-[11px] font-semibold text-slate-500">
-                    Room {i + 1} · {cfgLabel(appliedCfgs[i])}
-                  </p>
-                  {s ? (
-                    <>
-                      <p className="truncate text-[13px] font-bold text-slate-900">{s.room_type_name}</p>
-                      <p className="truncate text-[11px] text-slate-500">
-                        {s.rate_plan_name} · {s.meal_plan} ·{' '}
-                        {s.cancellation_deadline ? (
-                          <span className="text-slate-600">무료취소</span>
-                        ) : (
-                          <span className="font-semibold text-rose-600">환불불가</span>
-                        )}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-[12px] italic text-slate-400">비어 있음 — 요금을 담아주세요</p>
-                  )}
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  {s && (
-                    <>
-                      <span className="text-[13px] font-bold text-slate-800">
-                        {nf.format(s.selling_price + s.tax)}
-                      </span>
-                      <button
-                        type="button"
-                        aria-label={`Room ${i + 1} 비우기`}
-                        onClick={() => clearSlot(i)}
-                        className="text-slate-400 hover:text-rose-600"
-                      >
-                        ✕
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-2.5 flex flex-wrap items-center justify-end gap-3">
-            <span className="text-[12px] text-slate-600">
-              합계{' '}
-              <b className="text-[15px] text-slate-900">
-                {rates[0]?.currency ?? ''} {nf.format(slotTotal)}
-              </b>
-            </span>
-            <button
-              type="button"
-              disabled={!allFilled}
-              onClick={() => onProceed(slots.filter((s): s is RateResult => Boolean(s)))}
-              className="rounded bg-brand-500 px-5 py-2 text-xs font-semibold text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
-              title={allFilled ? '예약서 작성' : '모든 룸에 요금을 담아주세요'}
-            >
-              Create Booking
-            </button>
-          </div>
-          {!allFilled && (
-            <p className="mt-1 text-right text-[11px] text-slate-400">
-              {slots.map((s, i) => (s ? null : `Room ${i + 1}`)).filter(Boolean).join(', ')} 을(를) 선택해 주세요
-            </p>
-          )}
-        </div>
-      )}
-
       {/* 요금제 테이블 */}
       <div className="mt-3 overflow-x-auto rounded border border-slate-200">
         <table className="w-full min-w-[860px] text-xs">
@@ -336,9 +244,7 @@ export default function HotelRoomListPage({ group, conditions, onBack, onProceed
               <th className="px-3 py-2.5 font-semibold">Billing Curr.</th>
               <th className="px-3 py-2.5 font-semibold">Billing Gross</th>
               <th className="px-3 py-2.5 font-semibold">Billing Discount</th>
-              <th className="px-3 py-2.5 font-semibold">
-                Billing Sum{splitMode && <span className="ml-1 font-normal text-[10px] text-violet-600">(1실 단가)</span>}
-              </th>
+              <th className="px-3 py-2.5 font-semibold">Billing Sum</th>
               <th className="px-3 py-2.5 font-semibold">Cancellation policy</th>
               <th className="px-3 py-2.5" />
             </tr>
@@ -382,44 +288,13 @@ export default function HotelRoomListPage({ group, conditions, onBack, onProceed
                     )}
                   </td>
                   <td className="px-3 py-3 text-center">
-                    {splitMode ? (
-                      /* 분리 예약 — 룸 슬롯에 담기 */
-                      <div className="flex flex-wrap justify-center gap-1">
-                        {slots.map((s, i) => (
-                          <button
-                            key={i}
-                            type="button"
-                            onClick={() => assignSlot(i, r)}
-                            title={`Room ${i + 1}(${cfgLabel(appliedCfgs[i])})에 담기`}
-                            className={`rounded border px-2 py-1 text-[11px] font-medium ${
-                              s?.rate_plan_id === r.rate_plan_id
-                                ? 'border-brand-500 bg-brand-50 font-bold text-brand-600'
-                                : 'border-slate-300 text-slate-600 hover:border-brand-400 hover:text-brand-600'
-                            }`}
-                          >
-                            Room {i + 1}
-                          </button>
-                        ))}
-                        {quickFill && (
-                          <button
-                            type="button"
-                            onClick={() => assignAll(r)}
-                            title="모든 룸에 이 요금 담기 (같은 방 N개 예약)"
-                            className="rounded border border-slate-300 px-2 py-1 text-[11px] font-medium text-slate-600 hover:border-brand-400 hover:text-brand-600"
-                          >
-                            전체
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => onProceed([r])}
-                        className="rounded border border-slate-300 px-4 py-1.5 text-xs font-medium text-slate-700 hover:border-brand-400 hover:text-brand-600"
-                      >
-                        Select
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => onSelectRate(r)}
+                      className="rounded border border-slate-300 px-4 py-1.5 text-xs font-medium text-slate-700 hover:border-brand-400 hover:text-brand-600"
+                    >
+                      Select
+                    </button>
                   </td>
                 </tr>
               );

@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { Booking } from '../types';
 import { formatDateTime } from '../utils/format';
-import { summarizeRooms } from '../utils/bookingStore';
 import DatePicker from './DatePicker';
 
 interface Props {
@@ -306,10 +305,7 @@ export default function BookingsPage({ bookings, onOpenDetail }: Props) {
                       {b.check_in}[{b.nights}]
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">
-                      {/* 분리 예약이면 룸타입별 개수로 요약 — "Twin[1] + Suite[1]" */}
-                      {b.rooms && b.rooms.length > 0
-                        ? summarizeRooms(b.rooms)
-                        : `${b.room_type}[${b.room_count}]`}
+                      {b.room_type}[{b.room_count}]
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">
                       {b.traveler_name}

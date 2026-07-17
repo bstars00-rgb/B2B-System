@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { RateResult, SearchConditions } from '../types';
 import { formatDateTime, formatMoney } from '../utils/format';
-import { cfgFromConditions } from '../utils/roomConfig';
 import EnhBadge from './EnhBadge';
 
 interface Props {
-  /** 룸별 요금 — 단일 객실이면 1개, 분리 예약이면 룸 수만큼 (룸마다 다른 상품 가능) */
-  rates: RateResult[] | null;
+  rate: RateResult | null;
   conditions: SearchConditions | null;
   onClose: () => void;
   /** Create 클릭 — 예약 생성 (1번 투숙객 이름 전달, 미입력 시 'GUEST') */
@@ -28,9 +26,9 @@ function Row({ label, value, valueClass }: { label: ReactNode; value: ReactNode;
 /**
  * 기존 Ohmy Partners "Create Hotel Booking" 모달 재현 (프로토타입).
  * AI 검색에서 선택한 요금·검색 조건이 그대로 전달되어 채워진 상태를 보여준다.
- * 분리 예약이면 룸별 상품·투숙객·소계를 룸 단위로 렌더한다 (예약 단위 A안 = 1코드 + N룸).
+ * 실제 예약 생성은 실행되지 않는다 (MVP: 조회 전용).
  */
-export default function CreateBookingModal({ rates, conditions, onClose, onCreate }: Props) {
+export default function CreateBookingModal({ rate, conditions, onClose, onCreate }: Props) {
   const [localName, setLocalName] = useState('');
   const [lastName, setLastName] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -40,81 +38,31 @@ export default function CreateBookingModal({ rates, conditions, onClose, onCreat
   const openedAtRef = useRef(0);
   // 모달이 새로 열릴 때 이전 닫기확인 상태·아동 생년월일 초기화
   useEffect(() => {
-    if (rates && rates.length > 0) {
+    if (rate) {
       openedAtRef.current = Date.now();
       setConfirmClose(false);
       setChildBirthdays([]);
     }
-  }, [rates]);
-  if (!rates || rates.length === 0) return null;
-
-  const rate = rates[0];
-  /** 분리 예약 — 룸마다 다른 상품 */
-  const split = rates.length > 1;
+  }, [rate]);
+  if (!rate) return null;
 
   const travelerName =
     [lastName, firstName].filter(Boolean).join(' ').trim() || localName.trim() || 'GUEST';
 
   const nights = rate.total_nights;
-  const rooms = split ? rates.length : (conditions?.rooms ?? rate.total_rooms);
+  const rooms = conditions?.rooms ?? rate.total_rooms;
   const adultCount = conditions?.adults ?? 2;
   const childCount = conditions?.children ?? 0;
   const travelers = adultCount + childCount;
   const checkIn = conditions?.check_in ?? '2026-08-20';
   const checkOut = conditions?.check_out ?? '2026-08-22';
-  const total = rates.reduce((s, r) => s + r.selling_price + r.tax, 0);
+  const total = rate.selling_price + rate.tax;
 
-  /**
-   * 룸 블록 — 분리 예약이면 룸별(상품+인원) 그룹으로 투숙객을 배정한다.
-   * 단일 객실은 기존 방식(성인 최대 4행 + 아동) 유지.
-   */
-  const roomCfgs = conditions ? cfgFromConditions(conditions) : [];
-  let childCursor = 0;
-  const roomBlocks = split
-    ? rates.map((r, i) => {
-        const cfg = roomCfgs[i] ?? { adt: 2, chd: 0, ages: [] };
-        const block = { rate: r, cfg, childOffset: childCursor };
-        childCursor += cfg.chd;
-        return block;
-      })
-    : [];
-
-  /**
-   * 투숙객 행 — 단일 객실은 성인 먼저(최대 4행) + 아동, 분리 예약은 **룸별 그룹**으로 배정.
-   * (실사이트: 아동 행에만 Child Birthday 입력)
-   */
-  const travelerRowDefs: Array<{
-    roomLabel: string;
-    roomType?: string;
-    isChild: boolean;
-    childIndex: number;
-  }> = split
-    ? roomBlocks.flatMap((b, ri) => [
-        ...Array.from({ length: b.cfg.adt }, () => ({
-          roomLabel: `Room ${ri + 1}`,
-          roomType: b.rate.room_type_name,
-          isChild: false,
-          childIndex: -1,
-        })),
-        ...Array.from({ length: b.cfg.chd }, (_, k) => ({
-          roomLabel: `Room ${ri + 1}`,
-          roomType: b.rate.room_type_name,
-          isChild: true,
-          childIndex: b.childOffset + k,
-        })),
-      ])
-    : [
-        ...Array.from({ length: Math.min(adultCount, 4) }, () => ({
-          roomLabel: 'Room 1',
-          isChild: false,
-          childIndex: -1,
-        })),
-        ...Array.from({ length: childCount }, (_, k) => ({
-          roomLabel: 'Room 1',
-          isChild: true,
-          childIndex: k,
-        })),
-      ];
+  /** 투숙객 행 — 성인 먼저(최대 4행), 아동은 항상 표시 (실사이트: 아동 행에만 Child Birthday 입력) */
+  const travelerRowDefs = [
+    ...Array.from({ length: Math.min(adultCount, 4) }, () => ({ isChild: false, childIndex: -1 })),
+    ...Array.from({ length: childCount }, (_, k) => ({ isChild: true, childIndex: k })),
+  ];
 
   /** 생년월일 검증 — 검색 시 지정한 아동 나이와 체크인 기준 만 나이 비교 */
   const childWarning = (childIndex: number): string | null => {
@@ -223,77 +171,18 @@ export default function CreateBookingModal({ rates, conditions, onClose, onCreat
             <Row label="Region name" value={rate.destination} />
             <Row label="Hotel Name" value={`[${rate.hotel_id}] ${rate.hotel_name}`} />
             <Row label="Rooms/Travelers" value={`${rooms} Rooms / ${travelers} Travelers`} />
-            {split ? (
-              /* 분리 예약 — 룸마다 상품이 다르므로 룸별로 표기 */
-              <Row
-                label={
-                  <span className="inline-flex items-center gap-1">
-                    Room Type
-                    <EnhBadge note="분리 예약 — 룸마다 다른 룸타입·요금제·취소정책이 한 예약에 공존" />
-                  </span>
-                }
-                value={
-                  <ul className="space-y-1.5">
-                    {roomBlocks.map((b, i) => (
-                      <li key={i} className="text-[12.5px]">
-                        <b className="text-slate-500">Room {i + 1}</b> · {b.rate.room_type_name}
-                        <span className="text-slate-500">
-                          {' '}— {b.rate.rate_plan_name} · {b.rate.meal_plan} ·{' '}
-                          {b.rate.cancellation_deadline ? (
-                            <>무료취소 {formatDateTime(b.rate.cancellation_deadline)}까지</>
-                          ) : (
-                            <span className="font-semibold text-rose-600">환불불가</span>
-                          )}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                }
-              />
-            ) : (
-              <>
-                <Row label="Room Type" value={rate.room_type_name} />
-                <Row label="Meal Type" value={rate.meal_plan} />
-              </>
-            )}
+            <Row label="Room Type" value={rate.room_type_name} />
+            <Row label="Meal Type" value={rate.meal_plan} />
             <Row
               label="Client Cancellation D/L"
               value={
-                split ? (
-                  rates.some((r) => !r.cancellation_deadline) ? (
-                    <>
-                      Non-refundable{' '}
-                      <span className="text-[11px] font-normal text-slate-500">
-                        — 환불불가 룸이 포함되어 예약 전체가 환불불가입니다 (취소는 예약 단위)
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      {formatDateTime(
-                        rates
-                          .map((r) => r.cancellation_deadline)
-                          .filter((d): d is string => Boolean(d))
-                          .sort()[0],
-                      )}{' '}
-                      Free cancellation available{' '}
-                      <span className="text-[11px] font-normal text-slate-500">— 가장 이른 마감 기준</span>
-                    </>
-                  )
-                ) : rate.cancellation_deadline ? (
-                  `${formatDateTime(rate.cancellation_deadline)} Free cancellation available`
-                ) : (
-                  'Non-refundable'
-                )
+                rate.cancellation_deadline
+                  ? `${formatDateTime(rate.cancellation_deadline)} Free cancellation available`
+                  : 'Non-refundable'
               }
-              valueClass={
-                split && rates.some((r) => !r.cancellation_deadline)
-                  ? 'font-semibold text-rose-600'
-                  : rate.cancellation_deadline
-                    ? 'text-rose-600'
-                    : 'font-semibold text-rose-600'
-              }
+              valueClass={rate.cancellation_deadline ? 'text-rose-600' : 'font-semibold text-rose-600'}
             />
-            {!split && <Row label="Plan Name" value={`[${rate.rate_plan_id}] ${rate.rate_plan_name}`} />}
+            <Row label="Plan Name" value={`[${rate.rate_plan_id}] ${rate.rate_plan_name}`} />
             <Row
               label="Promotion Name"
               value={
@@ -328,12 +217,7 @@ export default function CreateBookingModal({ rates, conditions, onClose, onCreat
                 <tbody>
                   {travelerRowDefs.map((rowDef, i) => (
                     <tr key={i} className="border-b border-slate-100 last:border-b-0">
-                      <td className="px-3 py-2 text-center text-slate-600">
-                        {rowDef.roomLabel}
-                        {rowDef.roomType && (
-                          <span className="block text-[10px] leading-tight text-slate-400">{rowDef.roomType}</span>
-                        )}
-                      </td>
+                      <td className="px-3 py-2 text-center text-slate-600">Room 1</td>
                       <td className="px-3 py-2">
                         <label className="mr-2 inline-flex items-center gap-1">
                           <input type="radio" name={`gender-${i}`} defaultChecked className="accent-brand-500" /> M
@@ -436,19 +320,6 @@ export default function CreateBookingModal({ rates, conditions, onClose, onCreat
               Billing Rate
             </h4>
             <div className="px-4 py-3 text-right">
-              {/* 분리 예약 — 룸별 소계 후 합계 */}
-              {split && (
-                <ul className="mb-2 space-y-1">
-                  {roomBlocks.map((b, i) => (
-                    <li key={i} className="text-[12px] text-slate-600">
-                      <span className="text-slate-400">Room {i + 1} · {b.rate.room_type_name}</span>{' '}
-                      <b className="ml-2 text-slate-700">
-                        {formatMoney(b.rate.selling_price + b.rate.tax, b.rate.currency)}
-                      </b>
-                    </li>
-                  ))}
-                </ul>
-              )}
               <span className="text-sm font-bold text-rose-600 underline decoration-rose-300 underline-offset-4">
                 {rate.currency} {formatMoney(total, rate.currency).replace(/^[^\d]*/, '')}
               </span>

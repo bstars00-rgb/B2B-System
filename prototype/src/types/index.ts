@@ -116,20 +116,6 @@ export interface SearchHistoryItem {
   searched_at: string;
 }
 
-/**
- * 분리 예약(Split-Room Booking)의 룸 1개 — 예약 1건에 서로 다른 상품이 공존한다.
- * 기획: docs/plan/feature-split-room-booking.md (예약 단위 A안 = 1코드 + N룸)
- */
-export interface BookingRoom {
-  room_type: string;
-  rate_plan_name: string;
-  meal_plan: string;
-  /** 이 룸의 세금 포함 청구액 */
-  sum_amt: number;
-  /** 무료취소 마감 (null = 환불불가) */
-  cancellation_deadline: string | null;
-}
-
 /** 생성된 예약 1건 — 실제 포털 Bookings 목록/상세와 동일 필드 구성 */
 export interface Booking {
   /** ELLIS 예약 코드 (예: J26071110004H01) */
@@ -154,8 +140,6 @@ export interface Booking {
   sum_amt: number;
   client_cancel_dl: string | null;
   cancel_date: string | null;
-  /** 분리 예약의 룸별 명세 (룸 슬롯으로 생성한 예약에만 존재 — 단일 요금 예약은 undefined) */
-  rooms?: BookingRoom[] | null;
   /** 발행된 인보이스 번호 (미발행 시 null) */
   invoice_no?: string | null;
   /** 분쟁 상태 표시 (없으면 undefined) */

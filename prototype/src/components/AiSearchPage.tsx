@@ -333,7 +333,7 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
   const createBooking = useCallback(
     (travelerName: string) => {
       if (!bookingRate) return;
-      const booking = buildBooking([bookingRate], bookingConditions ?? conditions, travelerName);
+      const booking = buildBooking(bookingRate, bookingConditions ?? conditions, travelerName);
       setBookings((prev) => [booking, ...prev]);
       setBookingRate(null);
       setBookingConditions(null);
@@ -631,7 +631,7 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
 
       {/* 기존 포털 Create Booking 화면 재현 — AI 검색 조건·요금 전달, Create 시 예약 생성 */}
       <CreateBookingModal
-        rates={bookingRate ? [bookingRate] : null}
+        rate={bookingRate}
         conditions={bookingConditions ?? conditions}
         onClose={() => setBookingRate(null)}
         onCreate={createBooking}
