@@ -129,7 +129,8 @@
 
 ### P-2 Split-Room Booking (double + twin in one flow)
 
-> **Detailed plan (KO, 2026-07-17)**: [feature-split-room-booking.md](../../plan/feature-split-room-booking.md) — 11 customer scenarios, room-slot UX, data contracts, booking-unit options.
+> **Detailed plan (KO, scope fixed 2026-07-17)**: [feature-split-room-booking.md](../../plan/feature-split-room-booking.md) — 11 customer scenarios verified against production, room-slot UX, data contracts, booking-unit recommendation.
+> **Confirmed scope**: let each room slot take a **different product** (room type · rate plan · meal · cancellation policy · grade) — this single mechanism covers 4 scenarios. Per-room *occupancy* mixing already works in production (out of scope). **Partial cancellation is explicitly not supported** (settlement policy) → cancel is always whole-booking → booking unit = **one code with N rooms** (fallback: per-room codes shown/cancelled as one group if ELLIS cannot hold mixed room types under one code). Different stay lengths per room = out of scope (book twice).
 
 - Flow draft: search Rooms=2 → each rate row gets "assign to Room 1 / Room 2" → summary bar shows the combined total → one Create produces a booking whose Travelers map to room+room-type.
 - **Prerequisites surfaced by the detailed plan**: rates must be exposed **per single room** (today they are all-rooms totals, so mixed baskets cannot be summed), search must return **rate lists per occupancy group**, and **availability counts** are needed to cap how many of a rate can be added.
