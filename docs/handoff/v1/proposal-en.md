@@ -36,7 +36,7 @@ The 25 completed items fall into two categories — **① Enhancements (new; not
 - **Ellis Playbook built in**: a 6-chapter documentation-style manual (the original keeps it on a separate site), following the portal language setting.
 - **Child birthday vs. searched-age mismatch warning** (age at check-in — the original accepts the input without validation).
 - **`UP` badge system**: enhancement spots are identifiable on screen (✨ toggle).
-- (Reference — AI Rate Search, Track A): never assumes past dates, asks back when the destination is missing, understands **"one double + one twin" split-room requests**. Details in Spec ①.
+- (Reference — AI Rate Search, Track A): never assumes past dates, asks back when the destination is missing, and understands **room-type keywords** (e.g. "one double + one twin" → shows only double/twin rates). Details in Spec ①.
 
 ### 3.2 Clone-Parity Restoration — original DOTBIZ features, rebuilt as instructed
 
@@ -56,14 +56,14 @@ The 25 completed items fall into two categories — **① Enhancements (new; not
 | # | Initiative | Essence | Planning status |
 |---|-----------|---------|-----------------|
 | 1 | 5-language content build-out | EN·KO·JA·VI·ZH — the structure is ready; **waiting on content-team translations** | In progress (finalize in Aug) |
-| 2 | OP convenience features for booking creation (3) | ⑴ Room-type sorting/filtering (twin/double) ⑵ **Split-room booking** (double + twin in one flow) ⑶ **Rate/room-type copy** (quote text to clipboard) | Draft done — detailed spec finalized in Aug |
+| 2 | OP convenience features for booking creation | ⑴ Room-type sorting/filtering (twin/double) ⑵ **Rate/room-type copy** (quote text to clipboard) <br>※ "Split-room booking" was originally the third item — **discarded 2026-07-17**: it degraded the common case (N rooms of the same type) for the sake of a rare exception. A replacement item will be sourced from the field in August. | Draft done — detailed spec finalized in Aug |
 | 3 | Oppy Point (OP rewards mall) | Points accrue to individual OPs on completed stays → redeemable in a rewards mall → locks in the people who actually book. MVP = ledger + balance display | Policy finalized in Aug (incl. legal/finance review) |
 | 4 | DOTBIZ channel growth | Use the upgraded portal as a sales asset to win **new client accounts** (multilingual · self-serve onboarding) and to increase usage among existing clients → grow DOTBIZ channel volume; track monthly growth metrics | Plan & measurement finalized in Aug |
 
 ## 5. Decisions Requested from PD
 
 1. **Gateway campaigns** — who owns creative production (marketing/content) and the rotation cadence (proposal: bi-weekly)?
-2. **Split-room booking unit** — does ELLIS issue one booking code with two room lines, or one code per room? Needs confirmation against production/ELLIS.
+2. ~~**Split-room booking unit**~~ → **Closed** — Tracy confirmed ELLIS can hold different room types under one booking code. The **feature itself was discarded on 2026-07-17**, so no decision is needed (the confirmed fact is kept on record).
 3. **Oppy Point policy** — accrual rate, redemption catalogue, and tax treatment (rebate implications); legal/finance review.
 4. **Child-age validation strictness** — currently a strict age-at-check-in warning. Given Korean colloquial age conventions, alternatives are a ±1-year tolerance or a one-click "re-search with corrected age" action.
 5. **DOTBIZ channel growth measurement** — an internal data source that reports DOTBIZ channel bookings, GMV, and new client accounts monthly.
