@@ -34,7 +34,6 @@ The 25 completed items fall into two categories — **① Enhancements (new; not
   - Modern sign-in panel: DOTBIZ branding, password show/hide, Remember me, dark-mode toggle, Create Account.
   - Legal documents accessible before login: full **Terms & Condition (26 articles, effective 2026-03-14)** and full Privacy Policy as gateway modals, with an agreement gate.
 - **Ellis Playbook built in**: a 6-chapter documentation-style manual (the original keeps it on a separate site), following the portal language setting.
-- **Sidebar menu search works** (KO/EN keyword matching with highlight — inactive in the original).
 - **Child birthday vs. searched-age mismatch warning** (age at check-in — the original accepts the input without validation).
 - **`UP` badge system**: enhancement spots are identifiable on screen (✨ toggle).
 - (Reference — AI Rate Search, Track A): never assumes past dates, asks back when the destination is missing, understands **"one double + one twin" split-room requests**. Details in Spec ①.
@@ -46,6 +45,7 @@ The 25 completed items fall into two categories — **① Enhancements (new; not
 - **Hotel search & booking flow**: destination search with a real hotel list (26 Osaka properties, real codes), filters (star/type/chain), pagination, query latency with a "Searching…" loader, hotel photos, Select opening the room list **in a new tab** (search results kept), editable conditions after search with multi-room rate recalculation, empty dates on first visit, past dates disabled, the Unpaid-booking voucher restriction, and bookings flowing into the Bookings list.
 - **Bookings (reservation management)**: working row checkboxes (select-all/per-row) and Excel-style column drag-resize — same grid feel as production.
 - **Language packs**: the original ships 5 languages (EN·KO·ZH·VI·JA); the structure is restored with EN/KO content complete, language changed in exactly one global place, JA/VI/ZH translations in progress with the content team.
+- **Sidebar menu search** ("Enter Menu name"): rebuilt with KO/EN keyword matching and match highlighting.
 - **Legal documents**: full original Terms & Privacy texts, plus the portal footer links.
 - **Measured UI parity**: font (Pretendard webfont), brand orange (#EF7F29), base 12px/#333 — matched to production measurements.
 

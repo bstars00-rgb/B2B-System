@@ -86,11 +86,11 @@
 - Section IDs are **identical across languages** → switching language keeps the reader's position.
 - Content source: `PLAYBOOKS: Record<'ko'|'en', PlaybookChapter[]>`; original manual = `File by OMH/B2B Partner Manual_EN.pptx` (22 slides).
 
-### F-4 Sidebar Menu Search
+### F-4 Sidebar Menu Search (parity — original DOTBIZ feature, rebuilt)
 
 **Reference**: `components/PortalSidebar.tsx`
 
-- Input "Enter Menu name" filters the menu tree live.
+- Input "Enter Menu name" filters the menu tree live. This exists in the original DOTBIZ; specified here because the prototype re-implements it (no `UP` badge).
 - Matching: case-insensitive substring on the menu **label** OR per-item **keyword aliases** (KO/EN, e.g. `bookings ← 예약`, `staff ← 직원`). Matched label substring is highlighted (brand tint).
 - Sections with zero matches are hidden entirely; zero matches overall shows "'{q}' 와 일치하는 메뉴가 없습니다"; ✕ button clears.
 
