@@ -44,7 +44,15 @@ const selectCls =
  * 좌측 필터(Rate 슬라이더·성급·Property Type·Hotel Chain Brand — 결과 기반) + 정렬 + 페이저 →
  * Select 시 새 탭으로 호텔 룸리스트 열림 (원래 검색 결과 유지 — 실사이트 프로세스).
  */
-export default function CreateBookingPage() {
+export interface BookingPrefill {
+  code: string;
+  destination: string;
+  hotelName: string;
+  /** 같은 호텔을 다시 눌러도 다시 반응하도록 매번 증가 */
+  nonce: number;
+}
+
+export default function CreateBookingPage({ prefill }: { prefill?: BookingPrefill | null }) {
   // ── 검색 폼 상태 (실사이트: 첫 진입 시 Check In/Out 빈 상태) ──
   const [destQuery, setDestQuery] = useState('');
   const [entry, setEntry] = useState<AutocompleteEntry | null>(null);
@@ -54,6 +62,27 @@ export default function CreateBookingPage() {
   const [roomsCount, setRoomsCount] = useState(1);
   const [roomCfg, setRoomCfg] = useState<RoomCfg[]>([{ adt: 2, chd: 0, ages: [] }]);
   const [formError, setFormError] = useState<string | null>(null);
+  /** 증가시키면 체크인 달력이 열린다 — 랭킹에서 넘어왔을 때 "날짜만 고르면 됨"을 드러낸다 */
+  const [openCheckIn, setOpenCheckIn] = useState(0);
+
+  /**
+   * 대시보드 베스트셀러 랭킹에서 호텔을 클릭해 넘어온 경우:
+   * 목적지·호텔을 미리 채우고 체크인 달력을 바로 연다. 셀러가 할 일은 날짜 선택뿐.
+   */
+  useEffect(() => {
+    if (!prefill) return;
+    const label = `${prefill.code} - ${prefill.hotelName}`;
+    setEntry({
+      code: prefill.code,
+      label,
+      type: 'hotel',
+      destination: prefill.destination,
+      hotel_name: prefill.hotelName,
+    });
+    setDestQuery(label);
+    setShowAuto(false);
+    setOpenCheckIn((n) => n + 1);
+  }, [prefill]);
   const blurTimer = useRef<number | null>(null);
 
   const checkOut = checkIn ? addDays(checkIn, nights) : '';
@@ -285,7 +314,13 @@ export default function CreateBookingPage() {
             <label className="ml-2 text-xs font-medium text-slate-700">
               Check In/Out <b className="text-rose-500">*</b>
             </label>
-            <DatePicker value={checkIn} onChange={(v) => v && setCheckIn(v)} className="w-32" placeholder=" " />
+            <DatePicker
+              value={checkIn}
+              onChange={(v) => v && setCheckIn(v)}
+              className="w-32"
+              placeholder=" "
+              openSignal={openCheckIn}
+            />
             <span className="text-slate-400">~</span>
             <DatePicker
               value={checkOut}

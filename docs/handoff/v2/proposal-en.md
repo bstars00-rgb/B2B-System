@@ -51,7 +51,30 @@ A second consequence: **the Date Basis and Period selects now actually work.** I
 
 One deliberate exception: **Bestselling Hotel Rankings is not derived.** It is a *platform-wide* ranking, which cannot come from one seller's bookings — it needs its own data source (§6-②).
 
-### 3.3 Demo data
+### 3.3 Ranking → Booking in one click
+
+A seller who sees a bestselling hotel wants to book it. Clicking the hotel name now opens **Create Booking with the destination and hotel already filled and the calendar open** — the only thing left to do is pick dates.
+
+Making that real surfaced a problem worth flagging. The ranking mock listed **320 hotels across 102 cities** (Dubai, Paris, New York) of which **exactly one existed in our bookable inventory**. A "bestselling on OhMyHotel" list whose hotels cannot be booked on OhMyHotel is self-contradictory, and clicking one would have led nowhere. We rebuilt the ranking from the hotel master so every row resolves to a real, bookable property.
+
+**For production this becomes a requirement on the ranking API**: every ranked hotel must be bookable, and each row must carry the hotel code so the client can deep-link into search.
+
+We also filled the empty table with information a seller can act on (§3.4).
+
+### 3.4 What we put in the empty space
+
+The table was five columns on a full-width screen, mostly whitespace. We added:
+
+| Column | Why it earns its place |
+|--------|------------------------|
+| **MoM** (`▲3` / `▼2` / `NEW`) | The single most informative thing in any ranking — what is rising and what is fading. Requires last month's rank from the API. |
+| **Hotel Code** | The 6-digit code sellers paste straight into search — the most directly actionable field on the row |
+| **Nightly from** | An indicative 1-night rate, so a seller can scan the ranking for something in their client's budget. **Labelled as indicative** — real rates depend on dates, occupancy, and rate plan |
+| **Chain Brand** | Corporate clients have chain preferences; it is also already a filter dimension in Create Booking |
+
+We considered and **rejected a Property Type column**: 112 of our 114 hotels are plain `Hotel`, so it would have added width without information. Worth reconsidering if production data is richer.
+
+### 3.5 Demo data
 
 To make the dashboard meaningful we generated **200 bookings** on the prototype: booking dates 2026-05-01 → today (never future-dated), check-in always after the booking date, 9.5% cancellation rate. Hotels are drawn from our hotel database (15 cities / 114 real properties); the 200 bookings land on 63 of them across 14 cities, weighted toward Japan and toward business hotels — matching how the demo seller (ATTIC TOURS, a Japanese agency) actually books.
 

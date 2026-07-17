@@ -20,7 +20,7 @@ import BookingsPage from './BookingsPage';
 import DashboardPage from './DashboardPage';
 import ChatPanel from './ChatPanel';
 import CreateBookingModal from './CreateBookingModal';
-import CreateBookingPage from './CreateBookingPage';
+import CreateBookingPage, { type BookingPrefill } from './CreateBookingPage';
 import PlaybookPage from './PlaybookPage';
 import PortalSidebar, { type PortalView } from './PortalSidebar';
 import SystemFlowPanel from './SystemFlowPanel';
@@ -191,10 +191,23 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
   /** 열려 있는 탭들 (실제 포털처럼 방문한 메뉴가 탭으로 추가·✕로 닫힘) */
   const [openTabs, setOpenTabs] = useState<PortalView[]>(['bookings', 'ai']);
 
+  /** 대시보드 베스트셀러 랭킹 → Create Booking 인계 (목적지·호텔 프리필) */
+  const [bookingPrefill, setBookingPrefill] = useState<BookingPrefill | null>(null);
+  const prefillNonce = useRef(0);
+
   const navigate = useCallback((v: PortalView) => {
     setOpenTabs((prev) => (prev.includes(v) ? prev : [...prev, v]));
     setView(v);
   }, []);
+
+  const bookHotelFromRanking = useCallback(
+    (t: { code: string; destination: string; hotelName: string }) => {
+      prefillNonce.current += 1;
+      setBookingPrefill({ ...t, nonce: prefillNonce.current });
+      navigate('create-booking');
+    },
+    [navigate],
+  );
   const closeTab = useCallback(
     (v: PortalView) => {
       setOpenTabs((prev) => {
@@ -484,7 +497,7 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
 
         {/* ── 본문: Bookings / Create Booking / AI 검색 (좌 채팅 / 우 조건+결과) ── */}
         {view === 'dashboard' ? (
-          <DashboardPage bookings={bookings} />
+          <DashboardPage bookings={bookings} onBookHotel={bookHotelFromRanking} />
         ) : view === 'bookings' ? (
           <BookingsPage bookings={bookings} onOpenDetail={setDetailBooking} />
         ) : view === 'staff' ? (
@@ -494,7 +507,7 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
         ) : view === 'notice' ? (
           <BoardPage kind="notice" portalLang={portalLang} />
         ) : view === 'create-booking' ? (
-          <CreateBookingPage />
+          <CreateBookingPage prefill={bookingPrefill} />
         ) : (
         <div className="flex min-h-0 flex-1">
           <div className="w-[380px] shrink-0 border-r border-slate-200">

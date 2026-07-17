@@ -93,9 +93,32 @@ Each card shows a delta chip vs the comparison window and the comparison label. 
 - **Grouping key = `cityOfHotel(hotel_id)`, not the booking's `region` string.** `region` is written differently depending on the creation path (Korean from the search flow, English from seed data), so it cannot be trusted as an aggregation key. The hotel ID resolves to a city record that carries `nameEn` and `country`.
 - Top 8 + **Others** (a pie sliced 15 ways is unreadable).
 
-**Bestselling Hotels** — table (Rank / Hotel Name / Star / City / Country-Region), country filter, top-3 rank chips.
+**Bestselling Hotels** — table, country filter, top-3 rank chips.
 - **This is the one table not derived from the seller's bookings** — it is a *platform-wide* ranking, which by definition cannot come from one seller's 200 bookings. Separate data source. See open question ②.
 - **No Supplier column** (removed 2026-07-17 — see §5-④).
+
+**Columns** (revised 2026-07-17 — the original 5 columns left most of a full-width table empty):
+
+| Column | Source | Note |
+|--------|--------|------|
+| Rank | ranking | top-3 get colour chips |
+| **MoM** | ranking | rank change vs last month: `▲n` / `▼n` / `—` / `NEW`. **The ranking API must return last month's rank** |
+| Hotel Name | ranking | **clickable → Create Booking** (see below) |
+| **Hotel Code** | hotel master | the 6-digit code sellers paste into search — the most directly actionable field |
+| Star | hotel master | |
+| **Nightly from** | rate service | **indicative** 1-night rate in the seller's billing currency. Labelled as indicative on screen — real rates depend on dates/occupancy/rate plan |
+| **Chain Brand** | hotel master | same dimension as the Create Booking left filter |
+| City / Country-Region | hotel master | |
+
+> We evaluated a **Property Type** column and rejected it: in our data 112 of 114 hotels are plain `Hotel`, so the column would add width without information. Reconsider if production data is richer.
+
+**D-1.1 Ranking → Booking shortcut** (new, 2026-07-17)
+
+Clicking a hotel name opens **Create Booking** with the destination and hotel pre-filled and the **check-in calendar already open** — the seller's only remaining action is picking dates. Verified end-to-end: click → Create Booking tab → destination `810310 - Sotetsu Fresa Inn Yodoyabashi` → pick date → Search → that hotel returns as the single result.
+
+Contract: `{ code, destination, hotelName }` + a nonce (so clicking the same hotel twice re-triggers). Reference: `onBookHotel` in `DashboardPage.tsx` → `bookHotelFromRanking` in `AiSearchPage.tsx` → `prefill` in `CreateBookingPage.tsx` → `openSignal` in `DatePicker.tsx`.
+
+> **Prerequisite we had to fix**: the ranking must contain **bookable** hotels. The original mock listed 320 hotels across 102 cities (Dubai, Paris, New York) of which **exactly 1 existed in our inventory** — a "bestselling on OhMyHotel" list whose hotels could not be booked on OhMyHotel. The ranking is now built from the hotel master, so every row is clickable and resolves to a real property. **In production the ranking API must guarantee the same invariant**: every ranked hotel is bookable, and the response carries `hotel_code` so the client can deep-link into search.
 
 ### D-2 Booking Statistics (`dc-booking`)
 
@@ -205,7 +228,7 @@ We **did not fabricate history to fill these**. Inventing 2024–2025 bookings w
 2. **`cancel_reason` capture.** D-3 has no data source unless cancellation records a reason. Needs a reason picker (enum above + free text) at cancel time, plus a decision on what to do with historical cancellations that have none (suggest bucketing as `Unspecified`).
 3. **Deferred Credit definition** — confirm ours (Confirmed ∧ Unpaid) or supply the real one (open question ⑤).
 4. **Data scope** — whether a seller's dashboard shows only their own bookings or aggregates sub-accounts decides both the API contract and whether the Account Level filter is real (open question ①).
-5. **Bestselling ranking source** — platform-wide ranking is a separate service/table, not the seller's bookings (open question ②).
+5. **Bestselling ranking source** — platform-wide ranking is a separate service/table, not the seller's bookings (open question ②). The response must carry, per row: `hotel_code`, **last month's rank** (for the MoM column), and an **indicative nightly-from rate**; and every ranked hotel must be bookable (§D-1.1).
 6. **Aggregation cadence** — realtime query vs nightly batch (open question ③). Affects whether a booking made 5 minutes ago appears.
 7. **Currency handling** — see §4.1.
 
@@ -221,7 +244,8 @@ We **did not fabricate history to fill these**. Inventing 2024–2025 bookings w
 | Q6 | Booking Statistics tab | Confirmed/Cancelled/Deferred bars per month; months before data start are empty **with a notice**, not blank |
 | Q7 | Cancellation tab | **Reason counts sum to the monthly cancelled totals**; no `NaN` |
 | Q8 | Year-End tab | 2024/2025 cards read `—` "no booking data"; banner explains; YoY cells `—` (no `Infinity%`) |
-| Q9 | Bestselling → country filter `Thailand` | Top-20 Thai hotels, 5 columns, **no Supplier column** |
+| Q9 | Bestselling → country filter `Thailand` | Thai hotels only, rank restarts at 1, **no Supplier column** |
+| Q9b | Bestselling → click a hotel name | Create Booking opens with destination+hotel filled and the check-in calendar open; pick a date → Search → **that hotel is the result** |
 | Q10 | Any tab | No `OP Points` card anywhere |
 | Q11 | Create a new booking → return to Dashboard | Booking count increments (dashboard reads the same store) |
 | Q12 | Reload | Identical figures (seeded data — no re-randomization) |

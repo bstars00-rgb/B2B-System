@@ -99,6 +99,20 @@ function CardTitle({ children }: { children: React.ReactNode }) {
   return <h3 className="mb-3 text-[13px] font-bold text-slate-800">{children}</h3>;
 }
 
+/** 전월 대비 순위 변동 — 랭킹에서 가장 실무적인 정보(무엇이 뜨고 지는가) */
+function RankDelta({ delta }: { delta: number | null }) {
+  if (delta === null)
+    return <span className="rounded-sm bg-brand-50 px-1 py-px text-[9px] font-bold text-brand-600">NEW</span>;
+  if (delta === 0) return <span className="text-[10px] text-slate-300">—</span>;
+  const up = delta > 0;
+  return (
+    <span className={`text-[10px] font-semibold ${up ? 'text-emerald-600' : 'text-red-500'}`}>
+      {up ? '▲' : '▼'}
+      {Math.abs(delta)}
+    </span>
+  );
+}
+
 function Kpi({ label, value, change, note }: { label: string; value: string; change?: string; note?: string }) {
   const up = change?.startsWith('+');
   return (
@@ -122,7 +136,20 @@ function Kpi({ label, value, change, note }: { label: string; value: string; cha
   );
 }
 
-export default function DashboardPage({ bookings }: { bookings: Booking[] }) {
+export interface BookHotelTarget {
+  code: string;
+  destination: string;
+  hotelName: string;
+}
+
+export default function DashboardPage({
+  bookings,
+  onBookHotel,
+}: {
+  bookings: Booking[];
+  /** 베스트셀러 랭킹의 호텔 클릭 → Create Booking으로 이동(목적지·호텔 채운 뒤 날짜 선택 유도) */
+  onBookHotel: (target: BookHotelTarget) => void;
+}) {
   const today = todayIso();
   const monthAgo = `${today.slice(0, 8)}01`;
 
@@ -466,15 +493,23 @@ export default function DashboardPage({ bookings }: { bookings: Booking[] }) {
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-500">
                     <th className="w-12 px-2 py-1.5 text-left font-medium">Rank</th>
+                    <th className="w-14 px-2 py-1.5 text-left font-medium" title="전월 대비 순위 변동">
+                      MoM
+                    </th>
                     <th className="px-2 py-1.5 text-left font-medium">Hotel Name</th>
-                    <th className="w-24 px-2 py-1.5 text-left font-medium">Star</th>
-                    <th className="w-28 px-2 py-1.5 text-left font-medium">City</th>
-                    <th className="w-36 px-2 py-1.5 text-left font-medium">Country/Region</th>
+                    <th className="w-24 px-2 py-1.5 text-left font-medium">Hotel Code</th>
+                    <th className="w-20 px-2 py-1.5 text-left font-medium">Star</th>
+                    <th className="w-28 px-2 py-1.5 text-right font-medium" title="1박 기준 참고 요금 — 실제 요금은 날짜·인원에 따라 달라집니다">
+                      Nightly from
+                    </th>
+                    <th className="w-44 px-2 py-1.5 text-left font-medium">Chain Brand</th>
+                    <th className="w-24 px-2 py-1.5 text-left font-medium">City</th>
+                    <th className="w-28 px-2 py-1.5 text-left font-medium">Country/Region</th>
                   </tr>
                 </thead>
                 <tbody>
                   {bestRows.map((h, i) => (
-                    <tr key={`${h.hotelName}-${i}`} className="border-b border-slate-100 last:border-0">
+                    <tr key={h.hotelId} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                       <td className="px-2 py-1.5">
                         {i < 3 ? (
                           <span
@@ -487,8 +522,26 @@ export default function DashboardPage({ bookings }: { bookings: Booking[] }) {
                           <span className="text-slate-500">{i + 1}</span>
                         )}
                       </td>
-                      <td className="px-2 py-1.5 font-medium text-brand-600">{h.hotelName}</td>
+                      <td className="px-2 py-1.5">
+                        <RankDelta delta={h.delta} />
+                      </td>
+                      <td className="px-2 py-1.5">
+                        {/* 랭킹 → 예약 바로가기: 목적지·호텔을 채운 채 Create Booking을 열고 날짜부터 고르게 한다 */}
+                        <button
+                          type="button"
+                          onClick={() => onBookHotel(h)}
+                          className="text-left font-medium text-brand-600 underline underline-offset-2 hover:text-brand-700"
+                          title={`${h.hotelName} 날짜 선택하고 예약하기`}
+                        >
+                          {h.hotelName}
+                        </button>
+                      </td>
+                      <td className="px-2 py-1.5 font-mono text-[11px] text-slate-500">{h.code}</td>
                       <td className="px-2 py-1.5 text-amber-500">{h.starRating} ★</td>
+                      <td className="px-2 py-1.5 text-right text-slate-700">{money(h.nightlyFrom)}</td>
+                      <td className="truncate px-2 py-1.5 text-slate-600" title={h.chainBrand}>
+                        {h.chainBrand}
+                      </td>
                       <td className="px-2 py-1.5 text-slate-700">{h.city}</td>
                       <td className="px-2 py-1.5 text-slate-700">{h.country}</td>
                     </tr>
@@ -496,6 +549,11 @@ export default function DashboardPage({ bookings }: { bookings: Booking[] }) {
                 </tbody>
               </table>
             </div>
+            <p className="mt-2 text-[10px] leading-relaxed text-slate-400">
+              호텔명을 누르면 목적지·호텔이 채워진 Create Booking으로 이동해 날짜만 고르면 됩니다. · MoM은 전월 대비
+              순위 변동입니다. · <b>Nightly from은 1박 기준 참고 요금</b>(현지통화 → 엔화 환산)으로, 실제 요금은
+              날짜·인원·요금제에 따라 달라집니다.
+            </p>
           </Card>
         </div>
       )}

@@ -64,14 +64,14 @@ const CITIES: CityDef[] = [
     currency: 'JPY',
     tzOffset: '+09:00',
     hotels: [
-      { id: 'HTL-TYO-01', name: '도쿄 스테이션 호텔', star: 5, lat: 35.6812, lng: 139.7671, base: 58000 },
-      { id: 'HTL-TYO-02', name: '팔레스 호텔 도쿄', star: 5, lat: 35.6841, lng: 139.7614, base: 74000 },
-      { id: 'HTL-TYO-03', name: '미츠이 가든 호텔 긴자', star: 4, lat: 35.669, lng: 139.7649, base: 28500 },
-      { id: 'HTL-TYO-04', name: '호텔 그레이스리 신주쿠', star: 4, lat: 35.6952, lng: 139.7015, base: 21000 },
-      { id: 'HTL-TYO-05', name: '시나가와 프린스 호텔', star: 4, lat: 35.6285, lng: 139.7387, base: 18500 },
-      { id: 'HTL-TYO-06', name: '게이오 플라자 호텔 도쿄', star: 4, lat: 35.6899, lng: 139.6946, base: 26500 },
-      { id: 'HTL-TYO-07', name: '더 게이트 호텔 가미나리몬', star: 4, lat: 35.7106, lng: 139.7967, base: 17000 },
-      { id: 'HTL-TYO-08', name: '아사쿠사 뷰 호텔', star: 4, lat: 35.7159, lng: 139.7902, base: 16000 },
+      { id: 'HTL-TYO-01', name: '도쿄 스테이션 호텔', nameEn: 'The Tokyo Station Hotel', star: 5, lat: 35.6812, lng: 139.7671, base: 58000 },
+      { id: 'HTL-TYO-02', name: '팔레스 호텔 도쿄', nameEn: 'Palace Hotel Tokyo', star: 5, lat: 35.6841, lng: 139.7614, base: 74000 },
+      { id: 'HTL-TYO-03', name: '미츠이 가든 호텔 긴자', nameEn: 'Mitsui Garden Hotel Ginza Premier', star: 4, lat: 35.669, lng: 139.7649, base: 28500, chainBrand: 'Mitsui Garden Hotels' },
+      { id: 'HTL-TYO-04', name: '호텔 그레이스리 신주쿠', nameEn: 'Hotel Gracery Shinjuku', star: 4, lat: 35.6952, lng: 139.7015, base: 21000, chainBrand: 'Fujita Kanko' },
+      { id: 'HTL-TYO-05', name: '시나가와 프린스 호텔', nameEn: 'Shinagawa Prince Hotel', star: 4, lat: 35.6285, lng: 139.7387, base: 18500, chainBrand: 'Prince Hotels' },
+      { id: 'HTL-TYO-06', name: '게이오 플라자 호텔 도쿄', nameEn: 'Keio Plaza Hotel Tokyo', star: 4, lat: 35.6899, lng: 139.6946, base: 26500, chainBrand: 'Keio Plaza Hotel' },
+      { id: 'HTL-TYO-07', name: '더 게이트 호텔 가미나리몬', nameEn: 'THE GATE HOTEL Kaminarimon', star: 4, lat: 35.7106, lng: 139.7967, base: 17000, chainBrand: 'Hulic Hotels' },
+      { id: 'HTL-TYO-08', name: '아사쿠사 뷰 호텔', nameEn: 'Asakusa View Hotel', star: 4, lat: 35.7159, lng: 139.7902, base: 16000 },
       { id: 'HTL-TYO-09', name: '소테츠 프레사 인 긴자 나나초메', nameEn: 'Sotetsu Fresa Inn Ginza Nanachome', code: '155719', star: 3, lat: 35.6688, lng: 139.7635, base: 12000 },
       { id: 'HTL-TYO-10', name: '롯폰기 캔들 호텔', nameEn: 'Roppongi Candle Hotel', star: 3, lat: 35.6641, lng: 139.7315, base: 11000 },
       { id: 'HTL-TYO-11', name: '소테츠 프레사 인 도쿄-아카사카', nameEn: 'Sotetsu Fresa Inn Tokyo-Akasaka', code: '168085', star: 3, lat: 35.6726, lng: 139.7376, base: 15500 },
@@ -126,11 +126,11 @@ const CITIES: CityDef[] = [
     currency: 'JPY',
     tzOffset: '+09:00',
     hotels: [
-      { id: 'HTL-KYO-01', name: '하얏트 리젠시 교토', star: 5, lat: 34.9906, lng: 135.7727, base: 54000 },
-      { id: 'HTL-KYO-02', name: '호텔 그란비아 교토', star: 4, lat: 34.9858, lng: 135.7585, base: 27000 },
-      { id: 'HTL-KYO-03', name: '미츠이 가든 호텔 교토 신마치', star: 4, lat: 35.0056, lng: 135.7573, base: 20000 },
-      { id: 'HTL-KYO-04', name: '교토 센추리 호텔', star: 4, lat: 34.9873, lng: 135.7602, base: 18500 },
-      { id: 'HTL-KYO-05', name: '알몬트 호텔 교토', star: 3, lat: 34.9879, lng: 135.7645, base: 13000 },
+      { id: 'HTL-KYO-01', name: '하얏트 리젠시 교토', nameEn: 'Hyatt Regency Kyoto', star: 5, lat: 34.9906, lng: 135.7727, base: 54000, chainBrand: 'Hyatt' },
+      { id: 'HTL-KYO-02', name: '호텔 그란비아 교토', nameEn: 'Hotel Granvia Kyoto', star: 4, lat: 34.9858, lng: 135.7585, base: 27000, chainBrand: 'JR West Hotels' },
+      { id: 'HTL-KYO-03', name: '미츠이 가든 호텔 교토 신마치', nameEn: 'Mitsui Garden Hotel Kyoto Shinmachi Bettei', star: 4, lat: 35.0056, lng: 135.7573, base: 20000, chainBrand: 'Mitsui Garden Hotels' },
+      { id: 'HTL-KYO-04', name: '교토 센추리 호텔', nameEn: 'Kyoto Century Hotel', star: 4, lat: 34.9873, lng: 135.7602, base: 18500 },
+      { id: 'HTL-KYO-05', name: '알몬트 호텔 교토', nameEn: 'Almont Hotel Kyoto', star: 3, lat: 34.9879, lng: 135.7645, base: 13000, chainBrand: 'Almont Hotels' },
     ],
   },
   {
@@ -141,11 +141,11 @@ const CITIES: CityDef[] = [
     currency: 'JPY',
     tzOffset: '+09:00',
     hotels: [
-      { id: 'HTL-FUK-01', name: '그랜드 하얏트 후쿠오카', star: 5, lat: 33.5892, lng: 130.4108, base: 36000 },
-      { id: 'HTL-FUK-02', name: '호텔 닛코 후쿠오카', star: 4, lat: 33.5897, lng: 130.4207, base: 22000 },
-      { id: 'HTL-FUK-03', name: '니시테츠 그랜드 호텔', star: 4, lat: 33.5888, lng: 130.3987, base: 16500 },
-      { id: 'HTL-FUK-04', name: '리치몬드 호텔 하카타 에키마에', star: 3, lat: 33.5901, lng: 130.4174, base: 11000 },
-      { id: 'HTL-FUK-05', name: '호텔 몬토레 라수르 후쿠오카', star: 3, lat: 33.5926, lng: 130.3989, base: 10500 },
+      { id: 'HTL-FUK-01', name: '그랜드 하얏트 후쿠오카', nameEn: 'Grand Hyatt Fukuoka', star: 5, lat: 33.5892, lng: 130.4108, base: 36000, chainBrand: 'Hyatt' },
+      { id: 'HTL-FUK-02', name: '호텔 닛코 후쿠오카', nameEn: 'Hotel Nikko Fukuoka', star: 4, lat: 33.5897, lng: 130.4207, base: 22000, chainBrand: 'Okura Nikko Hotels' },
+      { id: 'HTL-FUK-03', name: '니시테츠 그랜드 호텔', nameEn: 'Nishitetsu Grand Hotel', star: 4, lat: 33.5888, lng: 130.3987, base: 16500, chainBrand: 'Nishitetsu Hotels' },
+      { id: 'HTL-FUK-04', name: '리치몬드 호텔 하카타 에키마에', nameEn: 'Richmond Hotel Hakata Ekimae', star: 3, lat: 33.5901, lng: 130.4174, base: 11000, chainBrand: 'Richmond Hotels' },
+      { id: 'HTL-FUK-05', name: '호텔 몬토레 라수르 후쿠오카', nameEn: 'Hotel Monterey La Soeur Fukuoka', star: 3, lat: 33.5926, lng: 130.3989, base: 10500, chainBrand: 'Hotel Monterey Group' },
     ],
   },
   {
@@ -156,10 +156,10 @@ const CITIES: CityDef[] = [
     currency: 'JPY',
     tzOffset: '+09:00',
     hotels: [
-      { id: 'HTL-SPK-01', name: 'JR타워 호텔 닛코 삿포로', star: 4, lat: 43.0686, lng: 141.3508, base: 24000 },
-      { id: 'HTL-SPK-02', name: '삿포로 그랜드 호텔', star: 4, lat: 43.0611, lng: 141.3486, base: 17000 },
-      { id: 'HTL-SPK-03', name: '크로스 호텔 삿포로', star: 4, lat: 43.0655, lng: 141.3521, base: 15500 },
-      { id: 'HTL-SPK-04', name: '호텔 그레이스리 삿포로', star: 3, lat: 43.0648, lng: 141.3512, base: 10000 },
+      { id: 'HTL-SPK-01', name: 'JR타워 호텔 닛코 삿포로', nameEn: 'JR Tower Hotel Nikko Sapporo', star: 4, lat: 43.0686, lng: 141.3508, base: 24000, chainBrand: 'Okura Nikko Hotels' },
+      { id: 'HTL-SPK-02', name: '삿포로 그랜드 호텔', nameEn: 'Sapporo Grand Hotel', star: 4, lat: 43.0611, lng: 141.3486, base: 17000 },
+      { id: 'HTL-SPK-03', name: '크로스 호텔 삿포로', nameEn: 'Cross Hotel Sapporo', star: 4, lat: 43.0655, lng: 141.3521, base: 15500, chainBrand: 'ORIX Hotel Management' },
+      { id: 'HTL-SPK-04', name: '호텔 그레이스리 삿포로', nameEn: 'Hotel Gracery Sapporo', star: 3, lat: 43.0648, lng: 141.3512, base: 10000, chainBrand: 'Fujita Kanko' },
     ],
   },
   {
@@ -170,14 +170,14 @@ const CITIES: CityDef[] = [
     currency: 'KRW',
     tzOffset: '+09:00',
     hotels: [
-      { id: 'HTL-SEL-01', name: '조선 팰리스 서울 강남', star: 5, lat: 37.5049, lng: 127.0046, base: 520000 },
-      { id: 'HTL-SEL-02', name: '롯데호텔 서울', star: 5, lat: 37.5651, lng: 126.9811, base: 380000 },
-      { id: 'HTL-SEL-03', name: '안다즈 서울 강남', star: 5, lat: 37.5241, lng: 127.0396, base: 410000 },
-      { id: 'HTL-SEL-04', name: '코트야드 메리어트 서울 남대문', star: 4, lat: 37.5591, lng: 126.9769, base: 210000 },
-      { id: 'HTL-SEL-05', name: '글래드 여의도', star: 4, lat: 37.5217, lng: 126.9243, base: 165000 },
-      { id: 'HTL-SEL-06', name: '신라스테이 광화문', star: 4, lat: 37.5713, lng: 126.9794, base: 155000 },
-      { id: 'HTL-SEL-07', name: '나인트리 프리미어 호텔 명동 2', star: 3, lat: 37.5636, lng: 126.9869, base: 120000 },
-      { id: 'HTL-SEL-08', name: '롯데시티호텔 마포', star: 3, lat: 37.5432, lng: 126.9512, base: 105000 },
+      { id: 'HTL-SEL-01', name: '조선 팰리스 서울 강남', nameEn: 'Josun Palace Seoul Gangnam', star: 5, lat: 37.5049, lng: 127.0046, base: 520000, chainBrand: 'Josun Hotels & Resorts' },
+      { id: 'HTL-SEL-02', name: '롯데호텔 서울', nameEn: 'Lotte Hotel Seoul', star: 5, lat: 37.5651, lng: 126.9811, base: 380000, chainBrand: 'Lotte Hotels & Resorts' },
+      { id: 'HTL-SEL-03', name: '안다즈 서울 강남', nameEn: 'Andaz Seoul Gangnam', star: 5, lat: 37.5241, lng: 127.0396, base: 410000, chainBrand: 'Hyatt' },
+      { id: 'HTL-SEL-04', name: '코트야드 메리어트 서울 남대문', nameEn: 'Courtyard by Marriott Seoul Namdaemun', star: 4, lat: 37.5591, lng: 126.9769, base: 210000, chainBrand: 'Marriott' },
+      { id: 'HTL-SEL-05', name: '글래드 여의도', nameEn: 'Glad Yeouido', star: 4, lat: 37.5217, lng: 126.9243, base: 165000, chainBrand: 'Glad Hotels' },
+      { id: 'HTL-SEL-06', name: '신라스테이 광화문', nameEn: 'Shilla Stay Gwanghwamun', star: 4, lat: 37.5713, lng: 126.9794, base: 155000, chainBrand: 'Shilla Stay' },
+      { id: 'HTL-SEL-07', name: '나인트리 프리미어 호텔 명동 2', nameEn: 'Nine Tree Premier Hotel Myeongdong II', star: 3, lat: 37.5636, lng: 126.9869, base: 120000, chainBrand: 'Nine Tree Hotels' },
+      { id: 'HTL-SEL-08', name: '롯데시티호텔 마포', nameEn: 'Lotte City Hotel Mapo', star: 3, lat: 37.5432, lng: 126.9512, base: 105000, chainBrand: 'Lotte Hotels & Resorts' },
     ],
   },
   {
@@ -188,11 +188,11 @@ const CITIES: CityDef[] = [
     currency: 'KRW',
     tzOffset: '+09:00',
     hotels: [
-      { id: 'HTL-PUS-01', name: '파크 하얏트 부산', star: 5, lat: 35.1568, lng: 129.1454, base: 350000 },
-      { id: 'HTL-PUS-02', name: '롯데호텔 부산', star: 5, lat: 35.1543, lng: 129.0592, base: 240000 },
-      { id: 'HTL-PUS-03', name: '신라스테이 해운대', star: 4, lat: 35.1601, lng: 129.1616, base: 145000 },
-      { id: 'HTL-PUS-04', name: '페어필드 바이 메리어트 부산', star: 4, lat: 35.1554, lng: 129.1442, base: 135000 },
-      { id: 'HTL-PUS-05', name: '토요코인 부산역 1', star: 3, lat: 35.1156, lng: 129.0403, base: 78000 },
+      { id: 'HTL-PUS-01', name: '파크 하얏트 부산', nameEn: 'Park Hyatt Busan', star: 5, lat: 35.1568, lng: 129.1454, base: 350000, chainBrand: 'Hyatt' },
+      { id: 'HTL-PUS-02', name: '롯데호텔 부산', nameEn: 'Lotte Hotel Busan', star: 5, lat: 35.1543, lng: 129.0592, base: 240000, chainBrand: 'Lotte Hotels & Resorts' },
+      { id: 'HTL-PUS-03', name: '신라스테이 해운대', nameEn: 'Shilla Stay Haeundae', star: 4, lat: 35.1601, lng: 129.1616, base: 145000, chainBrand: 'Shilla Stay' },
+      { id: 'HTL-PUS-04', name: '페어필드 바이 메리어트 부산', nameEn: 'Fairfield by Marriott Busan', star: 4, lat: 35.1554, lng: 129.1442, base: 135000, chainBrand: 'Marriott' },
+      { id: 'HTL-PUS-05', name: '토요코인 부산역 1', nameEn: 'Toyoko Inn Busan Station 1', star: 3, lat: 35.1156, lng: 129.0403, base: 78000, chainBrand: 'Toyoko Inn' },
     ],
   },
   {
@@ -203,11 +203,11 @@ const CITIES: CityDef[] = [
     currency: 'KRW',
     tzOffset: '+09:00',
     hotels: [
-      { id: 'HTL-CJU-01', name: '신라호텔 제주', star: 5, lat: 33.2478, lng: 126.4109, base: 480000 },
-      { id: 'HTL-CJU-02', name: '그랜드 하얏트 제주', star: 5, lat: 33.4849, lng: 126.4934, base: 320000 },
-      { id: 'HTL-CJU-03', name: '롯데호텔 제주', star: 5, lat: 33.2475, lng: 126.4076, base: 390000 },
-      { id: 'HTL-CJU-04', name: '메종 글래드 제주', star: 4, lat: 33.4886, lng: 126.4916, base: 150000 },
-      { id: 'HTL-CJU-05', name: '호텔 리젠트마린 더 블루', star: 3, lat: 33.5145, lng: 126.5241, base: 95000 },
+      { id: 'HTL-CJU-01', name: '신라호텔 제주', nameEn: 'The Shilla Jeju', star: 5, lat: 33.2478, lng: 126.4109, base: 480000, chainBrand: 'The Shilla Hotels & Resorts' },
+      { id: 'HTL-CJU-02', name: '그랜드 하얏트 제주', nameEn: 'Grand Hyatt Jeju', star: 5, lat: 33.4849, lng: 126.4934, base: 320000, chainBrand: 'Hyatt' },
+      { id: 'HTL-CJU-03', name: '롯데호텔 제주', nameEn: 'Lotte Hotel Jeju', star: 5, lat: 33.2475, lng: 126.4076, base: 390000, chainBrand: 'Lotte Hotels & Resorts' },
+      { id: 'HTL-CJU-04', name: '메종 글래드 제주', nameEn: 'Maison Glad Jeju', star: 4, lat: 33.4886, lng: 126.4916, base: 150000, chainBrand: 'Glad Hotels' },
+      { id: 'HTL-CJU-05', name: '호텔 리젠트마린 더 블루', nameEn: 'Hotel Regent Marine The Blue', star: 3, lat: 33.5145, lng: 126.5241, base: 95000 },
     ],
   },
   {
@@ -218,16 +218,16 @@ const CITIES: CityDef[] = [
     currency: 'THB',
     tzOffset: '+07:00',
     hotels: [
-      { id: 'HTL-BKK-01', name: '만다린 오리엔탈 방콕', star: 5, lat: 13.7244, lng: 100.5139, base: 15500 },
-      { id: 'HTL-BKK-02', name: '샹그릴라 방콕', star: 5, lat: 13.7213, lng: 100.5133, base: 7200 },
-      { id: 'HTL-BKK-03', name: '반얀트리 방콕', star: 5, lat: 13.7237, lng: 100.5399, base: 6300 },
-      { id: 'HTL-BKK-04', name: '아난타라 리버사이드 방콕 리조트', star: 5, lat: 13.6934, lng: 100.4867, base: 5400 },
-      { id: 'HTL-BKK-05', name: '차트리움 호텔 리버사이드 방콕', star: 4, lat: 13.7069, lng: 100.5045, base: 3600 },
-      { id: 'HTL-BKK-06', name: '이스틴 그랜드 호텔 사톤', star: 4, lat: 13.7194, lng: 100.5262, base: 3900 },
-      { id: 'HTL-BKK-07', name: '센타라 워터게이트 파빌리온', star: 4, lat: 13.7522, lng: 100.5421, base: 2700 },
-      { id: 'HTL-BKK-08', name: '노보텔 방콕 실롬 로드', star: 4, lat: 13.7241, lng: 100.5236, base: 2900 },
-      { id: 'HTL-BKK-09', name: '홀리데이 인 방콕 실롬', star: 4, lat: 13.7222, lng: 100.5194, base: 3100 },
-      { id: 'HTL-BKK-10', name: '아이비스 방콕 리버사이드', star: 3, lat: 13.7061, lng: 100.4894, base: 1600 },
+      { id: 'HTL-BKK-01', name: '만다린 오리엔탈 방콕', nameEn: 'Mandarin Oriental Bangkok', star: 5, lat: 13.7244, lng: 100.5139, base: 15500, chainBrand: 'Mandarin Oriental' },
+      { id: 'HTL-BKK-02', name: '샹그릴라 방콕', nameEn: 'Shangri-La Bangkok', star: 5, lat: 13.7213, lng: 100.5133, base: 7200, chainBrand: 'Shangri-La' },
+      { id: 'HTL-BKK-03', name: '반얀트리 방콕', nameEn: 'Banyan Tree Bangkok', star: 5, lat: 13.7237, lng: 100.5399, base: 6300, chainBrand: 'Banyan Tree' },
+      { id: 'HTL-BKK-04', name: '아난타라 리버사이드 방콕 리조트', nameEn: 'Anantara Riverside Bangkok Resort', star: 5, lat: 13.6934, lng: 100.4867, base: 5400, chainBrand: 'Anantara' },
+      { id: 'HTL-BKK-05', name: '차트리움 호텔 리버사이드 방콕', nameEn: 'Chatrium Hotel Riverside Bangkok', star: 4, lat: 13.7069, lng: 100.5045, base: 3600, chainBrand: 'Chatrium Hotels' },
+      { id: 'HTL-BKK-06', name: '이스틴 그랜드 호텔 사톤', nameEn: 'Eastin Grand Hotel Sathorn', star: 4, lat: 13.7194, lng: 100.5262, base: 3900, chainBrand: 'Eastin Hotels' },
+      { id: 'HTL-BKK-07', name: '센타라 워터게이트 파빌리온', nameEn: 'Centara Watergate Pavillion Hotel', star: 4, lat: 13.7522, lng: 100.5421, base: 2700, chainBrand: 'Centara' },
+      { id: 'HTL-BKK-08', name: '노보텔 방콕 실롬 로드', nameEn: 'Novotel Bangkok Silom Road', star: 4, lat: 13.7241, lng: 100.5236, base: 2900, chainBrand: 'Accor' },
+      { id: 'HTL-BKK-09', name: '홀리데이 인 방콕 실롬', nameEn: 'Holiday Inn Bangkok Silom', star: 4, lat: 13.7222, lng: 100.5194, base: 3100, chainBrand: 'IHG' },
+      { id: 'HTL-BKK-10', name: '아이비스 방콕 리버사이드', nameEn: 'ibis Bangkok Riverside', star: 3, lat: 13.7061, lng: 100.4894, base: 1600, chainBrand: 'Accor' },
     ],
   },
   {
@@ -238,14 +238,14 @@ const CITIES: CityDef[] = [
     currency: 'SGD',
     tzOffset: '+08:00',
     hotels: [
-      { id: 'HTL-SIN-01', name: '마리나 베이 샌즈', star: 5, lat: 1.2834, lng: 103.8607, base: 720 },
-      { id: 'HTL-SIN-02', name: '팬 퍼시픽 싱가포르', star: 5, lat: 1.2916, lng: 103.8592, base: 420 },
-      { id: 'HTL-SIN-03', name: '콘래드 센테니얼 싱가포르', star: 5, lat: 1.2931, lng: 103.8586, base: 450 },
-      { id: 'HTL-SIN-04', name: '파크로얄 컬렉션 마리나 베이', star: 5, lat: 1.2907, lng: 103.8572, base: 480 },
-      { id: 'HTL-SIN-05', name: '스위소텔 더 스탬포드', star: 4, lat: 1.2931, lng: 103.8535, base: 350 },
-      { id: 'HTL-SIN-06', name: '칼튼 호텔 싱가포르', star: 4, lat: 1.2966, lng: 103.8524, base: 290 },
-      { id: 'HTL-SIN-07', name: '홀리데이 인 익스프레스 클락 키', star: 3, lat: 1.2891, lng: 103.8465, base: 210 },
-      { id: 'HTL-SIN-08', name: '호텔 보스', star: 3, lat: 1.3021, lng: 103.8623, base: 165 },
+      { id: 'HTL-SIN-01', name: '마리나 베이 샌즈', nameEn: 'Marina Bay Sands', star: 5, lat: 1.2834, lng: 103.8607, base: 720 },
+      { id: 'HTL-SIN-02', name: '팬 퍼시픽 싱가포르', nameEn: 'Pan Pacific Singapore', star: 5, lat: 1.2916, lng: 103.8592, base: 420, chainBrand: 'Pan Pacific Hotels Group' },
+      { id: 'HTL-SIN-03', name: '콘래드 센테니얼 싱가포르', nameEn: 'Conrad Centennial Singapore', star: 5, lat: 1.2931, lng: 103.8586, base: 450, chainBrand: 'Hilton' },
+      { id: 'HTL-SIN-04', name: '파크로얄 컬렉션 마리나 베이', nameEn: 'PARKROYAL COLLECTION Marina Bay', star: 5, lat: 1.2907, lng: 103.8572, base: 480, chainBrand: 'Pan Pacific Hotels Group' },
+      { id: 'HTL-SIN-05', name: '스위소텔 더 스탬포드', nameEn: 'Swissotel The Stamford', star: 4, lat: 1.2931, lng: 103.8535, base: 350, chainBrand: 'Accor' },
+      { id: 'HTL-SIN-06', name: '칼튼 호텔 싱가포르', nameEn: 'Carlton Hotel Singapore', star: 4, lat: 1.2966, lng: 103.8524, base: 290 },
+      { id: 'HTL-SIN-07', name: '홀리데이 인 익스프레스 클락 키', nameEn: 'Holiday Inn Express Clarke Quay', star: 3, lat: 1.2891, lng: 103.8465, base: 210, chainBrand: 'IHG' },
+      { id: 'HTL-SIN-08', name: '호텔 보스', nameEn: 'Hotel Boss', star: 3, lat: 1.3021, lng: 103.8623, base: 165 },
     ],
   },
   {
@@ -256,12 +256,12 @@ const CITIES: CityDef[] = [
     currency: 'VND',
     tzOffset: '+07:00',
     hotels: [
-      { id: 'HTL-DAD-01', name: '인터컨티넨탈 다낭 선 페닌슐라', star: 5, lat: 16.1194, lng: 108.3049, base: 12500000 },
-      { id: 'HTL-DAD-02', name: '하얏트 리젠시 다낭', star: 5, lat: 16.0201, lng: 108.2637, base: 5200000 },
-      { id: 'HTL-DAD-03', name: '프리미어 빌리지 다낭 리조트', star: 5, lat: 16.0325, lng: 108.2519, base: 6800000 },
-      { id: 'HTL-DAD-04', name: '멜리아 빈펄 다낭 리버프론트', star: 4, lat: 16.0544, lng: 108.2277, base: 2100000 },
-      { id: 'HTL-DAD-05', name: '무엉탄 럭셔리 다낭', star: 4, lat: 16.0623, lng: 108.2467, base: 1500000 },
-      { id: 'HTL-DAD-06', name: '사노우바 다낭 호텔', star: 3, lat: 16.0651, lng: 108.2437, base: 950000 },
+      { id: 'HTL-DAD-01', name: '인터컨티넨탈 다낭 선 페닌슐라', nameEn: 'InterContinental Danang Sun Peninsula Resort', star: 5, lat: 16.1194, lng: 108.3049, base: 12500000, chainBrand: 'IHG' },
+      { id: 'HTL-DAD-02', name: '하얏트 리젠시 다낭', nameEn: 'Hyatt Regency Danang', star: 5, lat: 16.0201, lng: 108.2637, base: 5200000, chainBrand: 'Hyatt' },
+      { id: 'HTL-DAD-03', name: '프리미어 빌리지 다낭 리조트', nameEn: 'Premier Village Danang Resort', star: 5, lat: 16.0325, lng: 108.2519, base: 6800000, chainBrand: 'Accor' },
+      { id: 'HTL-DAD-04', name: '멜리아 빈펄 다낭 리버프론트', nameEn: 'Melia Vinpearl Danang Riverfront', star: 4, lat: 16.0544, lng: 108.2277, base: 2100000, chainBrand: 'Melia Hotels' },
+      { id: 'HTL-DAD-05', name: '무엉탄 럭셔리 다낭', nameEn: 'Muong Thanh Luxury Danang', star: 4, lat: 16.0623, lng: 108.2467, base: 1500000, chainBrand: 'Muong Thanh' },
+      { id: 'HTL-DAD-06', name: '사노우바 다낭 호텔', nameEn: 'Sanouva Danang Hotel', star: 3, lat: 16.0651, lng: 108.2437, base: 950000 },
     ],
   },
   {
@@ -272,10 +272,10 @@ const CITIES: CityDef[] = [
     currency: 'VND',
     tzOffset: '+07:00',
     hotels: [
-      { id: 'HTL-HAN-01', name: '소피텔 레전드 메트로폴 하노이', star: 5, lat: 21.0256, lng: 105.8562, base: 8500000 },
-      { id: 'HTL-HAN-02', name: '롯데호텔 하노이', star: 5, lat: 21.0324, lng: 105.8121, base: 4200000 },
-      { id: 'HTL-HAN-03', name: '멜리아 하노이', star: 4, lat: 21.0245, lng: 105.8482, base: 2600000 },
-      { id: 'HTL-HAN-04', name: '라 시에스타 클래식 마 마이', star: 3, lat: 21.0341, lng: 105.8512, base: 1400000 },
+      { id: 'HTL-HAN-01', name: '소피텔 레전드 메트로폴 하노이', nameEn: 'Sofitel Legend Metropole Hanoi', star: 5, lat: 21.0256, lng: 105.8562, base: 8500000, chainBrand: 'Accor' },
+      { id: 'HTL-HAN-02', name: '롯데호텔 하노이', nameEn: 'Lotte Hotel Hanoi', star: 5, lat: 21.0324, lng: 105.8121, base: 4200000, chainBrand: 'Lotte Hotels & Resorts' },
+      { id: 'HTL-HAN-03', name: '멜리아 하노이', nameEn: 'Melia Hanoi', star: 4, lat: 21.0245, lng: 105.8482, base: 2600000, chainBrand: 'Melia Hotels' },
+      { id: 'HTL-HAN-04', name: '라 시에스타 클래식 마 마이', nameEn: 'La Siesta Classic Ma May', star: 3, lat: 21.0341, lng: 105.8512, base: 1400000 },
     ],
   },
   {
@@ -286,10 +286,10 @@ const CITIES: CityDef[] = [
     currency: 'VND',
     tzOffset: '+07:00',
     hotels: [
-      { id: 'HTL-SGN-01', name: '파크 하얏트 사이공', star: 5, lat: 10.7797, lng: 106.7032, base: 8900000 },
-      { id: 'HTL-SGN-02', name: '카라벨 사이공', star: 5, lat: 10.7766, lng: 106.7034, base: 4600000 },
-      { id: 'HTL-SGN-03', name: '노보텔 사이공 센터', star: 4, lat: 10.7867, lng: 106.6911, base: 2200000 },
-      { id: 'HTL-SGN-04', name: '리버티 센트럴 사이공 리버사이드', star: 3, lat: 10.7712, lng: 106.7052, base: 1600000 },
+      { id: 'HTL-SGN-01', name: '파크 하얏트 사이공', nameEn: 'Park Hyatt Saigon', star: 5, lat: 10.7797, lng: 106.7032, base: 8900000, chainBrand: 'Hyatt' },
+      { id: 'HTL-SGN-02', name: '카라벨 사이공', nameEn: 'Caravelle Saigon', star: 5, lat: 10.7766, lng: 106.7034, base: 4600000 },
+      { id: 'HTL-SGN-03', name: '노보텔 사이공 센터', nameEn: 'Novotel Saigon Centre', star: 4, lat: 10.7867, lng: 106.6911, base: 2200000, chainBrand: 'Accor' },
+      { id: 'HTL-SGN-04', name: '리버티 센트럴 사이공 리버사이드', nameEn: 'Liberty Central Saigon Riverside', star: 3, lat: 10.7712, lng: 106.7052, base: 1600000, chainBrand: 'Liberty Hotels' },
     ],
   },
   {
@@ -300,11 +300,11 @@ const CITIES: CityDef[] = [
     currency: 'TWD',
     tzOffset: '+08:00',
     hotels: [
-      { id: 'HTL-TPE-01', name: '만다린 오리엔탈 타이베이', star: 5, lat: 25.0525, lng: 121.5441, base: 11500 },
-      { id: 'HTL-TPE-02', name: 'W 타이베이', star: 5, lat: 25.0403, lng: 121.5651, base: 9800 },
-      { id: 'HTL-TPE-03', name: '앰배서더 호텔 타이베이', star: 4, lat: 25.0546, lng: 121.5251, base: 4300 },
-      { id: 'HTL-TPE-04', name: '시저 파크 호텔 타이베이', star: 4, lat: 25.0463, lng: 121.5171, base: 3800 },
-      { id: 'HTL-TPE-05', name: '코스모스 호텔 타이베이', star: 3, lat: 25.0461, lng: 121.5179, base: 2600 },
+      { id: 'HTL-TPE-01', name: '만다린 오리엔탈 타이베이', nameEn: 'Mandarin Oriental Taipei', star: 5, lat: 25.0525, lng: 121.5441, base: 11500, chainBrand: 'Mandarin Oriental' },
+      { id: 'HTL-TPE-02', name: 'W 타이베이', nameEn: 'W Taipei', star: 5, lat: 25.0403, lng: 121.5651, base: 9800, chainBrand: 'Marriott' },
+      { id: 'HTL-TPE-03', name: '앰배서더 호텔 타이베이', nameEn: 'Ambassador Hotel Taipei', star: 4, lat: 25.0546, lng: 121.5251, base: 4300, chainBrand: 'Ambassador Hotels' },
+      { id: 'HTL-TPE-04', name: '시저 파크 호텔 타이베이', nameEn: 'Caesar Park Hotel Taipei', star: 4, lat: 25.0463, lng: 121.5171, base: 3800, chainBrand: 'Caesar Park Hotels' },
+      { id: 'HTL-TPE-05', name: '코스모스 호텔 타이베이', nameEn: 'Cosmos Hotel Taipei', star: 3, lat: 25.0461, lng: 121.5179, base: 2600 },
     ],
   },
   {
@@ -315,11 +315,11 @@ const CITIES: CityDef[] = [
     currency: 'HKD',
     tzOffset: '+08:00',
     hotels: [
-      { id: 'HTL-HKG-01', name: '페닌슐라 홍콩', star: 5, lat: 22.295, lng: 114.1719, base: 4200 },
-      { id: 'HTL-HKG-02', name: '아일랜드 샹그릴라 홍콩', star: 5, lat: 22.2777, lng: 114.1658, base: 2900 },
-      { id: 'HTL-HKG-03', name: '하얏트 센트릭 빅토리아 하버', star: 4, lat: 22.2887, lng: 114.1928, base: 1500 },
-      { id: 'HTL-HKG-04', name: '로얄 플라자 호텔', star: 4, lat: 22.3252, lng: 114.1697, base: 1100 },
-      { id: 'HTL-HKG-05', name: '이비스 홍콩 센트럴 & 셩완', star: 3, lat: 22.2874, lng: 114.1489, base: 750 },
+      { id: 'HTL-HKG-01', name: '페닌슐라 홍콩', nameEn: 'The Peninsula Hong Kong', star: 5, lat: 22.295, lng: 114.1719, base: 4200, chainBrand: 'Peninsula Hotels' },
+      { id: 'HTL-HKG-02', name: '아일랜드 샹그릴라 홍콩', nameEn: 'Island Shangri-La Hong Kong', star: 5, lat: 22.2777, lng: 114.1658, base: 2900, chainBrand: 'Shangri-La' },
+      { id: 'HTL-HKG-03', name: '하얏트 센트릭 빅토리아 하버', nameEn: 'Hyatt Centric Victoria Harbour', star: 4, lat: 22.2887, lng: 114.1928, base: 1500, chainBrand: 'Hyatt' },
+      { id: 'HTL-HKG-04', name: '로얄 플라자 호텔', nameEn: 'Royal Plaza Hotel', star: 4, lat: 22.3252, lng: 114.1697, base: 1100 },
+      { id: 'HTL-HKG-05', name: '이비스 홍콩 센트럴 & 셩완', nameEn: 'ibis Hong Kong Central & Sheung Wan', star: 3, lat: 22.2874, lng: 114.1489, base: 750, chainBrand: 'Accor' },
     ],
   },
 ];
@@ -687,14 +687,6 @@ export const CITY_DESTINATIONS = CITIES.map((c) => c.destination);
 
 // ═══════════ Create Booking 폼 검색용 (실제 포털 클론) ═══════════
 
-const CITY_COUNTRY: Record<string, string> = {
-  도쿄: 'Japan', 오사카: 'Japan', 교토: 'Japan', 후쿠오카: 'Japan', 삿포로: 'Japan',
-  서울: 'South Korea', 부산: 'South Korea', 제주: 'South Korea',
-  방콕: 'Thailand', 싱가포르: 'Singapore',
-  다낭: 'Vietnam', 하노이: 'Vietnam', 호치민: 'Vietnam',
-  타이베이: 'Taiwan', 홍콩: 'Hong Kong',
-};
-
 /** 호텔/도시 숫자 코드 (실제 포털의 6자리 코드 형식 재현 — 실코드 우선, 없으면 결정론적) */
 const codeIndex = new Map<string, string>();
 {
@@ -757,13 +749,24 @@ export function cityOfHotel(hotelId: string): CityMeta | null {
 }
 
 /** 목데이터 생성용 전체 호텔 목록 (도시 메타 동봉) */
-export function allHotels(): { id: string; name: string; star: number; base: number; roomType?: string; city: CityMeta }[] {
+export function allHotels(): {
+  id: string;
+  name: string;
+  star: number;
+  base: number;
+  propertyType: string;
+  chainBrand: string;
+  roomType?: string;
+  city: CityMeta;
+}[] {
   return CITIES.flatMap((c) =>
     c.hotels.map((h) => ({
       id: h.id,
       name: displayName(h),
       star: h.star,
       base: h.base,
+      propertyType: h.propertyType ?? 'Hotel',
+      chainBrand: h.chainBrand ?? 'Independent Hotels',
       roomType: h.roomType,
       city: { destination: c.destination, nameEn: c.nameEn ?? c.destination, country: c.country, currency: c.currency },
     })),
@@ -832,7 +835,7 @@ export function searchAutocomplete(query: string): AutocompleteEntry[] {
       const code = codeIndex.get(`city:${c.destination}`) ?? '100387';
       out.push({
         code,
-        label: `${code} - ${cityDisplay}, ${cityDisplay}, ${CITY_COUNTRY[c.destination] ?? ''}`,
+        label: `${code} - ${cityDisplay}, ${cityDisplay}, ${c.country}`,
         type: 'city',
         destination: c.destination,
         hotel_name: null,
@@ -847,7 +850,7 @@ export function searchAutocomplete(query: string): AutocompleteEntry[] {
         const code = hotelCodeOf(h.id);
         out.push({
           code,
-          label: `${code} - ${dn}, ${dn}, ${CITY_COUNTRY[c.destination] ?? ''}`,
+          label: `${code} - ${dn}, ${dn}, ${c.country}`,
           type: 'hotel',
           destination: c.destination,
           hotel_name: dn,

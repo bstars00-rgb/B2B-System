@@ -13,6 +13,11 @@ interface Props {
    * 예약 흐름(체크인/아웃)은 기본값(오늘 이후만) 유지.
    */
   allowPast?: boolean;
+  /**
+   * 값이 증가하면 달력을 자동으로 연다.
+   * 외부(베스트셀러 랭킹 → 예약)에서 "이제 날짜만 고르면 된다"로 유도할 때 쓴다.
+   */
+  openSignal?: number;
 }
 
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
@@ -32,7 +37,15 @@ function iso(y: number, m: number, d: number): string {
  * 트리거(입력 모양 + 달력 아이콘) 클릭 시 월 캘린더 팝업:
  * ‹ MON YYYY › 헤더, 일(빨강)·토(파랑) 요일 색상, 선택일 주황 원.
  */
-export default function DatePicker({ value, onChange, className, placeholder, minDate, allowPast }: Props) {
+export default function DatePicker({
+  value,
+  onChange,
+  className,
+  placeholder,
+  minDate,
+  allowPast,
+  openSignal,
+}: Props) {
   const [open, setOpen] = useState(false);
   const parsed = parse(value);
   const now = new Date();
@@ -48,6 +61,11 @@ export default function DatePicker({ value, onChange, className, placeholder, mi
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  /** 외부 신호로 열기 — 초기값 0은 무시(마운트 시 저절로 열리면 안 된다) */
+  useEffect(() => {
+    if (openSignal) setOpen(true);
+  }, [openSignal]);
 
   useEffect(() => {
     if (!open) return;
