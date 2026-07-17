@@ -140,6 +140,8 @@ export interface Booking {
   sum_amt: number;
   client_cancel_dl: string | null;
   cancel_date: string | null;
+  /** 취소 사유 (status가 Cancelled일 때만) — 대시보드 Cancel Reasons 분포의 원천 */
+  cancel_reason?: string | null;
   /** 발행된 인보이스 번호 (미발행 시 null) */
   invoice_no?: string | null;
   /** 분쟁 상태 표시 (없으면 undefined) */

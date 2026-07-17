@@ -10,10 +10,24 @@ import { SEED_BOOKINGS } from '../mocks/seedBookings';
 
 const BOOKINGS_KEY = 'omh_bookings';
 const SEQ_KEY = 'omh_booking_seq';
+const SEED_VERSION_KEY = 'omh_seed_version';
 export const AUTH_KEY = 'omh_auth';
+
+/**
+ * 시드 데이터 버전 — 올리면 저장된 예약을 새 시드로 교체한다.
+ * 시드를 바꿔도 이미 방문한 브라우저는 localStorage의 옛 목록을 계속 읽어
+ * (예: 예약 7건 시절 데이터) 대시보드가 텅 빈 것처럼 보였다.
+ * v2: 예약 200건 + 대시보드 파생 (2026-07-17)
+ */
+const SEED_VERSION = '2';
 
 export function loadBookings(): Booking[] {
   try {
+    if (localStorage.getItem(SEED_VERSION_KEY) !== SEED_VERSION) {
+      localStorage.setItem(SEED_VERSION_KEY, SEED_VERSION);
+      saveBookings(SEED_BOOKINGS);
+      return SEED_BOOKINGS;
+    }
     const raw = localStorage.getItem(BOOKINGS_KEY);
     if (!raw) return SEED_BOOKINGS;
     const parsed = JSON.parse(raw) as Booking[];

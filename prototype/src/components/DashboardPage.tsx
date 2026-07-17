@@ -17,35 +17,38 @@ import {
   YAxis,
 } from 'recharts';
 import EnhBadge from './EnhBadge';
+import type { Booking } from '../types';
 import { formatMoney } from '../utils/format';
+import { bestsellingByCountry, bestsellingHotels } from '../mocks/dashboard';
 import {
-  bestsellingByCountry,
-  bestsellingHotels,
-  dailyBookingStats,
+  DATE_BASES,
+  PERIODS,
+  cancelReasonStats,
+  computeKpi,
+  dailySeries,
+  dataStartMonth,
   destinationStats,
-  kpi,
-  points,
-  ttvTrend,
-} from '../mocks/dashboard';
-import {
-  cancelReasons,
   monthlyBookingStats,
   monthlyCancelRate,
+  periodRange,
+  todayIso,
+  ttvTrend,
   yearEndStats,
-  yearTotals,
-  YEARS,
-} from '../mocks/dataCenter';
+  type DateBasis,
+  type Period,
+} from '../utils/dashboardStats';
 
 /**
  * 대시보드(통계) — 닷비즈 원본에 없는 고도화 신규 화면.
+ *
+ * 모든 수치는 Bookings 예약 목록에서 파생된다(utils/dashboardStats.ts) — 화면에 고정값을 적어두면
+ * 셀러가 Bookings와 나란히 놓고 보는 순간 어긋난다. 집계 기준일·기간 셀렉트도 실제로 동작한다.
  *
  * 미니멀 원칙(명세 §11): 예약 관련 지표만 싣는다.
  * AR Aging / Dispute / SLA / Loyalty Tier 같은 운영 지표는 각 전용 화면에서 추적하고
  * 여기에 넣지 않는다 — 지표 추가 요청이 오면 이 원칙으로 막는다. drill-down도 같은 이유로 보류.
  */
 
-const DATE_BASES = ['Booking Date', 'Check-in Date', 'Check-out Date'];
-const PERIODS = ['This Month', 'Last Month', 'Last 30 Days', 'This Quarter', 'Last Quarter', 'This Year', 'Custom'];
 const DEST_VIEWS = ['Country/Region', 'City'];
 
 const DAILY_METRICS = [
@@ -119,37 +122,42 @@ function Kpi({ label, value, change, note }: { label: string; value: string; cha
   );
 }
 
-export default function DashboardPage() {
+export default function DashboardPage({ bookings }: { bookings: Booking[] }) {
+  const today = todayIso();
+  const monthAgo = `${today.slice(0, 8)}01`;
+
   const [tab, setTab] = useState<DashTab>('overview');
-  const [dateBasis, setDateBasis] = useState(DATE_BASES[0]);
-  const [period, setPeriod] = useState(PERIODS[0]);
-  const [customFrom, setCustomFrom] = useState(dailyBookingStats[0].date);
-  const [customTo, setCustomTo] = useState(dailyBookingStats[dailyBookingStats.length - 1].date);
+  const [dateBasis, setDateBasis] = useState<DateBasis>(DATE_BASES[0]);
+  const [period, setPeriod] = useState<Period>(PERIODS[0]);
+  const [customFrom, setCustomFrom] = useState(monthAgo);
+  const [customTo, setCustomTo] = useState(today);
 
   const [destView, setDestView] = useState(DEST_VIEWS[0]);
   const [bestCountry, setBestCountry] = useState('All');
   const [accountLevel, setAccountLevel] = useState('All');
   const [dailyMetric, setDailyMetric] = useState<DailyMetricKey>('bookingCount');
-  const [dailyFrom, setDailyFrom] = useState(dailyBookingStats[0].date);
-  const [dailyTo, setDailyTo] = useState(dailyBookingStats[dailyBookingStats.length - 1].date);
+  const [dailyFrom, setDailyFrom] = useState(() => {
+    const d = new Date(`${today}T00:00:00Z`);
+    return new Date(d.getTime() - 30 * 86400000).toISOString().slice(0, 10);
+  });
+  const [dailyTo, setDailyTo] = useState(today);
 
-  /** KPI 델타의 비교 대상 — 기간 셀렉트에 따라 문구가 달라진다 */
-  const comparisonLabel =
-    period === 'This Month'
-      ? 'vs 지난달'
-      : period === 'Last Month'
-        ? 'vs 2개월 전'
-        : period === 'Last 30 Days'
-          ? 'vs 이전 30일'
-          : period === 'This Quarter'
-            ? 'vs 지난 분기'
-            : period === 'Last Quarter'
-              ? 'vs 2개 분기 전'
-              : period === 'This Year'
-                ? 'vs 작년'
-                : `${customFrom} ~ ${customTo}`;
+  /* ── 예약에서 파생 — 기간·기준일 셀렉트가 실제로 반영된다 ── */
+  const range = useMemo(
+    () => periodRange(period, today, customFrom, customTo),
+    [period, today, customFrom, customTo],
+  );
+  const kpi = useMemo(() => computeKpi(bookings, dateBasis, range), [bookings, dateBasis, range]);
+  const comparisonLabel = range.label;
+  const dataStart = useMemo(() => dataStartMonth(bookings), [bookings]);
 
-  const dest = destView === 'City' ? destinationStats.city : destinationStats.country;
+  const trend = useMemo(() => ttvTrend(bookings, dateBasis, today), [bookings, dateBasis, today]);
+  const trendEmptyMonths = trend.filter((t) => !t.amount).length;
+
+  const dest = useMemo(
+    () => destinationStats(bookings, destView === 'City' ? 'city' : 'country', dateBasis, range),
+    [bookings, destView, dateBasis, range],
+  );
   const destTotal = dest.reduce((s, d) => s + d.bookings, 0);
 
   const bestCountries = useMemo(() => ['All', ...Object.keys(bestsellingByCountry).sort()], []);
@@ -162,8 +170,8 @@ export default function DashboardPage() {
   );
 
   const dailyRows = useMemo(
-    () => dailyBookingStats.filter((d) => d.date >= dailyFrom && d.date <= dailyTo),
-    [dailyFrom, dailyTo],
+    () => dailySeries(bookings, dateBasis, dailyFrom, dailyTo),
+    [bookings, dateBasis, dailyFrom, dailyTo],
   );
   const dailyLabel = DAILY_METRICS.find((m) => m.key === dailyMetric)!.label;
   const isAmount = dailyMetric === 'bookingAmount';
@@ -172,13 +180,29 @@ export default function DashboardPage() {
   const dailyAvg = dailyRows.length ? Math.round(dailyTotal / dailyRows.length) : 0;
   const dailyPeak = dailyRows.length ? Math.max(...dailyRows.map((d) => d[dailyMetric])) : 0;
 
-  const latest = monthlyBookingStats[monthlyBookingStats.length - 1];
-  const latestCancel = monthlyCancelRate[monthlyCancelRate.length - 1];
-  const prevCancel = monthlyCancelRate[monthlyCancelRate.length - 2];
-  const avgCancel = (monthlyCancelRate.reduce((s, m) => s + m.rate, 0) / monthlyCancelRate.length).toFixed(1);
+  /* Data Center — 6개월 확정/취소/이연 */
+  const monthly = useMemo(() => monthlyBookingStats(bookings, today), [bookings, today]);
+  const cancelRate = useMemo(() => monthlyCancelRate(monthly), [monthly]);
+  const cancelReasons = useMemo(() => cancelReasonStats(bookings, today), [bookings, today]);
+  const yearEnd = useMemo(() => yearEndStats(bookings, today), [bookings, today]);
+
+  const latest = monthly[monthly.length - 1];
+  const latestCancel = cancelRate[cancelRate.length - 1];
+  const prevCancel = cancelRate[cancelRate.length - 2];
+  const activeMonths = cancelRate.filter((m) => m.count || monthly.find((x) => x.month === m.month)?.confirmed);
+  const avgCancel = activeMonths.length
+    ? (activeMonths.reduce((s, m) => s + m.rate, 0) / activeMonths.length).toFixed(1)
+    : '0.0';
   const cancelTotal = cancelReasons.reduce((s, r) => s + r.count, 0);
 
-  const areaChart = (rows: typeof dailyBookingStats, gradId: string) => (
+  /** 예약 데이터 시작 이전 구간이 비어 보이는 이유 — 숨기면 버그로 읽힌다 */
+  const DataStartNote = ({ what }: { what: string }) => (
+    <p className="mt-1 text-[10px] text-slate-400">
+      예약 데이터는 {dataStart}부터 있습니다 — 그 이전 {what}은 비어 있습니다.
+    </p>
+  );
+
+  const areaChart = (rows: { date: string }[], gradId: string) => (
     <ResponsiveContainer width="100%" height={230}>
       <AreaChart data={rows} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
         <defs>
@@ -230,7 +254,7 @@ export default function DashboardPage() {
         <div className="flex flex-wrap items-center gap-2">
           <select
             value={dateBasis}
-            onChange={(e) => setDateBasis(e.target.value)}
+            onChange={(e) => setDateBasis(e.target.value as DateBasis)}
             className={filterCls}
             aria-label="집계 기준일"
           >
@@ -238,7 +262,7 @@ export default function DashboardPage() {
               <option key={d}>{d}</option>
             ))}
           </select>
-          <select value={period} onChange={(e) => setPeriod(e.target.value)} className={filterCls} aria-label="기간">
+          <select value={period} onChange={(e) => setPeriod(e.target.value as Period)} className={filterCls} aria-label="기간">
             {PERIODS.map((p) => (
               <option key={p}>{p}</option>
             ))}
@@ -293,21 +317,6 @@ export default function DashboardPage() {
             <Kpi label="Avg Booking Value" value={money(kpi.avgBookingValue)} change={kpi.avgChange} note={comparisonLabel} />
           </div>
 
-          <Card>
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-              <span className="text-[13px] font-bold text-slate-800">OP Points</span>
-              <span className="text-xs text-slate-600">
-                Balance <b className="text-slate-800">{points.balance.toLocaleString('ko-KR')}P</b>
-              </span>
-              <span className="text-xs text-slate-600">
-                Earned <b className="text-emerald-600">+{points.earned.toLocaleString('ko-KR')}P</b>
-              </span>
-              <span className="text-xs text-slate-600">
-                Used <b className="text-red-500">-{points.used.toLocaleString('ko-KR')}P</b>
-              </span>
-            </div>
-          </Card>
-
           {/* Daily Booking Statistics */}
           <Card>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -356,19 +365,20 @@ export default function DashboardPage() {
           <Card>
             <CardTitle>12-Month TTV Trend</CardTitle>
             <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={ttvTrend} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+              <BarChart data={trend} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={GRID} />
                 <XAxis dataKey="month" tick={{ fontSize: 10 }} stroke={AXIS} />
                 <YAxis tick={{ fontSize: 10 }} stroke={AXIS} tickFormatter={compactYen} />
                 <Tooltip formatter={(v) => [money(Number(v)), 'TTV']} contentStyle={tooltipStyle} />
                 <Bar dataKey="amount" radius={[3, 3, 0, 0]}>
-                  {ttvTrend.map((_, i) => (
-                    <Cell key={i} fill={BRAND} fillOpacity={i === ttvTrend.length - 1 ? 1 : 0.4} />
+                  {trend.map((_, i) => (
+                    <Cell key={i} fill={BRAND} fillOpacity={i === trend.length - 1 ? 1 : 0.4} />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
             <p className="mt-1 text-[10px] text-slate-400">진한 막대가 이번 달입니다.</p>
+            {trendEmptyMonths > 0 && <DataStartNote what={`${trendEmptyMonths}개월`} />}
           </Card>
 
           {/* Destination Booking Percentage */}
@@ -513,7 +523,7 @@ export default function DashboardPage() {
           </div>
           <Card>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={monthlyBookingStats} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+              <BarChart data={monthly} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={GRID} />
                 <XAxis dataKey="month" tick={{ fontSize: 10 }} stroke={AXIS} />
                 <YAxis tick={{ fontSize: 10 }} stroke={AXIS} />
@@ -524,6 +534,10 @@ export default function DashboardPage() {
                 <Bar dataKey="deferredCredit" name="Deferred" fill="#FF8C00" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
+            {monthly.some((m) => !m.confirmed && !m.cancelled) && <DataStartNote what="달" />}
+            <p className="mt-1 text-[10px] text-slate-400">
+              Deferred Credit — 확정됐지만 아직 미수(Unpaid)인 예약 건수입니다.
+            </p>
           </Card>
         </div>
       )}
@@ -534,13 +548,13 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             <Kpi label={`This Month (${latestCancel.month})`} value={`${latestCancel.rate}%`} note={`${latestCancel.count}건 취소`} />
             <Kpi label={`Previous Month (${prevCancel.month})`} value={`${prevCancel.rate}%`} note={`${prevCancel.count}건 취소`} />
-            <Kpi label="6-Month Average" value={`${avgCancel}%`} note={`누적 ${cancelTotal}건`} />
+            <Kpi label="Average (데이터 있는 달)" value={`${avgCancel}%`} note={`누적 ${cancelTotal}건`} />
           </div>
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             <Card>
               <CardTitle>Cancel Rate Trend</CardTitle>
               <ResponsiveContainer width="100%" height={250}>
-                <LineChart data={monthlyCancelRate} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+                <LineChart data={cancelRate} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={GRID} />
                   <XAxis dataKey="month" tick={{ fontSize: 10 }} stroke={AXIS} />
                   <YAxis tick={{ fontSize: 10 }} stroke={AXIS} tickFormatter={(v: number) => `${v}%`} />
@@ -589,19 +603,16 @@ export default function DashboardPage() {
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             {metricSelect}
-            <span className="text-xs text-slate-500">최근 {dailyBookingStats.length}일</span>
+            <span className="text-xs text-slate-500">
+              {dailyFrom} ~ {dailyTo} ({dailyRows.length}일)
+            </span>
           </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <Kpi label="Total" value={fmtDaily(dailyBookingStats.reduce((s, d) => s + d[dailyMetric], 0))} />
-            <Kpi
-              label="Daily Avg"
-              value={fmtDaily(
-                Math.round(dailyBookingStats.reduce((s, d) => s + d[dailyMetric], 0) / dailyBookingStats.length),
-              )}
-            />
-            <Kpi label="Peak" value={fmtDaily(Math.max(...dailyBookingStats.map((d) => d[dailyMetric])))} />
+            <Kpi label="Total" value={fmtDaily(dailyTotal)} />
+            <Kpi label="Daily Avg" value={fmtDaily(dailyAvg)} />
+            <Kpi label="Peak" value={fmtDaily(dailyPeak)} />
           </div>
-          <Card>{areaChart(dailyBookingStats, 'dcDaily')}</Card>
+          <Card>{areaChart(dailyRows, 'dcDaily')}</Card>
         </div>
       )}
 
@@ -609,31 +620,53 @@ export default function DashboardPage() {
       {tab === 'dc-yearend' && (
         <div className="space-y-3">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            {yearTotals.map((y, i) => (
+            {yearEnd.totals.map((y, i) => (
               <Card key={y.year}>
                 <p className="text-[11px] font-bold" style={{ color: ['#94A3B8', '#FF8C00', BRAND][i] }}>
                   {y.year}
                   {y.ytd && ' (YTD)'}
                 </p>
-                <p className="mt-1 text-xl font-bold text-slate-800">{y.bookings.toLocaleString('ko-KR')}</p>
-                <p className="mt-1 text-[10px] text-slate-400">
-                  {money(y.revenue)} · {y.roomNights.toLocaleString('ko-KR')}박
-                </p>
+                {y.empty ? (
+                  <>
+                    <p className="mt-1 text-xl font-bold text-slate-300">—</p>
+                    <p className="mt-1 text-[10px] text-slate-400">예약 데이터 없음</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="mt-1 text-xl font-bold text-slate-800">{y.bookings.toLocaleString('ko-KR')}</p>
+                    <p className="mt-1 text-[10px] text-slate-400">
+                      {money(y.revenue)} · {y.roomNights.toLocaleString('ko-KR')}박
+                    </p>
+                  </>
+                )}
               </Card>
             ))}
           </div>
+          {yearEnd.totals.some((y) => y.empty) && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <p className="text-[11px] leading-relaxed text-amber-800">
+                <b>연간 비교는 아직 성립하지 않습니다.</b> 예약 데이터가 {dataStart}부터라{' '}
+                {yearEnd.totals
+                  .filter((y) => y.empty)
+                  .map((y) => y.year)
+                  .join('·')}
+                년은 비어 있습니다. 이 탭이 의미를 가지려면 최소 1년 이상의 예약 이력이 필요합니다 — 없는 값을 채우지
+                않고 그대로 둡니다.
+              </p>
+            </div>
+          )}
           <Card>
             <CardTitle>Monthly Comparison</CardTitle>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={yearEndStats} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+              <BarChart data={yearEnd.monthly} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={GRID} />
                 <XAxis dataKey="month" tick={{ fontSize: 10 }} stroke={AXIS} />
                 <YAxis tick={{ fontSize: 10 }} stroke={AXIS} />
                 <Tooltip contentStyle={tooltipStyle} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="prev2" name={String(YEARS[0])} fill="#94A3B8" radius={[2, 2, 0, 0]} />
-                <Bar dataKey="prev1" name={String(YEARS[1])} fill="#FF8C00" radius={[2, 2, 0, 0]} />
-                <Bar dataKey="curr" name={String(YEARS[2])} fill={BRAND} radius={[2, 2, 0, 0]} />
+                <Bar dataKey="y0" name={String(yearEnd.years[0])} fill="#94A3B8" radius={[2, 2, 0, 0]} />
+                <Bar dataKey="y1" name={String(yearEnd.years[1])} fill="#FF8C00" radius={[2, 2, 0, 0]} />
+                <Bar dataKey="y2" name={String(yearEnd.years[2])} fill={BRAND} radius={[2, 2, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </Card>
@@ -644,21 +677,22 @@ export default function DashboardPage() {
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-500">
                     <th className="px-2 py-1.5 text-left font-medium">Month</th>
-                    <th className="px-2 py-1.5 text-right font-medium">{YEARS[0]}</th>
-                    <th className="px-2 py-1.5 text-right font-medium">{YEARS[1]}</th>
-                    <th className="px-2 py-1.5 text-right font-medium">{YEARS[2]}</th>
+                    <th className="px-2 py-1.5 text-right font-medium">{yearEnd.years[0]}</th>
+                    <th className="px-2 py-1.5 text-right font-medium">{yearEnd.years[1]}</th>
+                    <th className="px-2 py-1.5 text-right font-medium">{yearEnd.years[2]}</th>
                     <th className="px-2 py-1.5 text-right font-medium">
-                      YoY {String(YEARS[1]).slice(2)}/{String(YEARS[0]).slice(2)}
+                      YoY {String(yearEnd.years[1]).slice(2)}/{String(yearEnd.years[0]).slice(2)}
                     </th>
                     <th className="px-2 py-1.5 text-right font-medium">
-                      YoY {String(YEARS[2]).slice(2)}/{String(YEARS[1]).slice(2)}
+                      YoY {String(yearEnd.years[2]).slice(2)}/{String(yearEnd.years[1]).slice(2)}
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {yearEndStats.map((y) => {
-                    const g1 = ((y.prev1 / y.prev2 - 1) * 100).toFixed(1);
-                    const g2 = y.curr > 0 ? ((y.curr / y.prev1 - 1) * 100).toFixed(1) : null;
+                  {yearEnd.monthly.map((y) => {
+                    /* 비교 대상이 0이면 증감률이 성립하지 않는다 — 무한대를 %로 찍지 않는다 */
+                    const g1 = y.y0 > 0 ? ((y.y1 / y.y0 - 1) * 100).toFixed(1) : null;
+                    const g2 = y.y1 > 0 && y.y2 > 0 ? ((y.y2 / y.y1 - 1) * 100).toFixed(1) : null;
                     const chip = (v: string) => (
                       <span
                         className={`rounded-sm px-1.5 py-0.5 text-[10px] font-bold ${
@@ -672,10 +706,10 @@ export default function DashboardPage() {
                     return (
                       <tr key={y.month} className="border-b border-slate-100 last:border-0">
                         <td className="px-2 py-1.5 font-medium text-slate-700">{y.month}</td>
-                        <td className="px-2 py-1.5 text-right text-slate-700">{y.prev2}</td>
-                        <td className="px-2 py-1.5 text-right text-slate-700">{y.prev1}</td>
-                        <td className="px-2 py-1.5 text-right text-slate-700">{y.curr || '—'}</td>
-                        <td className="px-2 py-1.5 text-right">{chip(g1)}</td>
+                        <td className="px-2 py-1.5 text-right text-slate-700">{y.y0 || '—'}</td>
+                        <td className="px-2 py-1.5 text-right text-slate-700">{y.y1 || '—'}</td>
+                        <td className="px-2 py-1.5 text-right text-slate-700">{y.y2 || '—'}</td>
+                        <td className="px-2 py-1.5 text-right">{g1 ? chip(g1) : <span className="text-slate-300">—</span>}</td>
                         <td className="px-2 py-1.5 text-right">{g2 ? chip(g2) : <span className="text-slate-300">—</span>}</td>
                       </tr>
                     );
@@ -688,8 +722,9 @@ export default function DashboardPage() {
       )}
 
       <p className="mt-3 text-[10px] leading-relaxed text-slate-400">
-        프로토타입 — 목데이터 기준 읽기 전용 스냅샷입니다. 집계 기준일·기간 셀렉트는 화면만 동작하며(실데이터 연동 시
-        서버 집계로 대체), 목적지 기준·지표·국가 필터는 실제로 동작합니다.
+        프로토타입 — 읽기 전용 스냅샷입니다. 모든 수치는 Bookings 목록의 예약 {bookings.length}건에서 집계되며, 집계
+        기준일·기간·목적지·지표 필터가 실제로 동작합니다. Bestselling 랭킹은 셀러 실적이 아닌 플랫폼 전체 랭킹(별도
+        목데이터)이고, Account Level 필터는 서브계정 구조가 없어 화면만 동작합니다.
       </p>
     </div>
   );

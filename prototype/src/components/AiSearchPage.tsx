@@ -484,7 +484,7 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
 
         {/* ── 본문: Bookings / Create Booking / AI 검색 (좌 채팅 / 우 조건+결과) ── */}
         {view === 'dashboard' ? (
-          <DashboardPage />
+          <DashboardPage bookings={bookings} />
         ) : view === 'bookings' ? (
           <BookingsPage bookings={bookings} onOpenDetail={setDetailBooking} />
         ) : view === 'staff' ? (

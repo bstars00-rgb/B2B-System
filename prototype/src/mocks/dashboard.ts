@@ -1,80 +1,12 @@
 /**
- * 대시보드(통계) 목데이터 — 닷비즈 고도화 신규 기능.
+ * OhMyHotel 베스트셀러 호텔 랭킹 — 대시보드 Overview 하단 표.
  *
- * 원본 명세(Dashboard_Specification_2026-07-17_KR.md)의 구조·수치를 그대로 이식하되,
- * 우리 클론과 맞지 않는 3가지를 조정했다.
- *   1) 통화 JPY — 클론 셀러(ATTIC TOURS)도 hotelDb 요금도 전부 엔화다. 원본 USD를 ×150 환산.
- *   2) 기간을 오늘 기준으로 산출 — 원본은 2026-03에 고정돼 "This Month"가 과거를 가리켰다.
- *   3) 난수 제거 — Math.random()은 새로고침마다 그래프가 바뀌어 데모·QA에서 재현이 안 된다.
+ * 대시보드의 다른 수치는 전부 Bookings 예약에서 파생되지만(utils/dashboardStats.ts),
+ * 이 랭킹만 별도 목데이터다 — 셀러 자신의 실적이 아니라 **플랫폼 전체 판매 랭킹**이라
+ * 셀러 예약 200건에서 나올 수 없는 값이기 때문.
  *
- * 합계(연간 집계 등)는 반드시 월별 배열에서 파생시킨다. 손으로 적으면 어긋난다.
+ * [확인 필요] 실사이트 랭킹이 플랫폼 전체 기준인지 셀러 실적 기준인지 PD팀 확인 대기.
  */
-
-/** 시드 PRNG(mulberry32) — 같은 시드면 항상 같은 그래프 */
-export function seeded(seed: number): () => number {
-  let t = seed;
-  return () => {
-    t = (t + 0x6d2b79f5) | 0;
-    let r = Math.imul(t ^ (t >>> 15), 1 | t);
-    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
-    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-/** 원본이 USD로 적어둔 금액의 엔화 환산율 */
-export const JPY = 150;
-
-export const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-const TODAY = new Date();
-TODAY.setHours(0, 0, 0, 0);
-
-export const THIS_YEAR = TODAY.getFullYear();
-export const THIS_MONTH = TODAY.getMonth();
-
-/** n개월 전(0 = 이번 달)의 라벨. toISOString은 JST에서 하루 밀리므로 로컬 포맷만 쓴다. */
-function monthsBack(n: number): { y: number; m: number } {
-  const d = new Date(THIS_YEAR, THIS_MONTH - n, 1);
-  return { y: d.getFullYear(), m: d.getMonth() };
-}
-
-/** "Jul-26" — 연도 경계 가시성(동일 월명 혼동 방지) */
-export function monthLabelShort(n: number): string {
-  const { y, m } = monthsBack(n);
-  return `${MONTH_ABBR[m]}-${String(y).slice(2)}`;
-}
-
-/** "Jul 2026" */
-export function monthLabelLong(n: number): string {
-  const { y, m } = monthsBack(n);
-  return `${MONTH_ABBR[m]} ${y}`;
-}
-
-/** n일 전의 YYYY-MM-DD (로컬 기준) */
-export function isoDaysBack(n: number): string {
-  const d = new Date(TODAY);
-  d.setDate(d.getDate() - n);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-export const kpi = {
-  totalBookings: 156,
-  bookingsChange: '+12%',
-  revenue: 48750 * JPY,
-  revenueChange: '+8.5%',
-  roomNights: 423,
-  nightsChange: '+15%',
-  /** revenue / totalBookings 와 어긋나지 않도록 파생 */
-  avgBookingValue: Math.round((48750 * JPY) / 156),
-  avgChange: '-3.2%',
-};
-
-/** OP 포인트 — 금액이 아니라 포인트라 환산하지 않는다 */
-export const points = {
-  balance: 24500,
-  earned: 8400,
-  used: 3200,
-};
 
 /* Per-country bestselling hotels — 20 hotels each, 16 countries */
 const _hotelsByCountry: Record<string, { hotelName: string; starRating: number; city: string }[]> = {
@@ -450,59 +382,3 @@ export const bestsellingHotels = (() => {
 
 /* Per-country lookup for filtered view */
 export const bestsellingByCountry = _hotelsByCountry;
-
-/**
- * 12개월 TTV 추이 — 라벨은 "Jul-26" 형식(연도 경계 가시성, 동일 월명 혼동 방지).
- * 원본의 계절성 형태는 유지하되 마지막 달을 이번 달 매출(kpi.revenue)과 일치시킨다.
- * (원본은 TTV와 KPI 매출의 자릿수가 서로 어긋나 있었다.)
- */
-const TTV_SHAPE = [3200, 3800, 4100, 5200, 4800, 3900, 4300, 3600, 4700, 3100, 3500, 4550];
-export const ttvTrend = TTV_SHAPE.map((v, i) => ({
-  month: monthLabelShort(TTV_SHAPE.length - 1 - i),
-  amount: Math.round((v / TTV_SHAPE[TTV_SHAPE.length - 1]) * kpi.revenue),
-}));
-
-/**
- * Destination Booking Percentage — 국가별/도시별.
- * 각 배열의 bookings·nights·amount 합계는 kpi(156건 / 423박 / 매출)와 정확히 맞아떨어진다.
- */
-export const destinationStats = {
-  country: [
-    { name: 'South Korea', bookings: 63, amount: 18900 * JPY, nights: 168, color: '#EF7F29' },
-    { name: 'Japan', bookings: 33, amount: 12540 * JPY, nights: 92, color: '#FF8C00' },
-    { name: 'Thailand', bookings: 28, amount: 6720 * JPY, nights: 78, color: '#0369A1' },
-    { name: 'Vietnam', bookings: 15, amount: 3600 * JPY, nights: 42, color: '#009505' },
-    { name: 'Singapore', bookings: 10, amount: 4800 * JPY, nights: 28, color: '#7C3AED' },
-    { name: 'Others', bookings: 7, amount: 2190 * JPY, nights: 15, color: '#94A3B8' },
-  ],
-  city: [
-    { name: 'Seoul', bookings: 45, amount: 13500 * JPY, nights: 120, color: '#EF7F29' },
-    { name: 'Bangkok', bookings: 22, amount: 5280 * JPY, nights: 62, color: '#0369A1' },
-    { name: 'Tokyo', bookings: 18, amount: 7200 * JPY, nights: 50, color: '#FF8C00' },
-    { name: 'Osaka', bookings: 15, amount: 5340 * JPY, nights: 42, color: '#7C3AED' },
-    { name: 'Busan', bookings: 12, amount: 3600 * JPY, nights: 34, color: '#009505' },
-    { name: 'Ho Chi Minh', bookings: 10, amount: 2400 * JPY, nights: 28, color: '#F59E0B' },
-    { name: 'Singapore', bookings: 10, amount: 4800 * JPY, nights: 28, color: '#EC4899' },
-    { name: 'Hanoi', bookings: 5, amount: 1200 * JPY, nights: 14, color: '#6366F1' },
-    { name: 'Others', bookings: 19, amount: 5430 * JPY, nights: 45, color: '#94A3B8' },
-  ],
-};
-
-/**
- * Daily Booking Statistics — 오늘로 끝나는 31일.
- * Data Center의 Daily 탭도 이 배열을 함께 쓴다(원본은 nights가 빠진 별도 배열이었다).
- */
-export const dailyBookingStats = (() => {
-  const rnd = seeded(20260717);
-  const data: { date: string; bookingCount: number; bookingAmount: number; nights: number }[] = [];
-  for (let i = 30; i >= 0; i--) {
-    const date = isoDaysBack(i);
-    const dow = new Date(`${date}T00:00:00`).getDay();
-    const isWeekend = dow === 0 || dow === 6;
-    const bookingCount = Math.round((isWeekend ? 3 : 5) + rnd() * 6);
-    const bookingAmount = Math.round(bookingCount * (250 + rnd() * 150) * JPY);
-    const nights = Math.round(bookingCount * (1.5 + rnd() * 2));
-    data.push({ date, bookingCount, bookingAmount, nights });
-  }
-  return data;
-})();

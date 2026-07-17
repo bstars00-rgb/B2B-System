@@ -30,8 +30,14 @@ const DATE_FIELDS: Record<string, keyof Booking> = {
   'Stay Date': 'check_in',
 };
 
+/**
+ * 기본 조회 구간 — 이번 달 1일 ~ 오늘.
+ * 날짜를 박아두면(예전 '2026-07-01~13') 그 뒤에 들어온 예약이 기본 화면에서 사라진다.
+ */
+const TODAY = new Date().toISOString().slice(0, 10);
+
 const EMPTY = {
-  dateType: 'Booking Date', from: '2026-07-01', to: '2026-07-13',
+  dateType: 'Booking Date', from: `${TODAY.slice(0, 8)}01`, to: TODAY,
   ellis: '', status: '', payment: 'All',
   bookerType: 'Booker', bookerText: '', country: '', hotel: '', seller: '',
 };

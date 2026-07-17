@@ -40,6 +40,8 @@ interface CityDef {
   /** 실제 포털 지역 코드 (없으면 결정론적 생성) */
   code?: string;
   aliases: string[];
+  /** 국가/지역 (대시보드 Destination 집계 단위) */
+  country: string;
   currency: string;
   /** 취소 마감일시 표기용 UTC 오프셋 */
   tzOffset: string;
@@ -58,6 +60,7 @@ const CITIES: CityDef[] = [
     nameEn: 'Tokyo',
     code: '102911',
     aliases: ['도쿄'],
+    country: 'Japan',
     currency: 'JPY',
     tzOffset: '+09:00',
     hotels: [
@@ -82,6 +85,7 @@ const CITIES: CityDef[] = [
     nameEn: 'Osaka',
     code: '102156',
     aliases: ['오사카'],
+    country: 'Japan',
     currency: 'JPY',
     tzOffset: '+09:00',
     hotels: [
@@ -118,6 +122,7 @@ const CITIES: CityDef[] = [
     destination: '교토',
     nameEn: 'Kyoto',
     aliases: ['교토'],
+    country: 'Japan',
     currency: 'JPY',
     tzOffset: '+09:00',
     hotels: [
@@ -132,6 +137,7 @@ const CITIES: CityDef[] = [
     destination: '후쿠오카',
     nameEn: 'Fukuoka',
     aliases: ['후쿠오카'],
+    country: 'Japan',
     currency: 'JPY',
     tzOffset: '+09:00',
     hotels: [
@@ -146,6 +152,7 @@ const CITIES: CityDef[] = [
     destination: '삿포로',
     nameEn: 'Sapporo',
     aliases: ['삿포로'],
+    country: 'Japan',
     currency: 'JPY',
     tzOffset: '+09:00',
     hotels: [
@@ -159,6 +166,7 @@ const CITIES: CityDef[] = [
     destination: '서울',
     nameEn: 'Seoul',
     aliases: ['서울', '명동', '강남'],
+    country: 'South Korea',
     currency: 'KRW',
     tzOffset: '+09:00',
     hotels: [
@@ -176,6 +184,7 @@ const CITIES: CityDef[] = [
     destination: '부산',
     nameEn: 'Busan',
     aliases: ['부산', '해운대'],
+    country: 'South Korea',
     currency: 'KRW',
     tzOffset: '+09:00',
     hotels: [
@@ -190,6 +199,7 @@ const CITIES: CityDef[] = [
     destination: '제주',
     nameEn: 'Jeju',
     aliases: ['제주', '서귀포'],
+    country: 'South Korea',
     currency: 'KRW',
     tzOffset: '+09:00',
     hotels: [
@@ -204,6 +214,7 @@ const CITIES: CityDef[] = [
     destination: '방콕',
     nameEn: 'Bangkok',
     aliases: ['방콕', '수쿰윗', '실롬'],
+    country: 'Thailand',
     currency: 'THB',
     tzOffset: '+07:00',
     hotels: [
@@ -223,6 +234,7 @@ const CITIES: CityDef[] = [
     destination: '싱가포르',
     nameEn: 'Singapore',
     aliases: ['싱가포르', '마리나베이', '센토사'],
+    country: 'Singapore',
     currency: 'SGD',
     tzOffset: '+08:00',
     hotels: [
@@ -240,6 +252,7 @@ const CITIES: CityDef[] = [
     destination: '다낭',
     nameEn: 'Da Nang',
     aliases: ['다낭', '미케비치'],
+    country: 'Vietnam',
     currency: 'VND',
     tzOffset: '+07:00',
     hotels: [
@@ -255,6 +268,7 @@ const CITIES: CityDef[] = [
     destination: '하노이',
     nameEn: 'Hanoi',
     aliases: ['하노이'],
+    country: 'Vietnam',
     currency: 'VND',
     tzOffset: '+07:00',
     hotels: [
@@ -268,6 +282,7 @@ const CITIES: CityDef[] = [
     destination: '호치민',
     nameEn: 'Ho Chi Minh City',
     aliases: ['호치민', '사이공'],
+    country: 'Vietnam',
     currency: 'VND',
     tzOffset: '+07:00',
     hotels: [
@@ -281,6 +296,7 @@ const CITIES: CityDef[] = [
     destination: '타이베이',
     nameEn: 'Taipei',
     aliases: ['타이베이', '시먼딩'],
+    country: 'Taiwan',
     currency: 'TWD',
     tzOffset: '+08:00',
     hotels: [
@@ -295,6 +311,7 @@ const CITIES: CityDef[] = [
     destination: '홍콩',
     nameEn: 'Hong Kong',
     aliases: ['홍콩', '침사추이'],
+    country: 'Hong Kong',
     currency: 'HKD',
     tzOffset: '+08:00',
     hotels: [
@@ -369,6 +386,8 @@ function genericCity(destination: string): CityDef {
   return {
     destination,
     aliases: [destination],
+    /* 알 수 없는 목적지라 국가를 특정할 수 없다 — 대시보드에서 Others로 묶인다 */
+    country: 'Others',
     currency: 'KRW',
     tzOffset: '+09:00',
     hotels: seeds.map(([name, star, base], i) => ({
@@ -696,6 +715,59 @@ export function hotelCodeOf(hotelId: string): string {
 /** 도시 영문 표기 (없으면 한글 대표명) — Create Booking 카드의 "◎ Osaka" 재현 */
 export function cityEnOf(destination: string): string {
   return CITIES.find((c) => c.destination === destination)?.nameEn ?? destination;
+}
+
+/**
+ * 셀러 청구통화(JPY) 환산율 — hotelDb의 `base`는 도시 현지통화라 그대로 합산할 수 없다.
+ * 예약 금액·대시보드 매출을 호텔 목록 요금과 같은 근거로 맞추기 위한 표.
+ * [가정] 2026년 중반 근사치. 실데이터 연동 시 예약 시점 환율로 대체.
+ */
+const FX_TO_JPY: Record<string, number> = {
+  JPY: 1,
+  KRW: 0.11,
+  THB: 4.3,
+  SGD: 115,
+  VND: 0.0058,
+  TWD: 4.7,
+  HKD: 19.2,
+};
+
+export function toJpy(amount: number, currency: string): number {
+  return Math.round(amount * (FX_TO_JPY[currency] ?? 1));
+}
+
+export interface CityMeta {
+  /** 파서 표기(한글 대표명) */
+  destination: string;
+  nameEn: string;
+  country: string;
+  currency: string;
+}
+
+/**
+ * 호텔 → 소속 도시. 대시보드 목적지 집계는 예약의 `region` 문자열이 아니라 이 조회를 쓴다
+ * (`region`은 생성 경로에 따라 한/영이 섞여 집계 단위로 신뢰할 수 없다).
+ */
+export function cityOfHotel(hotelId: string): CityMeta | null {
+  for (const c of CITIES) {
+    if (c.hotels.some((h) => h.id === hotelId))
+      return { destination: c.destination, nameEn: c.nameEn ?? c.destination, country: c.country, currency: c.currency };
+  }
+  return null;
+}
+
+/** 목데이터 생성용 전체 호텔 목록 (도시 메타 동봉) */
+export function allHotels(): { id: string; name: string; star: number; base: number; roomType?: string; city: CityMeta }[] {
+  return CITIES.flatMap((c) =>
+    c.hotels.map((h) => ({
+      id: h.id,
+      name: displayName(h),
+      star: h.star,
+      base: h.base,
+      roomType: h.roomType,
+      city: { destination: c.destination, nameEn: c.nameEn ?? c.destination, country: c.country, currency: c.currency },
+    })),
+  );
 }
 
 export interface HotelMeta {
