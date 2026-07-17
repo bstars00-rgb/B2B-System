@@ -14,7 +14,7 @@
 | What | A **Dashboard (Statistics) screen** for the seller portal — 5 tabs covering bookings, revenue, destinations, cancellations, and year-on-year comparison |
 | Why | A DOTBIZ seller currently has **no way to see their own performance**. How many bookings did I make this month, for how much, to which destinations, what is my cancellation rate — none of it is answerable in the portal today. They have to ask our sales team. |
 | Nature | **New screen.** The original DOTBIZ menu is Seller (Bookings / Create Booking / FAQ / Notice) + Member list only — marked with the purple `UP` badge in the demo |
-| Basis | Your team's `Dashboard_Specification_2026-07-17_KR.md`, ported to our clone with **6 documented deviations** (§4) |
+| Basis | Your team's `Dashboard_Specification_2026-07-17_KR.md`, ported to our clone with **7 documented deviations** (§4) |
 | Key property | **Every number is computed from the seller's actual bookings** — nothing on the screen is a stored constant (§3) |
 | Status | Built and validated on the prototype. **7 decisions requested** (§6) |
 
@@ -80,20 +80,21 @@ To make the dashboard meaningful we generated **200 bookings** on the prototype:
 
 Amounts are **not invented** — each booking's total is derived from the actual hotel's nightly rate in our hotel database (× nights × rooms), converted to yen. So dashboard revenue and the hotel search quote the same underlying rates.
 
-## 4. Deviations from Your Dashboard Spec (6)
+## 4. Deviations from Your Dashboard Spec (7)
 
-Full detail and reasoning in [dev-spec §5](dev-spec-en.md#5-deviations-from-the-pd-dashboard-spec-6). Summary:
+Full detail and reasoning in [dev-spec §5](dev-spec-en.md#5-deviations-from-the-pd-dashboard-spec-7). Summary:
 
 | # | Deviation | Reason |
 |---|-----------|--------|
 | ① | Currency **JPY**, not USD | The clone seller and all hotel rates are in yen — USD figures would tie to nothing on screen |
 | ② | Periods computed **from today** | Your mock data was pinned to 2026-03, so "This Month" pointed at the past |
 | ③ | **Deterministic** data (no `Math.random`) | Charts re-randomized on every reload — QA and demos were not reproducible |
-| ④ | **Supplier column removed** from Bestselling | Internal supply-channel info that should not be exposed to sellers. **Worth noting: your spec §3-6 lists it as a column, but your prototype code never renders it** — removing it actually matches your own implementation. |
+| ④ | **Supplier column removed** from Bestselling | Internal supply-channel info that should not be exposed to sellers. **Worth noting: your spec listed it as a column in the Bestselling section (§3-6 then, §3-5 now), but your prototype code never renders it** — removing it actually matches your own implementation. |
 | ⑤ | **OP Points card removed** | Oppy Point is not built yet (it is a planned H2 initiative). A dashboard must not show a balance for a feature that does not exist. |
 | ⑥ | **Static mock → derived from bookings** | Per business instruction the dashboard must match actual bookings (§3.2) |
+| ⑦ | **Bestselling ranking rebuilt; 5 → 9 columns; hotel name clickable** | The click-through only works if the ranking contains bookable hotels — the original mock had 1 of 320 in our inventory (§3.3). Columns added so a full-width table carries information a seller can act on (§3.4) |
 
-④ and ⑤ were removed from the screen, the mock data, **and your spec document** — we edited `Dashboard_Specification_2026-07-17_KR.md` directly for both. Please confirm you are comfortable with those edits.
+**All seven are reflected in your spec document** — we edited `Dashboard_Specification_2026-07-17_KR.md` directly: §3-2 · §3-5 · §8.1 (new) · §10 · §11 · §12.1 (change log) · **§13 (new — open decisions; your document had no place to record what needs an answer)**. Please confirm you are comfortable with those edits.
 
 ## 5. The One Honest Limitation
 

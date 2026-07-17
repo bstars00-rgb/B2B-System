@@ -2,7 +2,7 @@
 
 > **For**: PD Team (Tracy) · **From**: CEO Office · **Date**: 2026-07-17
 > **Companion docs**: [Proposal v2 (EN)](proposal-en.md) · [Proposal v2 (KO)](proposal-ko.md) · [Working spec §4.6 (KO)](../../plan/spec-b-dotbiz-enhancement.md) · [v1 package](../v1/)
-> **Source spec**: PD team's `Dashboard_Specification_2026-07-17_KR.md` — ported, with 6 documented deviations (§5)
+> **Source spec**: PD team's `Dashboard_Specification_2026-07-17_KR.md` — ported, with 7 documented deviations (§5)
 > **Reference implementation**: working in the prototype — https://bstars00-rgb.github.io/B2B-System/ → sidebar **Dashboard** (source: `prototype/` in this repo).
 
 ---
@@ -192,16 +192,19 @@ The mock generator converts hotel rates (`hotelDb.base`, in the **city's local c
 
 > **Production**: bookings carry their own `currency`. If a seller ever books in mixed currencies, **the dashboard must not sum them blindly** — it needs either a booking-time FX rate stored on the booking, or per-currency breakdowns. Confirm with finance which one DOTBIZ guarantees.
 
-## 5. Deviations from the PD Dashboard Spec (6)
+## 5. Deviations from the PD Dashboard Spec (7)
 
 | # | Deviation | Reason |
 |---|-----------|--------|
 | ① | **Currency JPY**, not USD | The clone seller and every rate in the hotel DB are in yen; USD figures would not tie to anything on screen |
 | ② | **Periods computed from today** | The spec's data was pinned to 2026-03, so "This Month" pointed at the past |
 | ③ | **Deterministic seeded data** (no `Math.random`) | The spec's mock re-randomized on every reload — charts changed under QA and demos were not reproducible |
-| ④ | **Supplier column removed** from Bestselling Hotels | Supplier (Direct / DIDA / Hotelbeds) is **internal supply-channel information and must not be exposed to sellers**. Note: the PD spec §3-6 listed it as a column, but **the PD prototype code never rendered it** — removing it actually brings us back in line with your own implementation. Removed from screen, mock data, and the spec document. |
+| ④ | **Supplier column removed** from Bestselling Hotels | Supplier (Direct / DIDA / Hotelbeds) is **internal supply-channel information and must not be exposed to sellers**. Note: the PD spec listed it as a column in the Bestselling section (§3-6 at the time; now §3-5 after the OP Points removal renumbered §3), but **the PD prototype code never rendered it** — removing it actually brings us back in line with your own implementation. Removed from screen, mock data, and the spec document. |
 | ⑤ | **OP Points card removed** | Oppy Point is not built yet (it is a planned H2 initiative — v1 proposal §4-3). A dashboard must not display a balance for a feature that does not exist. Removed from screen, mock data, and the spec document (§3-2 and the data model). |
 | ⑥ | **Static mock → derived from bookings** | The spec assumed static mock arrays. Per business instruction the dashboard must **match the actual bookings**, so all aggregation moved to §4. |
+| ⑦ | **Bestselling ranking rebuilt from the hotel master; 5 → 9 columns; hotel name clickable** | The ranking must contain bookable hotels (§D-1.1) — the original mock's 320 hotels across 102 cities had **exactly 1** in our inventory. Columns added so a full-width table carries information a seller can act on. |
+
+**All seven are reflected in your spec document** (`Dashboard_Specification_2026-07-17_KR.md`): §3-2, §3-5, §8.1 (new), §10, §11, §12.1 (change log), **§13 (new — open decisions; your document had no place recording what needs an answer)**.
 
 ### 5.1 One spec inconsistency to resolve on your side
 
@@ -258,7 +261,8 @@ We **did not fabricate history to fill these**. Inventing 2024–2025 bookings w
 | **Derivation layer (all formulas)** | `utils/dashboardStats.ts` |
 | Booking data + generator (200 bookings) | `mocks/seedBookings.ts` · `utils/bookingStore.ts` (persistence, seed versioning) |
 | Hotel/city/country lookup, FX | `mocks/hotelDb.ts` (`cityOfHotel`, `allHotels`, `toJpy`) |
-| Bestselling ranking (separate mock) | `mocks/dashboard.ts` |
+| Bestselling ranking (built from the hotel master, not from bookings) | `mocks/dashboard.ts` |
+| Ranking → booking handoff | `DashboardPage.onBookHotel` → `AiSearchPage.bookHotelFromRanking` → `CreateBookingPage.prefill` → `DatePicker.openSignal` |
 | Booking type (incl. `cancel_reason`) | `types/index.ts` |
 | Nav entry + `UP` badge | `components/PortalSidebar.tsx` · `components/EnhBadge.tsx` |
 
