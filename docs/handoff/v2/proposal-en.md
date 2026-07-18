@@ -94,7 +94,9 @@ Full detail and reasoning in [dev-spec §5](dev-spec-en.md#5-deviations-from-the
 | ⑥ | **Static mock → derived from bookings** | Per business instruction the dashboard must match actual bookings (§3.2) |
 | ⑦ | **Bestselling ranking rebuilt; 5 → 9 columns; hotel name clickable** | The click-through only works if the ranking contains bookable hotels — the original mock had 1 of 320 in our inventory (§3.3). Columns added so a full-width table carries information a seller can act on (§3.4) |
 
-**All seven are reflected in your spec document** — we edited `Dashboard_Specification_2026-07-17_KR.md` directly: §3-2 · §3-5 · §8.1 (new) · §10 · §11 · §12.1 (change log) · **§13 (new — open decisions; your document had no place to record what needs an answer)**. Please confirm you are comfortable with those edits.
+**All seven are reflected in your spec document** — we edited `Dashboard_Specification_2026-07-17_KR.md` directly: §3-2 · §3-5 · §8.1 (new) · §10 · §11 · §12.1 (change log) · **§13 (new — decisions; your document had no place to record them)**.
+
+> Note on ④ and ⑤: the Supplier column and the OP Points card were **removed by management decision** — they are recorded here so the spec stays accurate, not raised for review. The reasoning is in the table above.
 
 ## 5. The One Honest Limitation
 
