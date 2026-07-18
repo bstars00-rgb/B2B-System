@@ -206,9 +206,11 @@ The mock generator converts hotel rates (`hotelDb.base`, in the **city's local c
 
 **All seven are reflected in your spec document** (`Dashboard_Specification_2026-07-17_KR.md`): §3-2, §3-5, §8.1 (new), §10, §11, §12.1 (change log), **§13 (new — open decisions; your document had no place recording what needs an answer)**.
 
-### 5.1 One spec inconsistency to resolve on your side
+### 5.1 A spec inconsistency — now resolved
 
-PD spec §4 (Data Center — Booking) documents the Account Level filter as `전체 / Direct / DIDA / Hotelbeds`. **Both your prototype and ours implement `All / Master / Sub-accounts`.** Two problems: the documented values are supplier names (same exposure concern as ④), and the doc contradicts both implementations. This is tied to open question ① (what Account Level actually means). We left the code as `All / Master / Sub-accounts` and did not edit that line.
+PD spec §4 documented the Account Level filter as `전체 / Direct / DIDA / Hotelbeds`, while **both your prototype and ours implemented `All / Master / Sub-accounts`** — the document contradicted both implementations, and the documented values were supplier names.
+
+**Resolved by your answers ① and ⑦ (2026-07-17): the filter is gone entirely.** Sellers see only their own bookings, so there is nothing to split by, and supplier names are not exposed. Your spec §4 now records the removal and the reason.
 
 ## 6. Known Limitation — history depth
 
