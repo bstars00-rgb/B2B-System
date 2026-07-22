@@ -68,7 +68,11 @@ const TABS: { id: DashTab; label: string }[] = [
 ];
 
 const BRAND = '#EF7F29';
-const GRID = '#E2E8F0';
+/*
+ * 차트 그리드 색 — SVG stroke는 **속성**이라 CSS var()를 해석하지 못한다(툴팁은 HTML div라 var 가능).
+ * 그래서 그리드만 다크 상태에서 직접 파생한다. 축색 slate-400(#94A3B8)은 양쪽 공용.
+ */
+const gridColor = (dark: boolean) => (dark ? '#334155' : '#E2E8F0');
 const AXIS = '#94A3B8';
 
 const filterCls =
@@ -85,10 +89,10 @@ function compactYen(v: number): string {
 
 const tooltipStyle = {
   borderRadius: 5,
-  border: '1px solid #E0E0E0',
-  background: '#fff',
+  border: '1px solid var(--border)',
+  background: 'var(--surface)',
   fontSize: 12,
-  color: '#333',
+  color: 'var(--body)',
 } as const;
 
 function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
@@ -145,13 +149,17 @@ export interface BookHotelTarget {
 export default function DashboardPage({
   bookings,
   onBookHotel,
+  dark = false,
 }: {
   bookings: Booking[];
   /** 베스트셀러 랭킹의 호텔 클릭 → Create Booking으로 이동(목적지·호텔 채운 뒤 날짜 선택 유도) */
   onBookHotel: (target: BookHotelTarget) => void;
+  /** 다크모드 — 차트 그리드 색 파생용(SVG stroke는 var() 불가) */
+  dark?: boolean;
 }) {
   const today = todayIso();
   const monthAgo = `${today.slice(0, 8)}01`;
+  const GRID = gridColor(dark);
 
   const [tab, setTab] = useState<DashTab>('overview');
   const [dateBasis, setDateBasis] = useState<DateBasis>(DATE_BASES[0]);

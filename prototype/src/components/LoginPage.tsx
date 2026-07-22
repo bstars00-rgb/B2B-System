@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { loadPortalLang, savePortalLang, PORTAL_LANGS, type PortalLang } from '../utils/portalLang';
+import { applyDark, loadDark, saveDark } from '../utils/theme';
 import { CAMPAIGN_INTERVAL_MS, LOGIN_CAMPAIGNS } from '../mocks/loginCampaigns';
 import LegalModal from './LegalModal';
 
@@ -23,13 +24,8 @@ export default function LoginPage({ onLogin }: Props) {
   const [lang, setLang] = useState<PortalLang>(loadPortalLang);
   const [error, setError] = useState<string | null>(null);
   const [legal, setLegal] = useState<'agreement' | 'privacy' | null>(null);
-  const [dark, setDark] = useState(() => {
-    try {
-      return localStorage.getItem('omh_login_dark') === '1';
-    } catch {
-      return false;
-    }
-  });
+  /** 다크모드 — 전역 설정(omh_dark). 로그인에서 켠 값이 로그인 후 포털로 이어진다 */
+  const [dark, setDark] = useState(loadDark);
 
   /** 광고판 캠페인 로테이션 */
   const [slide, setSlide] = useState(0);
@@ -41,12 +37,10 @@ export default function LoginPage({ onLogin }: Props) {
 
   const toggleDark = () => {
     setDark((d) => {
-      try {
-        localStorage.setItem('omh_login_dark', d ? '0' : '1');
-      } catch {
-        // 무시
-      }
-      return !d;
+      const next = !d;
+      saveDark(next);
+      applyDark(next); // 전역 <html>.dark 동기화 — 로그인 후 포털이 같은 값을 읽는다
+      return next;
     });
   };
 

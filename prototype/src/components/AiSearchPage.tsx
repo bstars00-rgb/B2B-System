@@ -32,6 +32,7 @@ import SearchHistoryPanel from './SearchHistoryPanel';
 import StaffPage from './StaffPage';
 import { buildBooking, loadBookings, saveBookings, subscribeBookings } from '../utils/bookingStore';
 import { loadPortalLang, savePortalLang, PORTAL_LANGS, type PortalLang } from '../utils/portalLang';
+import { applyDark, loadDark, saveDark } from '../utils/theme';
 import ErrorAlert from './ErrorAlert';
 import EmptyResult from './EmptyResult';
 import LoadingSkeleton, { LOADING_STEPS } from './LoadingSkeleton';
@@ -97,14 +98,29 @@ function PortalAccountMenu({
   onPlaybook,
   lang,
   onLangChange,
+  dark,
+  onToggleDark,
 }: {
   onLogout: () => void;
   onPlaybook: () => void;
   lang: PortalLang;
   onLangChange: (lang: PortalLang) => void;
+  dark: boolean;
+  onToggleDark: () => void;
 }) {
   return (
     <div className="flex items-center gap-3">
+      {/* 다크모드 토글 (3차 확정) — 전역 설정, 로그인 화면과 공유 */}
+      <button
+        type="button"
+        onClick={onToggleDark}
+        className="text-[15px] leading-none opacity-80 hover:opacity-100"
+        title={dark ? '라이트 모드로 전환' : '다크 모드로 전환'}
+        aria-label="다크 모드 전환"
+      >
+        {dark ? '☀' : '🌙'}
+        <EnhBadge note="다크모드 — 포털 전역 전환(3차 확정), 로그인 화면과 설정 공유" />
+      </button>
       {/* 고도화 표기 토글 — 기획자 설명용 배지(UP) 표시/숨김 */}
       <button
         type="button"
@@ -170,6 +186,16 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
   const changePortalLang = useCallback((l: PortalLang) => {
     setPortalLang(l);
     savePortalLang(l);
+  }, []);
+  /** 전역 다크모드 (3차 확정) — 로그인 화면과 설정 공유(omh_dark) */
+  const [dark, setDark] = useState(loadDark);
+  const toggleDark = useCallback(() => {
+    setDark((d) => {
+      const next = !d;
+      saveDark(next);
+      applyDark(next);
+      return next;
+    });
   }, []);
   const [scenario, setScenario] = useState<ScenarioId>('normal');
   const [messages, setMessages] = useState<ChatMsg[]>([]);
@@ -407,6 +433,8 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
             onPlaybook={() => setPlaybookOpen(true)}
             lang={portalLang}
             onLangChange={changePortalLang}
+            dark={dark}
+            onToggleDark={toggleDark}
           />
         </header>
 
@@ -497,7 +525,7 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
 
         {/* ── 본문: Bookings / Create Booking / AI 검색 (좌 채팅 / 우 조건+결과) ── */}
         {view === 'dashboard' ? (
-          <DashboardPage bookings={bookings} onBookHotel={bookHotelFromRanking} />
+          <DashboardPage bookings={bookings} onBookHotel={bookHotelFromRanking} dark={dark} />
         ) : view === 'bookings' ? (
           <BookingsPage bookings={bookings} onOpenDetail={setDetailBooking} />
         ) : view === 'staff' ? (

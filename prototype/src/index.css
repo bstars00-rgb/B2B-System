@@ -8,10 +8,18 @@ body,
   height: 100%;
 }
 
+/* ── 테마 토큰 — 라이트/다크 공통 참조점 (인라인 스타일·차트 툴팁도 이 변수를 쓴다) ── */
+:root {
+  --surface: #ffffff; /* 카드·모달·인풋 표면 */
+  --surface-2: #f8fafc; /* 페이지·필터 바 배경 */
+  --body: #333333; /* 기본 본문색 (실측) */
+  --muted: #64748b; /* 보조 텍스트 */
+  --border: #e2e8f0; /* 기본 보더 */
+}
+
 body {
   @apply antialiased;
-  /* 실사이트 기본 텍스트 색 (실측 #333333) */
-  color: #333333;
+  color: var(--body);
 }
 
 /* 고도화 표기 배지 숨김 모드 (헤더 ✨ 토글) */
@@ -29,4 +37,112 @@ body {
 }
 ::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   전역 다크모드 (3차 확정) — <html>.dark 기준.
+   컴포넌트 35종에 dark: 변형을 다는 대신, 실제 사용되는 공통 유틸리티를
+   한 곳에서 재매핑한다. 디자인이 slate 팔레트 + 브랜드 오렌지로 균일하기에
+   가능한 방식 — 운영 적용 시엔 의미 토큰(surface/body/border)으로 승격 권장.
+   ══════════════════════════════════════════════════════════════════════ */
+.dark {
+  --surface: #1e293b; /* slate-800 */
+  --surface-2: #0f172a; /* slate-900 */
+  --body: #e2e8f0; /* slate-200 */
+  --muted: #94a3b8; /* slate-400 */
+  --border: #334155; /* slate-700 */
+  color-scheme: dark;
+}
+.dark body {
+  background-color: var(--surface-2);
+  color: var(--body);
+}
+
+/* 표면 */
+.dark .bg-white {
+  background-color: var(--surface);
+}
+.dark .bg-slate-50,
+.dark .bg-slate-50\/50,
+.dark .bg-slate-50\/70 {
+  background-color: var(--surface-2);
+}
+.dark .bg-slate-100 {
+  background-color: #334155;
+}
+.dark .hover\:bg-slate-50:hover,
+.dark .hover\:bg-slate-50\/70:hover {
+  background-color: rgba(148, 163, 184, 0.08);
+}
+.dark .hover\:bg-slate-100:hover {
+  background-color: #3b4a61;
+}
+/* 브랜드 틴트(활성 내비·칩)가 다크에서 형광처럼 튀지 않게 */
+.dark .bg-brand-50 {
+  background-color: rgba(239, 127, 41, 0.16);
+}
+.dark .bg-brand-100 {
+  background-color: rgba(239, 127, 41, 0.22);
+}
+.dark .hover\:bg-brand-50:hover {
+  background-color: rgba(239, 127, 41, 0.16);
+}
+
+/* 보더 (color 유틸은 사이드 무관 — border-b 등 width는 그대로) */
+.dark .border-slate-100 {
+  border-color: #273449;
+}
+.dark .border-slate-200 {
+  border-color: var(--border);
+}
+.dark .border-slate-300 {
+  border-color: #475569;
+}
+.dark .divide-slate-100 > * + *,
+.dark .divide-slate-200 > * + * {
+  border-color: var(--border);
+}
+
+/* 텍스트 */
+.dark .text-slate-800,
+.dark .text-slate-700 {
+  color: #e2e8f0;
+}
+.dark .text-slate-600 {
+  color: #cbd5e1;
+}
+.dark .text-slate-500 {
+  color: #94a3b8;
+}
+.dark .text-slate-400 {
+  color: #64748b;
+}
+
+/* 인풋·플레이스홀더 */
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: var(--surface);
+  border-color: #475569;
+  color: var(--body);
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #64748b;
+}
+/* 강조 인풋(하늘색 배경)도 다크로 */
+.dark .bg-sky-50\/60 {
+  background-color: #172554;
+}
+
+/* 그림자 — 다크에선 흰 그림자가 안 보이므로 약간 진하게 */
+.dark .shadow-sm,
+.dark .shadow,
+.dark .shadow-lg,
+.dark .shadow-2xl {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px -1px rgba(0, 0, 0, 0.4);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background-color: #475569;
 }

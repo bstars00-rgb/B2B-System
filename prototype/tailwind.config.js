@@ -1,6 +1,8 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
+  // 전역 다크모드 — <html>.dark 클래스 기준 (utils/theme.ts). 실제 전환은 index.css의 .dark 오버레이.
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
