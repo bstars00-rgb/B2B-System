@@ -15,6 +15,7 @@ body,
   --body: #333333; /* 기본 본문색 (실측) */
   --muted: #64748b; /* 보조 텍스트 */
   --border: #e2e8f0; /* 기본 보더 */
+  --cs-red: #e4002b; /* 고객센터 팝오버 크림슨 액센트 */
 }
 
 body {
@@ -51,6 +52,7 @@ body {
   --body: #e2e8f0; /* slate-200 */
   --muted: #94a3b8; /* slate-400 */
   --border: #334155; /* slate-700 */
+  --cs-red: #fb7185; /* 다크에선 밝은 로즈 — 크림슨은 어두운 배경서 대비 부족 */
   color-scheme: dark;
 }
 .dark body {

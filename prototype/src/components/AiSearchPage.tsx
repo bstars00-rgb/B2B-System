@@ -13,6 +13,7 @@ import { formatDateTime } from '../utils/format';
 import type { Booking, RateResult } from '../types';
 import AccountMenu from './AccountMenu';
 import EnhBadge from './EnhBadge';
+import SupportCenter from './SupportCenter';
 import LegalModal from './LegalModal';
 import BoardPage from './BoardPage';
 import BookingDetailModal from './BookingDetailModal';
@@ -146,6 +147,9 @@ function PortalAccountMenu({
         📖 Playbook
         <EnhBadge note="Ellis Playbook 내장 매뉴얼 + 언어팩(포털 언어 설정 연동)" />
       </button>
+      <span className="text-slate-300">|</span>
+      {/* 고객센터 "?" — 실사이트 헤더 클론(패리티) */}
+      <SupportCenter />
       <span className="text-slate-300">|</span>
       {/* 포털 표시 언어 — 전역 설정 (Playbook 등 콘텐츠가 이 설정을 따라감) */}
       <span className="flex items-center gap-1 text-[12px] text-slate-600">
