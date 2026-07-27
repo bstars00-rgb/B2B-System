@@ -64,11 +64,40 @@ body {
 }
 .dark .bg-slate-50,
 .dark .bg-slate-50\/50,
+.dark .bg-slate-50\/60,
 .dark .bg-slate-50\/70 {
   background-color: var(--surface-2);
 }
+/* 반투명 흰 박스(bg-white/60 — 점선 placeholder 등) */
+.dark .bg-white\/60 {
+  background-color: rgba(30, 41, 59, 0.6);
+}
+/* 비활성 버튼 배경(disabled:bg-* 변형) — 밝은 회색+흰글자로 안 보이던 문제 */
+.dark .disabled\:bg-slate-300:disabled {
+  background-color: #475569;
+}
+.dark .disabled\:bg-slate-50:disabled {
+  background-color: #334155;
+}
 .dark .bg-slate-100 {
   background-color: #334155;
+}
+.dark .bg-slate-200,
+.dark .bg-slate-200\/60 {
+  background-color: #334155; /* 스켈레톤·placeholder·칩 */
+}
+.dark .bg-slate-300 {
+  background-color: #475569; /* 구분선·캠페인 인디케이터 도트 */
+}
+
+/*
+ * Sticky 테이블 헤더 — Bookings·Staff는 [&>th]:bg-slate-50 임의 변형으로 th에 직접
+ * 밝은 배경을 준다(리터럴 .bg-slate-50가 아니라 위 규칙이 안 잡힘). 다크에서 밝은 헤더
+ * 위에 밝은 글자가 얹혀 거의 안 보였다(대비 1.4). thead th 배경을 페이지색으로 고정한다.
+ * sticky th는 불투명 배경이 필수(본문이 밑으로 스크롤되며 비침 방지)이기도 하다.
+ */
+.dark thead th {
+  background-color: var(--surface-2);
 }
 .dark .hover\:bg-slate-50:hover,
 .dark .hover\:bg-slate-50\/70:hover {
@@ -77,8 +106,10 @@ body {
 .dark .hover\:bg-slate-100:hover {
   background-color: #3b4a61;
 }
-/* 브랜드 틴트(활성 내비·칩)가 다크에서 형광처럼 튀지 않게 */
-.dark .bg-brand-50 {
+/* 브랜드 틴트(활성 내비·칩·노트 박스)가 다크에서 형광처럼 튀지 않게 (투명도 변형 포함) */
+.dark .bg-brand-50,
+.dark .bg-brand-50\/40,
+.dark .bg-brand-50\/60 {
   background-color: rgba(239, 127, 41, 0.16);
 }
 .dark .bg-brand-100 {
@@ -103,7 +134,11 @@ body {
   border-color: var(--border);
 }
 
-/* 텍스트 */
+/* 텍스트 — 900(제목)이 가장 밝고 400(희미)이 가장 어둡게, 라이트의 위계를 뒤집는다.
+   900은 14개 컴포넌트에서 제목으로 38회 쓰여 미매핑 시 다크에서 통째로 안 보였다. */
+.dark .text-slate-900 {
+  color: #f1f5f9;
+}
 .dark .text-slate-800,
 .dark .text-slate-700 {
   color: #e2e8f0;
@@ -134,6 +169,30 @@ body {
 .dark .bg-sky-50\/60 {
   background-color: #172554;
 }
+
+/* UP 배지(고도화 표기) — 라이트 보라 칩이 다크에서 형광처럼 튀어 반투명으로 완화 */
+.dark .bg-violet-100 {
+  background-color: rgba(139, 92, 246, 0.22);
+}
+.dark .text-violet-600 {
+  color: #c4b5fd;
+}
+
+/* 상태 틴트 칩(KPI 델타·상태 배지 등) — 밝은 파스텔 배경을 반투명 색으로.
+   안에 얹힌 진한 색 글자(emerald-600 등)가 다크에서도 잘 읽히도록 글자도 밝게. */
+.dark .bg-emerald-50 { background-color: rgba(16, 185, 129, 0.18); }
+.dark .text-emerald-600, .dark .text-emerald-700 { color: #6ee7b7; }
+.dark .bg-red-50 { background-color: rgba(239, 68, 68, 0.18); }
+.dark .text-red-500, .dark .text-red-600 { color: #fca5a5; }
+.dark .bg-rose-50, .dark .bg-rose-50\/40 { background-color: rgba(244, 63, 94, 0.18); }
+.dark .text-rose-500, .dark .text-rose-600 { color: #fda4af; }
+.dark .bg-amber-50 { background-color: rgba(245, 158, 11, 0.18); }
+.dark .text-amber-500, .dark .text-amber-600, .dark .text-amber-700 { color: #fcd34d; }
+.dark .bg-sky-50, .dark .bg-sky-50\/60 { background-color: rgba(14, 165, 233, 0.18); }
+/* 파랑 계열 텍스트(투숙객명·링크·강조) — 어두운 파랑이 다크 배경에서 안 보여 밝게 */
+.dark .text-sky-700, .dark .text-sky-600, .dark .text-sky-500 { color: #7dd3fc; }
+.dark .text-blue-800 { color: #93c5fd; }
+.dark .text-indigo-700 { color: #a5b4fc; }
 
 /* 그림자 — 다크에선 흰 그림자가 안 보이므로 약간 진하게 */
 .dark .shadow-sm,
