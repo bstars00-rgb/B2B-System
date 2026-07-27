@@ -50,15 +50,21 @@ export default function DatePicker({
   const parsed = parse(value);
   const now = new Date();
   const min = allowPast ? '' : (minDate ?? iso(now.getFullYear(), now.getMonth(), now.getDate()));
-  const [viewY, setViewY] = useState(parsed?.y ?? 2026);
-  const [viewM, setViewM] = useState(parsed?.m ?? 6);
+  /**
+   * 열었을 때 보여줄 기본 월 — 값이 있으면 그 달, 없으면 **선택 가능한 첫 달**(min의 달, 없으면 이번 달).
+   * (이전엔 2026-07로 하드코딩돼, 시스템 날짜가 8월로 넘어가면 과거 달만 열려 달력이 통째로 비활성이었다.)
+   */
+  const initView = parsed ?? (min ? parse(min) : null) ?? { y: now.getFullYear(), m: now.getMonth(), d: 1 };
+  const [viewY, setViewY] = useState(initView.y);
+  const [viewM, setViewM] = useState(initView.m);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (open && parsed) {
-      setViewY(parsed.y);
-      setViewM(parsed.m);
-    }
+    if (!open) return;
+    // 열 때마다 값(있으면)·없으면 선택 가능한 첫 달로 뷰를 맞춘다
+    const target = parsed ?? (min ? parse(min) : null) ?? { y: now.getFullYear(), m: now.getMonth() };
+    setViewY(target.y);
+    setViewM(target.m);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -164,18 +170,19 @@ export default function DatePicker({
                   }}
                   className={`mx-auto flex h-7 w-7 items-center justify-center rounded-full transition-colors ${
                     disabled
-                      ? dow === 0
-                        ? 'cursor-default text-rose-200'
+                      ? // 비활성(과거) — 다크에선 파스텔이 밝게 떠 활성과 안 구분되므로 어둡게 낮춘다
+                        dow === 0
+                        ? 'cursor-default text-rose-200 dark:text-rose-900/70'
                         : dow === 6
-                          ? 'cursor-default text-sky-200'
-                          : 'cursor-default text-slate-300'
+                          ? 'cursor-default text-sky-200 dark:text-sky-900/70'
+                          : 'cursor-default text-slate-300 dark:text-slate-600'
                       : selected
                         ? 'bg-brand-500 font-bold text-white'
                         : dow === 0
-                          ? 'text-rose-500 hover:bg-slate-100'
+                          ? 'text-rose-500 hover:bg-slate-100 dark:hover:bg-slate-700'
                           : dow === 6
-                            ? 'text-sky-500 hover:bg-slate-100'
-                            : 'text-slate-700 hover:bg-slate-100'
+                            ? 'text-sky-500 hover:bg-slate-100 dark:hover:bg-slate-700'
+                            : 'text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700'
                   }`}
                 >
                   {d}
