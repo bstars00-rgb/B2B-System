@@ -3,11 +3,13 @@ import EnhBadge from './EnhBadge';
 
 /**
  * 실제 Ohmy Partners 포털(ohmyhotel.biz)의 좌측 사이드바를 재현한 셸.
- * Seller 메뉴 전체(Dashboard/Bookings/Create Booking/AI 요금 검색/FAQ Board/Notice)가 화면 전환 동작하고,
+ * Seller 메뉴 전체(Dashboard/Bookings/Create Booking/FAQ Board/Notice)가 화면 전환 동작하고,
  * 상단 "Enter Menu name" 검색으로 메뉴를 필터링(한/영 키워드·일치 부분 하이라이트)한다.
+ *
+ * ※ AI 요금 검색 메뉴는 2026-07-27 삭제 — ELLIS MCP는 닷비즈 내장이 아니라 고객사 Claude 플러그인 방식.
  */
 
-export type PortalView = 'dashboard' | 'ai' | 'bookings' | 'create-booking' | 'faq' | 'notice' | 'staff';
+export type PortalView = 'dashboard' | 'bookings' | 'create-booking' | 'faq' | 'notice' | 'staff';
 
 interface Props {
   view: PortalView;
@@ -45,7 +47,6 @@ const MENU: MenuSection[] = [
       },
       { view: 'bookings', label: 'Bookings', keywords: ['예약', '예약목록', 'reservation'] },
       { view: 'create-booking', label: 'Create Booking', keywords: ['예약생성', '호텔검색', 'hotel search'] },
-      { view: 'ai', label: 'AI 요금 검색', badge: 'New', keywords: ['ai search', '자연어', 'rate', '요금검색'] },
       { view: 'faq', label: 'FAQ Board', keywords: ['자주 묻는 질문', '게시판'] },
       { view: 'notice', label: 'Notice', keywords: ['공지', '공지사항'] },
     ],

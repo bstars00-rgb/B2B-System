@@ -6,6 +6,18 @@
 
 ---
 
+## ⚠ Tracy 전달 — AI 요금 검색(ELLIS MCP) 삭제 요청 (2026-07-27)
+
+**요청**: 닷비즈(Ohmy Partners) 포털에서 **AI 요금 검색(ELLIS MCP 자연어 검색)을 삭제**한다. 이는 v1에서 제안·시연했던 기능(트랙 A / [기획서 ①](../../plan/spec-a-ellis-ai-search.md))으로, 닷비즈 마켓 내 신규 메뉴로 붙일 예정이었다.
+
+**사유**: **ELLIS MCP는 닷비즈 안에 내장하지 않는다.** 대신 **고객사가 자사 Claude에 플러그인으로 직접 붙여 쓰는 방식**으로 방향을 바꿨다. 즉 AI 요금 검색은 닷비즈 플랫폼 기능이 아니라 고객사 측 Claude 환경에서 동작하는 별도 배포물이 된다. 따라서 닷비즈 포털에서는 해당 메뉴·화면을 내린다.
+
+**프로토타입 반영 완료** (2026-07-27): 사이드바 메뉴·탭·검색 화면·DEV 컨트롤·관련 컴포넌트 25개 파일 삭제. 포털 기본 화면은 Bookings.
+
+> **To Tracy (EN)**: Please **remove the AI Rate Search (ELLIS MCP natural-language search) from the DOTBIZ portal**. Direction has changed — **ELLIS MCP will not be embedded inside the DOTBIZ marketplace.** Instead it will be delivered as a **plugin that each client company attaches to their own Claude**, running in the client's Claude environment rather than as a DOTBIZ platform feature. The in-portal AI search proposed in v1 (Track A / Spec ①) is therefore **withdrawn from DOTBIZ**. Already removed from the prototype.
+
+---
+
 ## 들어오는 상태 (2026-07-17 2차 마무리 시점)
 
 ### 회신 완료 — 3차에서 설계로 옮길 것

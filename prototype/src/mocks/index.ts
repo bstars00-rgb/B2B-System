@@ -1,63 +1,14 @@
-import type { ScenarioId, SearchConditions, SearchResponse } from '../types';
-import { buildNormal } from './scenarioNormal';
-import { buildFreeCancelOnly } from './scenarioFreeCancelOnly';
-import { buildNonRefundable } from './scenarioNonRefundable';
-import { buildMixedBreakfast } from './scenarioMixedBreakfast';
-import { buildMultiCurrency } from './scenarioMultiCurrency';
-import { buildPartialFailure } from './scenarioPartialFailure';
-import { buildNoResults } from './scenarioNoResults';
-import { buildTimeout } from './scenarioTimeout';
-import { buildUnauthorized } from './scenarioUnauthorized';
-import { buildStale } from './scenarioStale';
-
-export interface ScenarioMeta {
-  id: ScenarioId;
-  label: string;
-  description: string;
-}
-
-/** 개발용 시나리오 스위처 목록 */
-export const SCENARIOS: ScenarioMeta[] = [
-  { id: 'normal', label: '① 정상 결과 (목적지 인식)', description: '방콕/서울/싱가포르 등 15개 도시 · 현지 통화' },
-  { id: 'free_cancel_only', label: '② 무료 취소만', description: '전 요금제 무료취소' },
-  { id: 'non_refundable', label: '③ 환불 불가', description: '논리펀더블 특가만' },
-  { id: 'mixed_breakfast', label: '④ 조식 포함/불포함 혼합', description: '동일 호텔 2요금제' },
-  { id: 'multi_currency', label: '⑤ 여러 통화 (KRW/JPY/SGD)', description: '공급사별 통화 혼재' },
-  { id: 'partial_failure', label: '⑥ 공급사 일부 실패', description: '경고 배너 + 부분 결과' },
-  { id: 'no_results', label: '⑦ 결과 없음', description: 'NO_RESULTS' },
-  { id: 'timeout', label: '⑧ Timeout 에러', description: 'ELLIS_TIMEOUT' },
-  { id: 'unauthorized', label: '⑨ 권한 없음', description: 'UNAUTHORIZED' },
-  { id: 'stale', label: '⑩ 오래된 검색 결과', description: 'STALE 경고 (TTL 초과)' },
-];
-
-const builders: Record<
-  ScenarioId,
-  (searchId: string, conditions?: SearchConditions | null) => SearchResponse
-> = {
-  normal: buildNormal,
-  free_cancel_only: buildFreeCancelOnly,
-  non_refundable: buildNonRefundable,
-  mixed_breakfast: buildMixedBreakfast,
-  multi_currency: buildMultiCurrency,
-  partial_failure: buildPartialFailure,
-  no_results: buildNoResults,
-  timeout: buildTimeout,
-  unauthorized: buildUnauthorized,
-  stale: buildStale,
-};
+/**
+ * 검색 ID 시퀀스 — Create Booking 흐름(호텔 목록·룸리스트)에서 조회 식별자 발번에 사용.
+ *
+ * ※ 이 파일은 원래 AI 요금 검색(ELLIS MCP)의 mock 시나리오 엔진이었으나, 2026-07-27
+ *   AI 요금 검색이 닷비즈에서 삭제되며(고객사 Claude 플러그인 방식으로 전환) 시나리오·
+ *   runMockSearch는 제거됐다. Create Booking이 쓰는 nextSearchId만 남는다.
+ */
 
 let searchSeq = 0;
 
 export function nextSearchId(): string {
   searchSeq += 1;
   return `SRCH-${String(Date.now()).slice(-6)}-${searchSeq}`;
-}
-
-/** 지연 시뮬레이션 포함 mock 검색 실행 (MCP 미연결 상태) */
-export function runMockSearch(
-  scenario: ScenarioId,
-  searchId: string,
-  conditions?: SearchConditions | null,
-): SearchResponse {
-  return builders[scenario](searchId, conditions);
 }
