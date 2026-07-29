@@ -3,7 +3,7 @@ import type { Booking } from '../types';
 import EnhBadge from './EnhBadge';
 import { formatMoney } from '../utils/format';
 import { todayIso } from '../utils/dashboardStats';
-import { OP_POINT_RULES, computeAccruals, monthlyRollup, summarize } from '../utils/opPoints';
+import { OP_POINT_RULES, computeAccruals, monthlyRollup, pointsFor, summarize } from '../utils/opPoints';
 import { MALL_ITEMS, type MallItem } from '../mocks/opPointsMall';
 
 /**
@@ -121,18 +121,61 @@ export default function OpPointsPage({ bookings }: { bookings: Booking[] }) {
           </Card>
         </div>
 
-        {/* 적립 규칙 */}
+        {/* 적립 규칙 정의 */}
         <Card>
-          <p className="text-[13px] font-bold text-slate-800">적립 규칙</p>
-          <div className="mt-2 grid gap-2 text-[11px] text-slate-600 sm:grid-cols-2">
-            <p>• 예약 1건당 기본 <b>{OP_POINT_RULES.base} P</b></p>
-            <p>• 예약금액 {formatMoney(OP_POINT_RULES.amountUnitYen, 'JPY')}당 <b>+{OP_POINT_RULES.amountPerYen} P</b> (건당 최대 {OP_POINT_RULES.amountCapPerBooking} P — 고가 예약 집중 방지)</p>
-            <p>• 추천/프로모션 호텔 예약 시 <b>+{OP_POINT_RULES.promoBonus} P</b></p>
-            <p>• 월 적립 한도 <b>{pt(OP_POINT_RULES.monthlyCap)}</b> (투숙 완료 월 기준, 초과분 미지급)</p>
+          <p className="text-[13px] font-bold text-slate-800">적립 규칙 정의</p>
+
+          {/* 1) 적립 대상 조건 */}
+          <p className="mt-2 text-[12px] font-bold text-slate-700">① 적립 대상 조건</p>
+          <ul className="mt-1 space-y-0.5 text-[11px] leading-relaxed text-slate-600">
+            <li>• 닷비즈에서 생성한 예약이 <b>실제 투숙 완료</b>(check-out 경과)된 건.</li>
+            <li>• <b>취소·노쇼·환불 예약 제외</b> — 완료 투숙만 인정.</li>
+            <li>• 적립 시점: 투숙 완료(체크아웃) 이후 확정.</li>
+          </ul>
+
+          {/* 2) 적립 공식 */}
+          <p className="mt-3 text-[12px] font-bold text-slate-700">② 적립 공식 <span className="font-normal text-slate-400">(건별 = 기본 + 금액 + 보너스)</span></p>
+          <div className="mt-1 overflow-x-auto">
+            <table className="w-full min-w-[560px] text-[11px]">
+              <tbody className="[&_td]:border-b [&_td]:border-slate-100 [&_td]:px-2 [&_td]:py-1.5">
+                <tr>
+                  <td className="w-28 font-semibold text-slate-700">기본 (빈도)</td>
+                  <td><b className="text-brand-600">{OP_POINT_RULES.base} P</b> / 완료 건</td>
+                  <td className="text-slate-400">금액과 무관 — 닷비즈 이용 빈도 보상, 고가 예약 집중 완화</td>
+                </tr>
+                <tr>
+                  <td className="font-semibold text-slate-700">금액 (실적)</td>
+                  <td>{formatMoney(OP_POINT_RULES.amountUnitYen, 'JPY')}당 <b className="text-brand-600">+{OP_POINT_RULES.amountPerYen} P</b>, 건당 최대 {OP_POINT_RULES.amountCapPerBooking} P</td>
+                  <td className="text-slate-400">상한으로 고가 예약 1건 독식 방지({formatMoney(OP_POINT_RULES.amountUnitYen * (OP_POINT_RULES.amountCapPerBooking / OP_POINT_RULES.amountPerYen), 'JPY')}에서 상한 도달)</td>
+                </tr>
+                <tr>
+                  <td className="font-semibold text-slate-700">보너스</td>
+                  <td>추천/프로모션 호텔 <b className="text-brand-600">+{OP_POINT_RULES.promoBonus} P</b></td>
+                  <td className="text-slate-400">전략 상품으로 예약 유도 (확장: 장기 투숙 등)</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-          <p className="mt-2 rounded bg-slate-50 px-2.5 py-1.5 text-[11px] text-slate-500">
-            <b className="text-slate-700">투숙 완료 건만 적립</b> — 취소·노쇼·환불 예약은 제외. 포인트는 <b>투숙이 끝난 뒤</b>(check-out 경과) 확정됩니다.
-            <span className="ml-1 text-slate-400">※ 위 수치는 프로토타입 가정값 — 정책 확정 시 조정.</span>
+
+          {/* 예시 계산 */}
+          <div className="mt-2 rounded bg-slate-50 px-2.5 py-2 text-[11px] text-slate-600">
+            <b className="text-slate-700">예시</b> — {formatMoney(120000, 'JPY')} · 추천 호텔 예약 완료 시:{' '}
+            {(() => { const p = pointsFor(120000, true); return (
+              <span>기본 {p.base} + 금액 {p.amountPts} + 보너스 {p.bonus} = <b className="text-brand-600">{p.total} P</b> ≈ {formatMoney(Math.round(p.total * OP_POINT_RULES.pointValueYen), 'JPY')} 상당</span>
+            ); })()}
+          </div>
+
+          {/* 3) 한도·정책 */}
+          <p className="mt-3 text-[12px] font-bold text-slate-700">③ 한도 · 정책</p>
+          <ul className="mt-1 grid gap-0.5 text-[11px] leading-relaxed text-slate-600 sm:grid-cols-2">
+            <li>• <b>월 적립 한도</b>: {pt(OP_POINT_RULES.monthlyCap)} (투숙 완료 월 기준, 초과분 미지급) — 비용·부채 통제</li>
+            <li>• <b>리딤 최소</b>: {pt(OP_POINT_RULES.redeemMinimum)} 이상부터 교환</li>
+            <li>• <b>포인트 가치(지표)</b>: 1 P ≈ {formatMoney(OP_POINT_RULES.pointValueYen, 'JPY')} (포인트몰 기준 역산)</li>
+            <li>• <b>유효기간(제안)</b>: 적립일로부터 {OP_POINT_RULES.expiryMonths}개월</li>
+          </ul>
+
+          <p className="mt-2 text-[10px] text-amber-600">
+            ※ 수치는 <b>프로토타입 제안값</b> — 적립률·월 한도·유효기간·포인트 가치·세무 처리는 법무/재무 검토 후 확정.
           </p>
         </Card>
 

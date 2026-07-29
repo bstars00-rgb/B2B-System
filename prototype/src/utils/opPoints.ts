@@ -24,7 +24,7 @@ import { hotelMetaOf } from '../mocks/hotelDb';
  */
 
 export interface OpPointRules {
-  /** 예약 1건당 기본 포인트 */
+  /** 예약 1건당 기본 포인트 — 예약 '빈도' 보상(금액 무관, 고가 집중 완화) */
   base: number;
   /** 예약금액 N엔당 추가 포인트 */
   amountPerYen: number;
@@ -33,11 +33,17 @@ export interface OpPointRules {
   amountCapPerBooking: number;
   /** 추천/프로모션 호텔 보너스 */
   promoBonus: number;
-  /** 월별 적립 한도 (투숙 완료 월 기준, 초과분 미지급) */
+  /** 월별 적립 한도 (투숙 완료 월 기준, 초과분 미지급) — 비용/부채 통제 */
   monthlyCap: number;
+  /** 리딤 최소 포인트 (이 값 이상부터 포인트몰 교환 가능) */
+  redeemMinimum: number;
+  /** 포인트 유효기간(개월) — 부채 관리(정책 확정 대상) */
+  expiryMonths: number;
+  /** 지표용 포인트 가치(1P당 엔) — 포인트몰 기준 역산(세무·회계 협의 대상) */
+  pointValueYen: number;
 }
 
-/** 기본 규칙 — 운영에서 조정 가능한 파라미터. 프로토타입 시연용 값. */
+/** 기본 규칙 — 운영에서 조정 가능한 파라미터. 프로토타입 제안값. */
 export const OP_POINT_RULES: OpPointRules = {
   base: 100,
   amountPerYen: 20,
@@ -45,7 +51,23 @@ export const OP_POINT_RULES: OpPointRules = {
   amountCapPerBooking: 300,
   promoBonus: 200,
   monthlyCap: 5_000,
+  redeemMinimum: 1_500,
+  expiryMonths: 24,
+  pointValueYen: 0.5,
 };
+
+/** 예약금액·프로모 여부로 건별 포인트 계산(예시·설명용) */
+export function pointsFor(sumAmt: number, promo: boolean, rules: OpPointRules = OP_POINT_RULES): {
+  base: number;
+  amountPts: number;
+  bonus: number;
+  total: number;
+} {
+  const base = rules.base;
+  const amountPts = Math.min(Math.floor(sumAmt / rules.amountUnitYen) * rules.amountPerYen, rules.amountCapPerBooking);
+  const bonus = promo ? rules.promoBonus : 0;
+  return { base, amountPts, bonus, total: base + amountPts + bonus };
+}
 
 export interface Accrual {
   ellisCode: string;
@@ -86,21 +108,17 @@ export function computeAccruals(bookings: Booking[], today: string, rules: OpPoi
     .sort((a, b) => b.check_out.localeCompare(a.check_out))
     .map((b) => {
       const promo = hotelMetaOf(b.hotel_id).recommended;
-      const amountPts = Math.min(
-        Math.floor(b.sum_amt / rules.amountUnitYen) * rules.amountPerYen,
-        rules.amountCapPerBooking,
-      );
-      const bonus = promo ? rules.promoBonus : 0;
+      const { base, amountPts, bonus, total } = pointsFor(b.sum_amt, promo, rules);
       return {
         ellisCode: b.ellis_code,
         hotelName: b.hotel_name,
         stayCompleted: b.check_out,
         amount: b.sum_amt,
         promo,
-        base: rules.base,
+        base,
         amountPts,
         bonus,
-        points: rules.base + amountPts + bonus,
+        points: total,
         month: b.check_out.slice(0, 7),
       };
     });
