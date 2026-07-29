@@ -74,7 +74,7 @@ body{margin:0;background:#0f172a;font-family:-apple-system,'Segoe UI',Roboto,'Ma
 <div class="body">
 <div class="icon">${v.item.icon}</div>
 <div class="name">${v.item.name}</div>
-<div class="val">USD ${v.item.costUSD} 상당</div>
+<div class="val">${v.item.desc}</div>
 <div class="codebox"><div class="clabel">VOUCHER CODE</div><div class="code">${v.code}</div></div>
 <div class="barcode">${bars}</div>
 <div class="meta">발급일 ${v.at} · 유효기간 ${v.expires}</div>
@@ -117,7 +117,7 @@ function MallCard({ item, balance, onRedeem }: { item: MallItem; balance: number
         <p className="truncate text-[12px] font-bold text-slate-800">{item.name}</p>
         <p className="mt-0.5 truncate text-[10px] text-slate-400">{item.desc}</p>
         <p className="mt-1 text-[11px]">
-          <b className="text-slate-700">USD {item.costUSD}</b> <span className="text-brand-600">≈ {pt(cost)}</span>
+          <span className="font-bold text-brand-600">{pt(cost)}</span>
         </p>
       </div>
       <button
@@ -329,7 +329,7 @@ export default function OpPointsPage({
             <li>• 닷비즈에서 예약하고 <b>투숙을 완료</b>하면 오마이포인트가 적립됩니다. (취소·노쇼·환불 제외)</li>
             <li>• <b>지불이 완료된 예약</b>만 적립됩니다 — 선불 업체는 <b>체크아웃 시점</b>에, 후불 업체는 <b>체크아웃 후 지불 완료 시점</b>에 적립. 지불 대기 건은 아래 <b>‘적립 예정’</b>에 표시됩니다.</li>
             <li>• <b className="text-brand-600">프로모션 호텔</b>은 추가 적립 — 목록·검색에 <span className="rounded-sm bg-brand-500 px-1 py-px text-[9px] font-bold text-white">150% 적립</span> 배지로 표시됩니다.</li>
-            <li>• 포인트몰에서 <b>USD 10</b>부터 교환할 수 있습니다. · 포인트 유효기간 <b>1년</b>.</li>
+            <li>• 포인트몰에서 <b>{pt(usdToPoints(10))}</b>부터 교환할 수 있습니다. · 포인트 유효기간 <b>1년</b>.</li>
             <li>• 포인트는 <b>예약 담당자(OP) 개인</b>에게 적립됩니다. (고객사 법인 통제를 원하면 고객사 내부적으로 관리)</li>
           </ul>
         </Card>
@@ -423,7 +423,7 @@ export default function OpPointsPage({
               </span>
             </div>
             <p className="mb-3 text-[10px] leading-relaxed text-slate-400">
-              USD 기준 · 최소 USD 10 (예: USD 10 = {pt(usdToPoints(10))}). 화폐 금액 대신 포인트로 안내.
+              최소 {pt(usdToPoints(10))}부터 교환 · 화폐 금액 대신 포인트로 안내.
               포인트몰은 <b className="text-slate-500">거래처 국가별로 하나만</b> 노출됩니다 — 계정 국가로 자동 결정(현재 대한민국).
             </p>
 
@@ -592,8 +592,7 @@ export default function OpPointsPage({
                 <div className="min-w-0">
                   <p className="text-[13px] font-bold text-slate-800">{confirmItem.name}</p>
                   <p className="mt-0.5 text-[11px]">
-                    <b className="text-slate-700">USD {confirmItem.costUSD}</b>{' '}
-                    <span className="text-brand-600">≈ {pt(usdToPoints(confirmItem.costUSD))} 차감</span>
+                    <span className="font-bold text-brand-600">{pt(usdToPoints(confirmItem.costUSD))} 차감</span>
                   </p>
                 </div>
               </div>
