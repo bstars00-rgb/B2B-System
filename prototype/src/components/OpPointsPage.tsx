@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { Booking } from '../types';
 import EnhBadge from './EnhBadge';
 import { todayIso } from '../utils/dashboardStats';
@@ -220,9 +220,11 @@ export default function OpPointsPage({
   const [promos, setPromos] = useState<PointPromo[]>(SEED_PROMOS);
   const [toast, setToast] = useState<string | null>(null);
   const [showEllis, setShowEllis] = useState(false);
+  // 교환 확인 팝업 — 교환은 취소 불가라 확인 후 진행
+  const [confirmItem, setConfirmItem] = useState<MallItem | null>(null);
 
-  // 로그인 OP 계정 — 포인트는 계정별로 분리. (프로토타입: 실제 로그인 없이 계정 전환으로 시연)
-  const [accountId, setAccountId] = useState(OP_ACCOUNTS[0].id);
+  // 로그인 OP 계정 — 포인트는 계정별로 분리. 실제 로그인 계정(프로토타입: 세션의 OP로 고정).
+  const accountId = OP_ACCOUNTS[0].id;
   const account = OP_ACCOUNTS.find((a) => a.id === accountId) ?? OP_ACCOUNTS[0];
   // 이 OP 계정이 생성한 예약만 — 같은 회사라도 OP가 다르면 분리
   const myBookings = useMemo(() => bookings.filter((b) => opAccountIdFor(b.ellis_code) === accountId), [bookings, accountId]);
@@ -243,8 +245,6 @@ export default function OpPointsPage({
   }, [myBookings, today]);
   const [basis, setBasis] = useState<DateBasis>('stay');
   const [range, setRange] = useState(defaultRange);
-  // 계정 전환 시 그 계정의 '최근 월'로 기간 리셋 (계정마다 예약 시기가 달라 혼동 방지)
-  useEffect(() => setRange(defaultRange), [accountId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const inRange = (d: string | null) => !!d && (!range.from || d >= range.from) && (!range.to || d <= range.to);
   // 적립 내역: 기준일(투숙 완료일/결재 완료일) 선택 적용. 예정: 결재 완료일이 없어 투숙 완료일 기준.
@@ -292,27 +292,8 @@ export default function OpPointsPage({
             OP Points — 고객 리워드
             <EnhBadge note="오피포인트 — 닷비즈 예약·투숙 완료 리워드(3차 테스트용 프로토타입)" />
           </h2>
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-slate-400">로그인 OP</span>
-            <select
-              value={accountId}
-              onChange={(e) => setAccountId(e.target.value)}
-              className="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] font-medium text-slate-700 focus:border-brand-400 focus:outline-none"
-              title="로그인 OP 계정 — 포인트는 계정별로 분리 (프로토타입: 로그인 전환 시연)"
-            >
-              {OP_ACCOUNTS.map((a) => (
-                <option key={a.id} value={a.id}>{a.name} — {a.id}</option>
-              ))}
-            </select>
-          </div>
+          <span className="text-[11px] text-slate-400">로그인 OP · <b className="text-slate-600">{account.name}</b></span>
         </div>
-
-        {/* 계정별 분리 안내 — 신규 OP는 유저인포에서 아이디/비번 생성·로그인 */}
-        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] leading-relaxed text-slate-600">
-          🔑 포인트는 <b className="text-slate-800">OP 계정별로 분리</b>됩니다 — 신규 OP는 <b>유저인포</b>에서 아이디/비번으로 생성·로그인하며,
-          <b> 같은 회사({account.company})라도 OP가 다르면</b> 적립·잔액·바우처가 각각 분리됩니다.
-          현재 로그인: <b className="text-brand-600">{account.name}</b> <span className="text-slate-400">({account.dept} · {account.id})</span>.
-        </p>
 
         {/* 요약 카드 */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -452,7 +433,7 @@ export default function OpPointsPage({
             </p>
             <div className="space-y-2">
               {globalItems.map((it) => (
-                <MallCard key={it.id} item={it} balance={balance} onRedeem={redeem} />
+                <MallCard key={it.id} item={it} balance={balance} onRedeem={setConfirmItem} />
               ))}
             </div>
 
@@ -462,7 +443,7 @@ export default function OpPointsPage({
             </p>
             <div className="space-y-2">
               {localItems.map((it) => (
-                <MallCard key={it.id} item={it} balance={balance} onRedeem={redeem} />
+                <MallCard key={it.id} item={it} balance={balance} onRedeem={setConfirmItem} />
               ))}
             </div>
           </Card>
@@ -591,6 +572,57 @@ export default function OpPointsPage({
           정책 확정 대상: 적립 정책·환율·포인트 가치·세무 처리.
         </p>
       </div>
+
+      {/* 교환 확인 팝업 — 교환은 취소 불가 */}
+      {confirmItem && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4"
+          onClick={() => setConfirmItem(null)}
+        >
+          <div
+            className="w-[340px] overflow-hidden rounded-xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="border-b border-slate-200 bg-slate-50 px-5 py-3 text-center text-sm font-bold text-slate-800">
+              포인트 교환 확인
+            </div>
+            <div className="px-5 py-4">
+              <div className="flex items-center gap-3 rounded-lg border border-slate-200 p-3">
+                <span className="text-3xl leading-none" aria-hidden>{confirmItem.icon}</span>
+                <div className="min-w-0">
+                  <p className="text-[13px] font-bold text-slate-800">{confirmItem.name}</p>
+                  <p className="mt-0.5 text-[11px]">
+                    <b className="text-slate-700">USD {confirmItem.costUSD}</b>{' '}
+                    <span className="text-brand-600">≈ {pt(usdToPoints(confirmItem.costUSD))} 차감</span>
+                  </p>
+                </div>
+              </div>
+              <p className="mt-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] font-medium leading-relaxed text-rose-600">
+                ⚠ 포인트 교환은 <b>한 번 하면 취소할 수 없습니다.</b><br />교환하시겠습니까?
+              </p>
+            </div>
+            <div className="flex gap-2 border-t border-slate-200 px-5 py-3">
+              <button
+                type="button"
+                onClick={() => setConfirmItem(null)}
+                className="flex-1 rounded border border-slate-300 bg-white px-3 py-2 text-[12px] font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  redeem(confirmItem);
+                  setConfirmItem(null);
+                }}
+                className="flex-1 rounded bg-brand-500 px-3 py-2 text-[12px] font-semibold text-white hover:bg-brand-600"
+              >
+                교환하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {toast && (
         <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-slate-800 px-4 py-2 text-xs font-medium text-white shadow-lg">
