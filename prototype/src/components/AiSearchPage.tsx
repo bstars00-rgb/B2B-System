@@ -185,6 +185,17 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
   useEffect(() => saveBookings(bookings), [bookings]);
   useEffect(() => subscribeBookings(setBookings), []);
 
+  /** OP 포인트 적립 내역의 예약 코드 클릭 → Bookings로 이동 + 해당 예약 상세 열기 */
+  const openBookingByCode = useCallback(
+    (ellisCode: string) => {
+      const b = bookings.find((x) => x.ellis_code === ellisCode);
+      if (!b) return;
+      navigate('bookings');
+      setDetailBooking(b);
+    },
+    [bookings, navigate],
+  );
+
   /** 예약 취소 — 상태 변경 + 취소 일시 기록 */
   const cancelBooking = useCallback((ellisCode: string) => {
     const cancelledAt = new Date().toISOString();
@@ -275,7 +286,7 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
         ) : view === 'create-booking' ? (
           <CreateBookingPage prefill={bookingPrefill} />
         ) : view === 'op-points' ? (
-          <OpPointsPage bookings={bookings} />
+          <OpPointsPage bookings={bookings} onOpenBooking={openBookingByCode} />
         ) : (
           <BookingsPage bookings={bookings} onOpenDetail={setDetailBooking} />
         )}

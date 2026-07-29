@@ -94,35 +94,57 @@ export interface Accrual {
   stayCompleted: string;
   currency: string;
   amount: number;
+  paymentStatus: string;
   /** 배수(1=기본). 고객 뷰에선 배지("150%")로만, 요율은 숨김 */
   multiplier: number;
   promoLabel: string | null;
   points: number;
 }
 
-/** 투숙이 완료됐고 취소되지 않은 예약만 적립 대상 */
-function isEligible(b: Booking, today: string): boolean {
+/** 투숙 완료됐나 (Confirmed·체크아웃 경과) — 지불 여부는 별도 */
+function isStayed(b: Booking, today: string): boolean {
   return b.status === 'Confirmed' && b.check_out < today;
 }
+/** 지불 완료 = Fully Paid. 선불 업체는 체크아웃 시점에 이미 완료, 후불 업체는 체크아웃 후 완료. */
+function isPaid(b: Booking): boolean {
+  return b.payment_status === 'Fully Paid';
+}
 
-/** 완료 투숙 건별 적립 — 투숙 완료일 내림차순. 한도 없음. */
+function toAccrual(b: Booking, promos: PointPromo[]): Accrual {
+  const { multiplier, label } = promoFor(b, promos);
+  return {
+    ellisCode: b.ellis_code,
+    hotelName: b.hotel_name,
+    stayCompleted: b.check_out,
+    currency: b.currency,
+    amount: b.sum_amt,
+    paymentStatus: b.payment_status,
+    multiplier,
+    promoLabel: label,
+    points: pointsFor(b.sum_amt, b.currency, multiplier),
+  };
+}
+
+/**
+ * 확정 적립 — **투숙 완료 + 지불 완료(Fully Paid)** 건만. 투숙 완료일 내림차순. 한도 없음.
+ * (현업 2026-07-29: 체크아웃 기준이라도 지불 완료된 건만 적립.)
+ */
 export function computeAccruals(bookings: Booking[], today: string, promos: PointPromo[]): Accrual[] {
   return bookings
-    .filter((b) => isEligible(b, today))
+    .filter((b) => isStayed(b, today) && isPaid(b))
     .sort((a, b) => b.check_out.localeCompare(a.check_out))
-    .map((b) => {
-      const { multiplier, label } = promoFor(b, promos);
-      return {
-        ellisCode: b.ellis_code,
-        hotelName: b.hotel_name,
-        stayCompleted: b.check_out,
-        currency: b.currency,
-        amount: b.sum_amt,
-        multiplier,
-        promoLabel: label,
-        points: pointsFor(b.sum_amt, b.currency, multiplier),
-      };
-    });
+    .map((b) => toAccrual(b, promos));
+}
+
+/**
+ * 적립 예정(지불 대기) — 투숙은 완료됐으나 아직 지불 미완결(후불 업체 등)인 건.
+ * 지불이 완료되면 적립된다. 투숙 완료일 내림차순.
+ */
+export function computePending(bookings: Booking[], today: string, promos: PointPromo[]): Accrual[] {
+  return bookings
+    .filter((b) => isStayed(b, today) && !isPaid(b))
+    .sort((a, b) => b.check_out.localeCompare(a.check_out))
+    .map((b) => toAccrual(b, promos));
 }
 
 export interface OpPointSummary {

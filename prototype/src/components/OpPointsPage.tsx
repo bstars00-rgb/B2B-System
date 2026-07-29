@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import type { Booking } from '../types';
 import EnhBadge from './EnhBadge';
 import { todayIso } from '../utils/dashboardStats';
-import { OP_POINT_POLICY, computeAccruals, summarize, usdToPoints } from '../utils/opPoints';
+import { OP_POINT_POLICY, computeAccruals, computePending, summarize, usdToPoints, type Accrual } from '../utils/opPoints';
 import { MALL_ITEMS, type MallItem } from '../mocks/opPointsMall';
 import { SEED_PROMOS, type PointPromo } from '../mocks/opPointsPromos';
 
@@ -31,7 +31,77 @@ function PromoBadge({ label }: { label: string }) {
   );
 }
 
-export default function OpPointsPage({ bookings }: { bookings: Booking[] }) {
+const PAY_LABEL: Record<string, { text: string; cls: string }> = {
+  Unpaid: { text: 'Unpaid', cls: 'text-rose-500' },
+  'Partially Paid': { text: 'Partially Paid', cls: 'text-amber-600' },
+  'Fully Paid': { text: 'Fully Paid', cls: 'text-emerald-600' },
+};
+
+/** 적립/예정 공용 테이블 — 예약코드 클릭 시 Bookings로 이동해 해당 예약 표시 */
+function AccrualTable({
+  rows,
+  onOpenBooking,
+  pointHeader,
+  pointClass,
+  showPayment = false,
+}: {
+  rows: Accrual[];
+  onOpenBooking: (ellisCode: string) => void;
+  pointHeader: string;
+  pointClass: string;
+  showPayment?: boolean;
+}) {
+  return (
+    <div className="max-h-[360px] overflow-auto rounded border border-slate-200">
+      <table className="w-full min-w-[640px] text-xs">
+        <thead className="sticky top-0 z-10">
+          <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 [&>th]:sticky [&>th]:top-0 [&>th]:bg-slate-50">
+            <th className="px-3 py-2 text-left font-semibold">예약 코드</th>
+            <th className="px-3 py-2 text-left font-semibold">투숙 완료일</th>
+            <th className="px-3 py-2 text-left font-semibold">호텔</th>
+            {showPayment && <th className="px-3 py-2 text-left font-semibold">결제</th>}
+            <th className="px-3 py-2 text-right font-semibold">{pointHeader}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((a) => {
+            const pay = PAY_LABEL[a.paymentStatus] ?? { text: a.paymentStatus, cls: 'text-slate-500' };
+            return (
+              <tr key={a.ellisCode} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70">
+                <td className="px-3 py-2">
+                  <button
+                    type="button"
+                    onClick={() => onOpenBooking(a.ellisCode)}
+                    className="font-mono text-[11px] text-brand-600 underline underline-offset-2 hover:text-brand-700"
+                    title="이 예약을 Bookings에서 보기"
+                  >
+                    {a.ellisCode}
+                  </button>
+                </td>
+                <td className="px-3 py-2 text-slate-600">{a.stayCompleted}</td>
+                <td className="px-3 py-2 text-slate-700">
+                  {a.hotelName}
+                  {a.promoLabel && <PromoBadge label={a.promoLabel} />}
+                </td>
+                {showPayment && <td className={`px-3 py-2 text-[11px] font-medium ${pay.cls}`}>{pay.text}</td>}
+                <td className={`px-3 py-2 text-right font-bold ${pointClass}`}>{pt(a.points)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export default function OpPointsPage({
+  bookings,
+  onOpenBooking,
+}: {
+  bookings: Booking[];
+  /** 적립 내역의 예약 코드 클릭 → Bookings로 이동해 해당 예약 표시 */
+  onOpenBooking: (ellisCode: string) => void;
+}) {
   const today = todayIso();
   const [promos, setPromos] = useState<PointPromo[]>(SEED_PROMOS);
   const [redeemed, setRedeemed] = useState<{ item: MallItem; at: string }[]>([]);
@@ -39,6 +109,8 @@ export default function OpPointsPage({ bookings }: { bookings: Booking[] }) {
   const [showEllis, setShowEllis] = useState(false);
 
   const accruals = useMemo(() => computeAccruals(bookings, today, promos), [bookings, today, promos]);
+  const pending = useMemo(() => computePending(bookings, today, promos), [bookings, today, promos]);
+  const pendingPoints = Math.round(pending.reduce((s, a) => s + a.points, 0) * 10) / 10;
   const summary = useMemo(() => summarize(accruals, today), [accruals, today]);
   const redeemedPts = redeemed.reduce((s, r) => s + usdToPoints(r.item.costUSD), 0);
   const balance = Math.round((summary.earned - redeemedPts) * 10) / 10;
@@ -79,7 +151,7 @@ export default function OpPointsPage({ bookings }: { bookings: Booking[] }) {
           <Card>
             <p className="text-[11px] text-slate-500">총 적립</p>
             <p className="mt-1 text-xl font-bold text-slate-800">{pt(summary.earned)}</p>
-            <p className="mt-1 text-[10px] text-slate-400">완료 투숙 {summary.eligibleCount}건 · 프로모 {summary.promoCount}건</p>
+            <p className="mt-1 text-[10px] text-slate-400">적립 {summary.eligibleCount}건 · 프로모 {summary.promoCount}건</p>
           </Card>
           <Card>
             <p className="text-[11px] text-slate-500">사용(리딤)</p>
@@ -87,9 +159,9 @@ export default function OpPointsPage({ bookings }: { bookings: Booking[] }) {
             <p className="mt-1 text-[10px] text-slate-400">{redeemed.length}건 교환</p>
           </Card>
           <Card>
-            <p className="text-[11px] text-slate-500">최근 30일 적립</p>
-            <p className="mt-1 text-xl font-bold text-slate-800">{pt(summary.recentEarned)}</p>
-            <p className="mt-1 text-[10px] text-slate-400">투숙 완료 기준</p>
+            <p className="text-[11px] text-slate-500">적립 예정</p>
+            <p className="mt-1 text-xl font-bold text-amber-600">{pt(pendingPoints)}</p>
+            <p className="mt-1 text-[10px] text-slate-400">지불 대기 {pending.length}건</p>
           </Card>
         </div>
 
@@ -98,6 +170,7 @@ export default function OpPointsPage({ bookings }: { bookings: Booking[] }) {
           <p className="text-[13px] font-bold text-slate-800">적립 안내</p>
           <ul className="mt-2 space-y-1 text-[11px] leading-relaxed text-slate-600">
             <li>• 닷비즈에서 예약하고 <b>투숙을 완료</b>하면 오마이포인트가 적립됩니다. (취소·노쇼·환불 제외)</li>
+            <li>• <b>지불이 완료된 예약</b>만 적립됩니다 — 선불 업체는 <b>체크아웃 시점</b>에, 후불 업체는 <b>체크아웃 후 지불 완료 시점</b>에 적립. 지불 대기 건은 아래 <b>‘적립 예정’</b>에 표시됩니다.</li>
             <li>• <b className="text-brand-600">프로모션 호텔</b>은 추가 적립 — 목록·검색에 <span className="rounded-sm bg-brand-500 px-1 py-px text-[9px] font-bold text-white">150% 적립</span> 배지로 표시됩니다.</li>
             <li>• 포인트몰에서 <b>USD 10</b>부터 교환할 수 있습니다. · 포인트 유효기간 <b>1년</b>.</li>
             <li>• 포인트는 <b>예약 담당자(OP) 개인</b>에게 적립됩니다. (고객사 법인 통제를 원하면 고객사 내부적으로 관리)</li>
@@ -106,31 +179,21 @@ export default function OpPointsPage({ bookings }: { bookings: Booking[] }) {
 
         {/* 적립 내역 (고객 뷰 — 금액·요율 비노출, 포인트·배수 배지만) */}
         <Card>
-          <p className="mb-2 text-[13px] font-bold text-slate-800">적립 내역 <span className="text-[11px] font-normal text-slate-400">(투숙 완료 · 최신순)</span></p>
-          <div className="max-h-[380px] overflow-auto rounded border border-slate-200">
-            <table className="w-full min-w-[520px] text-xs">
-              <thead className="sticky top-0 z-10">
-                <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 [&>th]:sticky [&>th]:top-0 [&>th]:bg-slate-50">
-                  <th className="px-3 py-2 text-left font-semibold">투숙 완료일</th>
-                  <th className="px-3 py-2 text-left font-semibold">호텔</th>
-                  <th className="px-3 py-2 text-right font-semibold">적립 포인트</th>
-                </tr>
-              </thead>
-              <tbody>
-                {accruals.map((a) => (
-                  <tr key={a.ellisCode} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70">
-                    <td className="px-3 py-2 text-slate-600">{a.stayCompleted}</td>
-                    <td className="px-3 py-2 text-slate-700">
-                      {a.hotelName}
-                      {a.promoLabel && <PromoBadge label={a.promoLabel} />}
-                    </td>
-                    <td className="px-3 py-2 text-right font-bold text-brand-600">{pt(a.points)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <p className="mb-2 text-[13px] font-bold text-slate-800">적립 내역 <span className="text-[11px] font-normal text-slate-400">(투숙 완료 + 지불 완료 · 최신순)</span></p>
+          <AccrualTable rows={accruals} onOpenBooking={onOpenBooking} pointHeader="적립 포인트" pointClass="text-brand-600" />
         </Card>
+
+        {/* 적립 예정 (지불 대기 — 후불 등) */}
+        {pending.length > 0 && (
+          <Card>
+            <p className="mb-1 flex flex-wrap items-center gap-2 text-[13px] font-bold text-slate-800">
+              적립 예정 <span className="rounded-sm bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">지불 대기 {pending.length}건</span>
+              <span className="text-[11px] font-normal text-slate-400">투숙은 완료됐으나 지불 미완결 — 지불 완료 시 적립</span>
+            </p>
+            <p className="mb-2 text-[10px] text-slate-400">예정 포인트 합계 {pt(pendingPoints)} — 후불 업체는 체크아웃 후 지불이 완료되면 적립됩니다.</p>
+            <AccrualTable rows={pending} onOpenBooking={onOpenBooking} pointHeader="예정 포인트" pointClass="text-amber-600" showPayment />
+          </Card>
+        )}
 
         {/* 포인트몰 (USD 기준 · 오름차순) */}
         <Card>
@@ -243,7 +306,7 @@ export default function OpPointsPage({ bookings }: { bookings: Booking[] }) {
         </div>
 
         <p className="text-[10px] leading-relaxed text-slate-400">
-          프로토타입(3차 테스트) — 적립은 예약 {bookings.length}건 중 투숙 완료 {summary.eligibleCount}건에서 파생(취소·미래 투숙 제외).
+          프로토타입(3차 테스트) — 적립은 예약 {bookings.length}건 중 <b>투숙 완료 + 지불 완료</b> {summary.eligibleCount}건에서 파생(취소·미래 투숙·지불 대기 제외). 적립·부킹스는 같은 예약 데이터 → 예약 코드로 상호 확인.
           리딤은 세션 내에서만 반영(새로고침 시 초기화). 다통화는 KRW 기준 환율 후 포인트로 환산(화폐값 비노출).
           정책 확정 대상: 적립 정책·환율·포인트 가치·세무 처리.
         </p>
