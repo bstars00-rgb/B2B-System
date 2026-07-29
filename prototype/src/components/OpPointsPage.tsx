@@ -3,7 +3,7 @@ import type { Booking } from '../types';
 import EnhBadge from './EnhBadge';
 import { todayIso } from '../utils/dashboardStats';
 import { OP_POINT_POLICY, computeAccruals, computePending, summarize, usdToPoints, type Accrual } from '../utils/opPoints';
-import { MALL_ITEMS, type MallItem } from '../mocks/opPointsMall';
+import { MALL_COUNTRIES, globalItemsSorted, localItemsSorted, type MallItem, type MallCountry } from '../mocks/opPointsMall';
 import { SEED_PROMOS, type PointPromo } from '../mocks/opPointsPromos';
 
 /**
@@ -28,6 +28,34 @@ function Card({ children, className = '' }: { children: React.ReactNode; classNa
 function PromoBadge({ label }: { label: string }) {
   return (
     <span className="ml-1 rounded-sm bg-brand-500 px-1.5 py-0.5 text-[9px] font-bold text-white">{label} 적립</span>
+  );
+}
+
+/** 포인트몰 상품 카드 (우측 사이드바 · 좁은 폭 → 가로 배치) */
+function MallCard({ item, balance, onRedeem }: { item: MallItem; balance: number; onRedeem: (i: MallItem) => void }) {
+  const cost = usdToPoints(item.costUSD);
+  const affordable = balance >= cost;
+  return (
+    <div className="flex items-center gap-2.5 rounded-lg border border-slate-200 p-2.5">
+      <span className="text-2xl leading-none" aria-hidden>{item.icon}</span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[12px] font-bold text-slate-800">{item.name}</p>
+        <p className="mt-0.5 truncate text-[10px] text-slate-400">{item.desc}</p>
+        <p className="mt-1 text-[11px]">
+          <b className="text-slate-700">USD {item.costUSD}</b> <span className="text-brand-600">≈ {pt(cost)}</span>
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={() => onRedeem(item)}
+        disabled={!affordable}
+        className={`shrink-0 rounded px-2.5 py-1 text-[11px] font-semibold ${
+          affordable ? 'bg-brand-500 text-white hover:bg-brand-600' : 'cursor-not-allowed bg-slate-100 text-slate-400'
+        }`}
+      >
+        {affordable ? '교환' : '부족'}
+      </button>
+    </div>
   );
 }
 
@@ -139,7 +167,12 @@ export default function OpPointsPage({
   const summary = useMemo(() => summarize(accruals, today), [accruals, today]);
   const redeemedPts = redeemed.reduce((s, r) => s + usdToPoints(r.item.costUSD), 0);
   const balance = Math.round((summary.earned - redeemedPts) * 10) / 10;
-  const mall = [...MALL_ITEMS].sort((a, b) => a.costUSD - b.costUSD);
+
+  // 포인트몰 — 고객 국가별. 국제 공통 + 선택 국가 로컬. (실제로는 계정 국가로 자동 결정)
+  const [country, setCountry] = useState<MallCountry>('KR');
+  const curr = MALL_COUNTRIES.find((c) => c.code === country) ?? MALL_COUNTRIES[0];
+  const globalItems = globalItemsSorted();
+  const localItems = localItemsSorted(country);
 
   const redeem = (item: MallItem) => {
     const cost = usdToPoints(item.costUSD);
@@ -156,7 +189,7 @@ export default function OpPointsPage({
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50 p-4">
-      <div className="mx-auto max-w-[1080px] space-y-3">
+      <div className="mx-auto max-w-[1200px] space-y-3">
         {/* 헤더 */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="flex items-center gap-1.5 text-[15px] font-bold text-slate-800">
@@ -190,6 +223,9 @@ export default function OpPointsPage({
           </Card>
         </div>
 
+        {/* 본문 2단 — 좌: 적립 안내·필터·내역·예정 / 우: 포인트몰 */}
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="min-w-0 space-y-3">
         {/* 적립 안내 (고객 뷰 — 요율·계산식 비노출) */}
         <Card>
           <p className="text-[13px] font-bold text-slate-800">적립 안내</p>
@@ -276,44 +312,51 @@ export default function OpPointsPage({
           </Card>
         )}
 
-        {/* 포인트몰 (USD 기준 · 오름차순) */}
-        <Card>
-          <p className="mb-1 text-[13px] font-bold text-slate-800">포인트몰 <span className="text-[11px] font-normal text-slate-400">(오마이호텔 운영 · USD 기준, 최소 USD 10)</span></p>
-          <p className="mb-2 text-[10px] text-slate-400">리딤은 USD 기준입니다 — 예: USD 10 = {pt(usdToPoints(10))} (환율 반영, 화폐 금액 대신 포인트로 안내).</p>
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-            {mall.map((item) => {
-              const cost = usdToPoints(item.costUSD);
-              const affordable = balance >= cost;
-              return (
-                <div key={item.id} className="flex flex-col rounded-lg border border-slate-200 p-3">
-                  <div className="flex items-start gap-2">
-                    <span className="text-2xl leading-none" aria-hidden>{item.icon}</span>
-                    <div className="min-w-0">
-                      <p className="text-[12px] font-bold text-slate-800">{item.name}</p>
-                      <p className="mt-0.5 text-[10px] text-slate-400">{item.desc}</p>
-                    </div>
-                  </div>
-                  <div className="mt-2.5 flex items-center justify-between">
-                    <span className="text-[11px]">
-                      <b className="text-slate-700">USD {item.costUSD}</b>{' '}
-                      <span className="text-brand-600">≈ {pt(cost)}</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => redeem(item)}
-                      disabled={!affordable}
-                      className={`rounded px-3 py-1 text-[11px] font-semibold ${
-                        affordable ? 'bg-brand-500 text-white hover:bg-brand-600' : 'cursor-not-allowed bg-slate-100 text-slate-400'
-                      }`}
-                    >
-                      {affordable ? '교환' : '포인트 부족'}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
+        </div>{/* /좌 컬럼 */}
+
+        {/* 우: 포인트몰 (국가별 · USD 기준) */}
+        <div className="min-w-0">
+          <Card>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-[13px] font-bold text-slate-800">포인트몰</p>
+              <select
+                value={country}
+                onChange={(e) => setCountry(e.target.value as MallCountry)}
+                className="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-700 focus:border-brand-400 focus:outline-none"
+                title="고객 국가 — 로컬 상품 노출 기준"
+              >
+                {MALL_COUNTRIES.map((c) => (
+                  <option key={c.code} value={c.code}>{c.flag} {c.label}</option>
+                ))}
+              </select>
+            </div>
+            <p className="mb-3 text-[10px] leading-relaxed text-slate-400">
+              USD 기준 · 최소 USD 10 (예: USD 10 = {pt(usdToPoints(10))}). 화폐 금액 대신 포인트로 안내.
+              상품은 <b className="text-slate-500">고객 국가</b>에 따라 다릅니다 — 실제로는 계정 국가로 자동 결정.
+            </p>
+
+            {/* 국제 공통 */}
+            <p className="mb-1.5 flex items-center gap-1 text-[11px] font-bold text-slate-600">
+              🌐 국제 공통 <span className="font-normal text-slate-400">— 어디서나 통용</span>
+            </p>
+            <div className="space-y-2">
+              {globalItems.map((it) => (
+                <MallCard key={it.id} item={it} balance={balance} onRedeem={redeem} />
+              ))}
+            </div>
+
+            {/* 국가별 로컬 */}
+            <p className="mb-1.5 mt-3 flex items-center gap-1 text-[11px] font-bold text-slate-600">
+              {curr.flag} {curr.label} 전용 <span className="font-normal text-slate-400">— 해당 국가 내 사용·수령</span>
+            </p>
+            <div className="space-y-2">
+              {localItems.map((it) => (
+                <MallCard key={it.id} item={it} balance={balance} onRedeem={redeem} />
+              ))}
+            </div>
+          </Card>
+        </div>
+        </div>{/* /본문 2단 */}
 
         {/* ELLIS 내부 프로모 관리 (고객 비노출) */}
         <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3">
