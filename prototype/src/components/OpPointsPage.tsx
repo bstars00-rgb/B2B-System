@@ -189,7 +189,7 @@ export default function OpPointsPage({
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50 p-4">
-      <div className="mx-auto max-w-[1200px] space-y-3">
+      <div className="mx-auto max-w-[1680px] space-y-3">
         {/* 헤더 */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="flex items-center gap-1.5 text-[15px] font-bold text-slate-800">
@@ -224,7 +224,7 @@ export default function OpPointsPage({
         </div>
 
         {/* 본문 2단 — 좌: 적립 안내·필터·내역·예정 / 우: 포인트몰 */}
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px]">
         <div className="min-w-0 space-y-3">
         {/* 적립 안내 (고객 뷰 — 요율·계산식 비노출) */}
         <Card>
