@@ -9,7 +9,7 @@ import EnhBadge from './EnhBadge';
  * ※ AI 요금 검색 메뉴는 2026-07-27 삭제 — ELLIS MCP는 닷비즈 내장이 아니라 고객사 Claude 플러그인 방식.
  */
 
-export type PortalView = 'dashboard' | 'bookings' | 'create-booking' | 'faq' | 'notice' | 'staff';
+export type PortalView = 'dashboard' | 'bookings' | 'create-booking' | 'op-points' | 'faq' | 'notice' | 'staff';
 
 interface Props {
   view: PortalView;
@@ -47,6 +47,12 @@ const MENU: MenuSection[] = [
       },
       { view: 'bookings', label: 'Bookings', keywords: ['예약', '예약목록', 'reservation'] },
       { view: 'create-booking', label: 'Create Booking', keywords: ['예약생성', '호텔검색', 'hotel search'] },
+      {
+        view: 'op-points',
+        label: 'OP Points',
+        enh: '오피포인트 — 닷비즈 예약·투숙 완료 고객 리워드(포인트몰 리딤)',
+        keywords: ['오피포인트', 'op point', '포인트', '리워드', '포인트몰', 'reward'],
+      },
       { view: 'faq', label: 'FAQ Board', keywords: ['자주 묻는 질문', '게시판'] },
       { view: 'notice', label: 'Notice', keywords: ['공지', '공지사항'] },
     ],
