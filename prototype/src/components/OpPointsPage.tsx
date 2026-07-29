@@ -107,30 +107,27 @@ function PromoBadge({ label }: { label: string }) {
 }
 
 /** 포인트몰 상품 카드 (우측 사이드바 · 좁은 폭 → 가로 배치) */
-function MallCard({ item, balance, onRedeem }: { item: MallItem; balance: number; onRedeem: (i: MallItem) => void }) {
+/** 상품 카드 — 카드 전체 클릭 시 상세 팝업. 교환은 팝업에서. */
+function MallCard({ item, balance, onOpen }: { item: MallItem; balance: number; onOpen: (i: MallItem) => void }) {
   const cost = usdToPoints(item.costUSD);
   const affordable = balance >= cost;
   return (
-    <div className="flex items-center gap-2.5 rounded-lg border border-slate-200 p-2.5">
+    <button
+      type="button"
+      onClick={() => onOpen(item)}
+      className="flex w-full items-center gap-2.5 rounded-lg border border-slate-200 p-2.5 text-left transition hover:border-brand-300 hover:bg-slate-50"
+    >
       <span className="text-2xl leading-none" aria-hidden>{item.icon}</span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-[12px] font-bold text-slate-800">{item.name}</p>
         <p className="mt-0.5 truncate text-[10px] text-slate-400">{item.desc}</p>
         <p className="mt-1 text-[11px]">
           <span className="font-bold text-brand-600">{pt(cost)}</span>
+          {!affordable && <span className="ml-1 text-[10px] font-medium text-slate-400">· 포인트 부족</span>}
         </p>
       </div>
-      <button
-        type="button"
-        onClick={() => onRedeem(item)}
-        disabled={!affordable}
-        className={`shrink-0 rounded px-2.5 py-1 text-[11px] font-semibold ${
-          affordable ? 'bg-brand-500 text-white hover:bg-brand-600' : 'cursor-not-allowed bg-slate-100 text-slate-400'
-        }`}
-      >
-        {affordable ? '교환' : '부족'}
-      </button>
-    </div>
+      <span className="shrink-0 text-[11px] font-semibold text-brand-600">상세 ›</span>
+    </button>
   );
 }
 
@@ -433,7 +430,7 @@ export default function OpPointsPage({
             </p>
             <div className="space-y-2">
               {globalItems.map((it) => (
-                <MallCard key={it.id} item={it} balance={balance} onRedeem={setConfirmItem} />
+                <MallCard key={it.id} item={it} balance={balance} onOpen={setConfirmItem} />
               ))}
             </div>
 
@@ -443,7 +440,7 @@ export default function OpPointsPage({
             </p>
             <div className="space-y-2">
               {localItems.map((it) => (
-                <MallCard key={it.id} item={it} balance={balance} onRedeem={setConfirmItem} />
+                <MallCard key={it.id} item={it} balance={balance} onOpen={setConfirmItem} />
               ))}
             </div>
           </Card>
@@ -580,43 +577,85 @@ export default function OpPointsPage({
           onClick={() => setConfirmItem(null)}
         >
           <div
-            className="w-[340px] overflow-hidden rounded-xl bg-white shadow-2xl"
+            className="flex max-h-[85vh] w-[420px] flex-col overflow-hidden rounded-xl bg-white shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="border-b border-slate-200 bg-slate-50 px-5 py-3 text-center text-sm font-bold text-slate-800">
-              포인트 교환 확인
+            <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3">
+              <span className="text-sm font-bold text-slate-800">상품 상세</span>
+              <button type="button" onClick={() => setConfirmItem(null)} className="text-slate-400 hover:text-slate-700" aria-label="닫기">✕</button>
             </div>
-            <div className="px-5 py-4">
-              <div className="flex items-center gap-3 rounded-lg border border-slate-200 p-3">
-                <span className="text-3xl leading-none" aria-hidden>{confirmItem.icon}</span>
-                <div className="min-w-0">
-                  <p className="text-[13px] font-bold text-slate-800">{confirmItem.name}</p>
-                  <p className="mt-0.5 text-[11px]">
-                    <span className="font-bold text-brand-600">{pt(usdToPoints(confirmItem.costUSD))} 차감</span>
-                  </p>
+
+            <div className="space-y-3 overflow-y-auto px-5 py-4">
+              {/* 상품 헤더 */}
+              <div className="flex items-start gap-3">
+                <span className="text-4xl leading-none" aria-hidden>{confirmItem.icon}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-1">
+                    <span className="rounded-sm bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-500">{confirmItem.category}</span>
+                    <span className="rounded-sm bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-500">
+                      {confirmItem.region === 'global'
+                        ? '🌐 국제 공통'
+                        : `${MALL_COUNTRIES.find((c) => c.code === confirmItem.region)?.flag ?? ''} ${MALL_COUNTRIES.find((c) => c.code === confirmItem.region)?.label ?? ''}`}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[15px] font-bold text-slate-800">{confirmItem.name}</p>
+                  <p className="mt-0.5 text-[11px] text-slate-400">{confirmItem.desc}</p>
                 </div>
               </div>
-              <p className="mt-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] font-medium leading-relaxed text-rose-600">
-                ⚠ 포인트 교환은 <b>한 번 하면 취소할 수 없습니다.</b><br />교환하시겠습니까?
+
+              {/* 필요 포인트 + 보유 */}
+              <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                <span className="text-[11px] text-slate-500">필요 포인트</span>
+                <span className="text-[15px] font-bold text-brand-600">{pt(usdToPoints(confirmItem.costUSD))}</span>
+              </div>
+              <p className="text-[10px] text-slate-400">
+                보유 {pt(balance)}
+                {balance < usdToPoints(confirmItem.costUSD) && (
+                  <span className="text-rose-500"> · {pt(Math.round((usdToPoints(confirmItem.costUSD) - balance) * 10) / 10)} 부족</span>
+                )}
+              </p>
+
+              {/* 상세 설명 */}
+              <p className="text-[12px] leading-relaxed text-slate-600">{confirmItem.detail}</p>
+
+              {/* 하이라이트 */}
+              <ul className="space-y-1 rounded-lg bg-slate-50 p-3">
+                {confirmItem.highlights.map((h) => (
+                  <li key={h} className="flex gap-1.5 text-[11px] text-slate-600">
+                    <span className="text-brand-500">•</span>
+                    <span>{h}</span>
+                  </li>
+                ))}
+              </ul>
+
+              {/* 취소 불가 경고 */}
+              <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-medium leading-relaxed text-rose-600">
+                ⚠ 포인트 교환은 <b>한 번 하면 취소할 수 없습니다.</b>
               </p>
             </div>
+
             <div className="flex gap-2 border-t border-slate-200 px-5 py-3">
               <button
                 type="button"
                 onClick={() => setConfirmItem(null)}
                 className="flex-1 rounded border border-slate-300 bg-white px-3 py-2 text-[12px] font-semibold text-slate-600 hover:bg-slate-50"
               >
-                취소
+                닫기
               </button>
               <button
                 type="button"
+                disabled={balance < usdToPoints(confirmItem.costUSD)}
                 onClick={() => {
                   redeem(confirmItem);
                   setConfirmItem(null);
                 }}
-                className="flex-1 rounded bg-brand-500 px-3 py-2 text-[12px] font-semibold text-white hover:bg-brand-600"
+                className={`flex-1 rounded px-3 py-2 text-[12px] font-semibold ${
+                  balance < usdToPoints(confirmItem.costUSD)
+                    ? 'cursor-not-allowed bg-slate-100 text-slate-400'
+                    : 'bg-brand-500 text-white hover:bg-brand-600'
+                }`}
               >
-                교환하기
+                {balance < usdToPoints(confirmItem.costUSD) ? '포인트 부족' : '교환하기'}
               </button>
             </div>
           </div>
