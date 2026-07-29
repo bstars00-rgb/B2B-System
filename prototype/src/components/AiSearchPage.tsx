@@ -255,11 +255,6 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
               >
                 <button type="button" onClick={() => setView(t)} className="hover:text-slate-800">
                   {TAB_LABELS[t]}
-                  {t === 'bookings' && bookings.length > 0 && (
-                    <span className="ml-1 rounded-full bg-brand-500 px-1.5 text-[9px] font-bold text-white">
-                      {bookings.length}
-                    </span>
-                  )}
                 </button>
                 <button
                   type="button"
