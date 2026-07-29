@@ -168,8 +168,9 @@ export default function OpPointsPage({
   const redeemedPts = redeemed.reduce((s, r) => s + usdToPoints(r.item.costUSD), 0);
   const balance = Math.round((summary.earned - redeemedPts) * 10) / 10;
 
-  // 포인트몰 — 고객 국가별. 국제 공통 + 선택 국가 로컬. (실제로는 계정 국가로 자동 결정)
-  const [country, setCountry] = useState<MallCountry>('KR');
+  // 포인트몰 — 거래처(고객) 국가별 하나만 노출. 실제로는 계정 국가로 자동 결정.
+  // 현재는 **대한민국 고정**(우선 한국만 노출). 다른 국가는 해당 거래처 접속 시 그 나라 몰만 표시.
+  const country: MallCountry = 'KR';
   const curr = MALL_COUNTRIES.find((c) => c.code === country) ?? MALL_COUNTRIES[0];
   const globalItems = globalItemsSorted();
   const localItems = localItemsSorted(country);
@@ -319,20 +320,16 @@ export default function OpPointsPage({
           <Card>
             <div className="mb-2 flex items-center justify-between gap-2">
               <p className="text-[13px] font-bold text-slate-800">포인트몰</p>
-              <select
-                value={country}
-                onChange={(e) => setCountry(e.target.value as MallCountry)}
-                className="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-700 focus:border-brand-400 focus:outline-none"
-                title="고객 국가 — 로컬 상품 노출 기준"
+              <span
+                className="inline-flex items-center gap-1 rounded border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-600"
+                title="거래처(고객) 국가 — 계정 국가로 자동 결정. 현재 대한민국."
               >
-                {MALL_COUNTRIES.map((c) => (
-                  <option key={c.code} value={c.code}>{c.flag} {c.label}</option>
-                ))}
-              </select>
+                {curr.flag} {curr.label}
+              </span>
             </div>
             <p className="mb-3 text-[10px] leading-relaxed text-slate-400">
               USD 기준 · 최소 USD 10 (예: USD 10 = {pt(usdToPoints(10))}). 화폐 금액 대신 포인트로 안내.
-              상품은 <b className="text-slate-500">고객 국가</b>에 따라 다릅니다 — 실제로는 계정 국가로 자동 결정.
+              포인트몰은 <b className="text-slate-500">거래처 국가별로 하나만</b> 노출됩니다 — 계정 국가로 자동 결정(현재 대한민국).
             </p>
 
             {/* 국제 공통 */}
