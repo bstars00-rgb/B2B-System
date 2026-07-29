@@ -92,6 +92,8 @@ export interface Accrual {
   ellisCode: string;
   hotelName: string;
   stayCompleted: string;
+  /** 결재 완료일 — Fully Paid만 값, 지불 대기(미완결)는 null. Booking에 없어 파생(아래). */
+  paidAt: string | null;
   currency: string;
   amount: number;
   paymentStatus: string;
@@ -99,6 +101,28 @@ export interface Accrual {
   multiplier: number;
   promoLabel: string | null;
   points: number;
+}
+
+const addDays = (iso: string, n: number) => new Date(new Date(`${iso}T00:00:00Z`).getTime() + n * 86400000).toISOString().slice(0, 10);
+function hashCode(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i += 1) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+/**
+ * 결재 완료일 파생 — Booking에 결제 일자가 없어 프로토타입용으로 결정론적 생성.
+ * 선불(예약 시 결제): 예약일 직후. 후불(체크아웃 후 결제): 체크아웃 직후.
+ * Fully Paid는 오늘까지 결제 완료됐으므로 오늘 이하로 클램프. 미완결은 null.
+ */
+function paidDate(b: Booking, today: string): string | null {
+  if (b.payment_status !== 'Fully Paid') return null;
+  const h = hashCode(b.ellis_code);
+  const raw =
+    h % 2 === 0
+      ? addDays(b.booking_date.slice(0, 10), 1 + (h % 3)) // 선불
+      : addDays(b.check_out, 1 + (h % 7)); // 후불
+  return raw > today ? today : raw;
 }
 
 /** 투숙 완료됐나 (Confirmed·체크아웃 경과) — 지불 여부는 별도 */
@@ -110,12 +134,13 @@ function isPaid(b: Booking): boolean {
   return b.payment_status === 'Fully Paid';
 }
 
-function toAccrual(b: Booking, promos: PointPromo[]): Accrual {
+function toAccrual(b: Booking, promos: PointPromo[], today: string): Accrual {
   const { multiplier, label } = promoFor(b, promos);
   return {
     ellisCode: b.ellis_code,
     hotelName: b.hotel_name,
     stayCompleted: b.check_out,
+    paidAt: paidDate(b, today),
     currency: b.currency,
     amount: b.sum_amt,
     paymentStatus: b.payment_status,
@@ -133,7 +158,7 @@ export function computeAccruals(bookings: Booking[], today: string, promos: Poin
   return bookings
     .filter((b) => isStayed(b, today) && isPaid(b))
     .sort((a, b) => b.check_out.localeCompare(a.check_out))
-    .map((b) => toAccrual(b, promos));
+    .map((b) => toAccrual(b, promos, today));
 }
 
 /**
@@ -144,7 +169,7 @@ export function computePending(bookings: Booking[], today: string, promos: Point
   return bookings
     .filter((b) => isStayed(b, today) && !isPaid(b))
     .sort((a, b) => b.check_out.localeCompare(a.check_out))
-    .map((b) => toAccrual(b, promos));
+    .map((b) => toAccrual(b, promos, today));
 }
 
 export interface OpPointSummary {

@@ -53,17 +53,25 @@ function AccrualTable({
 }) {
   return (
     <div className="max-h-[360px] overflow-auto rounded border border-slate-200">
-      <table className="w-full min-w-[640px] text-xs">
+      <table className="w-full min-w-[720px] text-xs">
         <thead className="sticky top-0 z-10">
           <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 [&>th]:sticky [&>th]:top-0 [&>th]:bg-slate-50">
             <th className="px-3 py-2 text-left font-semibold">예약 코드</th>
             <th className="px-3 py-2 text-left font-semibold">투숙 완료일</th>
+            <th className="px-3 py-2 text-left font-semibold">결재 완료일</th>
             <th className="px-3 py-2 text-left font-semibold">호텔</th>
             {showPayment && <th className="px-3 py-2 text-left font-semibold">결제</th>}
             <th className="px-3 py-2 text-right font-semibold">{pointHeader}</th>
           </tr>
         </thead>
         <tbody>
+          {rows.length === 0 && (
+            <tr>
+              <td colSpan={showPayment ? 6 : 5} className="px-3 py-6 text-center text-[11px] text-slate-400">
+                선택한 기간에 해당하는 내역이 없습니다.
+              </td>
+            </tr>
+          )}
           {rows.map((a) => {
             const pay = PAY_LABEL[a.paymentStatus] ?? { text: a.paymentStatus, cls: 'text-slate-500' };
             return (
@@ -79,6 +87,7 @@ function AccrualTable({
                   </button>
                 </td>
                 <td className="px-3 py-2 text-slate-600">{a.stayCompleted}</td>
+                <td className="px-3 py-2 text-slate-600">{a.paidAt ?? <span className="text-slate-400">— 미결제</span>}</td>
                 <td className="px-3 py-2 text-slate-700">
                   {a.hotelName}
                   {a.promoLabel && <PromoBadge label={a.promoLabel} />}
@@ -93,6 +102,8 @@ function AccrualTable({
     </div>
   );
 }
+
+type DateBasis = 'stay' | 'paid';
 
 export default function OpPointsPage({
   bookings,
@@ -111,6 +122,20 @@ export default function OpPointsPage({
   const accruals = useMemo(() => computeAccruals(bookings, today, promos), [bookings, today, promos]);
   const pending = useMemo(() => computePending(bookings, today, promos), [bookings, today, promos]);
   const pendingPoints = Math.round(pending.reduce((s, a) => s + a.points, 0) * 10) / 10;
+
+  // 날짜 필터 — 적립 내역·예정이 무한정 길어지지 않도록 기간으로 제한. 기본값 = 가장 최근 월.
+  const defaultRange = useMemo(() => {
+    const stays = bookings.filter((b) => b.status === 'Confirmed' && b.check_out < today).map((b) => b.check_out.slice(0, 10));
+    const maxStay = stays.length ? stays.reduce((m, d) => (d > m ? d : m)) : today;
+    return { from: `${maxStay.slice(0, 7)}-01`, to: maxStay };
+  }, [bookings, today]);
+  const [basis, setBasis] = useState<DateBasis>('stay');
+  const [range, setRange] = useState(defaultRange);
+
+  const inRange = (d: string | null) => !!d && (!range.from || d >= range.from) && (!range.to || d <= range.to);
+  // 적립 내역: 기준일(투숙 완료일/결재 완료일) 선택 적용. 예정: 결재 완료일이 없어 투숙 완료일 기준.
+  const fAccruals = useMemo(() => accruals.filter((a) => inRange(basis === 'stay' ? a.stayCompleted.slice(0, 10) : a.paidAt)), [accruals, basis, range]);
+  const fPending = useMemo(() => pending.filter((a) => inRange(a.stayCompleted.slice(0, 10))), [pending, range]);
   const summary = useMemo(() => summarize(accruals, today), [accruals, today]);
   const redeemedPts = redeemed.reduce((s, r) => s + usdToPoints(r.item.costUSD), 0);
   const balance = Math.round((summary.earned - redeemedPts) * 10) / 10;
@@ -177,10 +202,66 @@ export default function OpPointsPage({
           </ul>
         </Card>
 
+        {/* 기간 필터 — 적립 내역·예정 공통 (무한정 나열 방지) */}
+        <Card className="!p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[12px] font-bold text-slate-700">기간 필터</span>
+            <select
+              value={basis}
+              onChange={(e) => setBasis(e.target.value as DateBasis)}
+              className="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-700 focus:border-brand-400 focus:outline-none"
+              title="정렬·필터 기준일"
+            >
+              <option value="stay">투숙 완료일</option>
+              <option value="paid">결재 완료일</option>
+            </select>
+            <input
+              type="date"
+              value={range.from}
+              max={range.to || undefined}
+              onChange={(e) => setRange((r) => ({ ...r, from: e.target.value }))}
+              className="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-700 focus:border-brand-400 focus:outline-none"
+            />
+            <span className="text-slate-400">~</span>
+            <input
+              type="date"
+              value={range.to}
+              min={range.from || undefined}
+              onChange={(e) => setRange((r) => ({ ...r, to: e.target.value }))}
+              className="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-700 focus:border-brand-400 focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => setRange(defaultRange)}
+              className="rounded border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
+            >
+              최근 월
+            </button>
+            <button
+              type="button"
+              onClick={() => setRange({ from: '', to: '' })}
+              className="rounded border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
+            >
+              전체
+            </button>
+            <span className="ml-auto text-[10px] text-slate-400">
+              적립 <b className="text-slate-600">{fAccruals.length}</b>건 · 예정 <b className="text-slate-600">{fPending.length}</b>건 표시
+            </span>
+          </div>
+          {basis === 'paid' && (
+            <p className="mt-1.5 text-[10px] text-slate-400">※ ‘적립 예정’은 결재 완료일이 없어(지불 대기) 투숙 완료일 기준으로 필터됩니다.</p>
+          )}
+        </Card>
+
         {/* 적립 내역 (고객 뷰 — 금액·요율 비노출, 포인트·배수 배지만) */}
         <Card>
-          <p className="mb-2 text-[13px] font-bold text-slate-800">적립 내역 <span className="text-[11px] font-normal text-slate-400">(투숙 완료 + 지불 완료 · 최신순)</span></p>
-          <AccrualTable rows={accruals} onOpenBooking={onOpenBooking} pointHeader="적립 포인트" pointClass="text-brand-600" />
+          <p className="mb-2 text-[13px] font-bold text-slate-800">
+            적립 내역{' '}
+            <span className="text-[11px] font-normal text-slate-400">
+              (투숙 완료 + 지불 완료 · {basis === 'stay' ? '투숙 완료일' : '결재 완료일'}순 · 표시 {fAccruals.length}건 / 전체 {accruals.length}건)
+            </span>
+          </p>
+          <AccrualTable rows={fAccruals} onOpenBooking={onOpenBooking} pointHeader="적립 포인트" pointClass="text-brand-600" />
         </Card>
 
         {/* 적립 예정 (지불 대기 — 후불 등) */}
@@ -188,10 +269,10 @@ export default function OpPointsPage({
           <Card>
             <p className="mb-1 flex flex-wrap items-center gap-2 text-[13px] font-bold text-slate-800">
               적립 예정 <span className="rounded-sm bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">지불 대기 {pending.length}건</span>
-              <span className="text-[11px] font-normal text-slate-400">투숙은 완료됐으나 지불 미완결 — 지불 완료 시 적립</span>
+              <span className="text-[11px] font-normal text-slate-400">투숙은 완료됐으나 지불 미완결 — 지불 완료 시 적립 · 표시 {fPending.length}건</span>
             </p>
-            <p className="mb-2 text-[10px] text-slate-400">예정 포인트 합계 {pt(pendingPoints)} — 후불 업체는 체크아웃 후 지불이 완료되면 적립됩니다.</p>
-            <AccrualTable rows={pending} onOpenBooking={onOpenBooking} pointHeader="예정 포인트" pointClass="text-amber-600" showPayment />
+            <p className="mb-2 text-[10px] text-slate-400">예정 포인트 합계 {pt(pendingPoints)} — 후불 업체는 체크아웃 후 지불이 완료되면 적립됩니다. (투숙 완료일 기준 필터)</p>
+            <AccrualTable rows={fPending} onOpenBooking={onOpenBooking} pointHeader="예정 포인트" pointClass="text-amber-600" showPayment />
           </Card>
         )}
 
