@@ -18,7 +18,8 @@ import type { Booking } from '../types';
  *   · 유효기간 **1년**.
  *
  * ※ 폐기 용이성: 예약 데이터를 읽기만 함(Booking·seed 불변). 폐기 = opPoints.ts +
- *   OpPointsPage.tsx + opPointsMall.ts + opPointsPromos.ts + 사이드바 메뉴 한 줄 삭제.
+ *   OpPointsPage.tsx + opPointsPromos.ts + opAccounts.ts + 사이드바 메뉴 한 줄 삭제.
+ *   (리딤은 Tango aggregator 연동 — 상품몰 목데이터 없음.)
  */
 
 import type { PointPromo } from '../mocks/opPointsPromos';
@@ -188,4 +189,48 @@ export function summarize(accruals: Accrual[], today: string): OpPointSummary {
     promoCount: accruals.filter((a) => a.multiplier > 1).length,
     recentEarned: round1(accruals.filter((a) => a.stayCompleted >= cutoff).reduce((s, a) => s + a.points, 0)),
   };
+}
+
+/**
+ * 등급제 (HBX 벤치마크, 현업 2026-08 결정 — 등급 도입 + 자동적립).
+ * 최근 12개월 적립 포인트로 등급 결정, 등급이 오를수록 적립 부스트↑. **자동 가입(별도 가입/탈퇴 없음).**
+ * ※ 임계값·부스트는 프로토타입 값 — 정책 확정 시 갱신. 화면엔 절대 요율 대신 상대 부스트(+%)만 노출.
+ */
+export interface Tier {
+  name: string;
+  /** 승급 임계값 (12개월 적립 P) */
+  min: number;
+  /** 적립 부스트 배수 (1.0 = 기본). 화면엔 +% 로만 표기 */
+  boost: number;
+  /** 배지 색 */
+  color: string;
+}
+
+export const TIERS: Tier[] = [
+  { name: 'Bronze', min: 0, boost: 1.0, color: '#b45309' },
+  { name: 'Silver', min: 15, boost: 1.15, color: '#64748b' },
+  { name: 'Gold', min: 35, boost: 1.3, color: '#ca8a04' },
+  { name: 'Diamond', min: 70, boost: 1.5, color: '#0891b2' },
+];
+
+export interface TierStatus {
+  tier: Tier;
+  index: number;
+  next: Tier | null;
+  /** 다음 등급까지 필요한 적립 P (없으면 0) */
+  toNext: number;
+  /** 현재 구간 진행률 0~1 (막대용) */
+  progress: number;
+}
+
+/** 12개월 적립 포인트 → 등급 상태. */
+export function tierFor(earned12mo: number): TierStatus {
+  let index = 0;
+  for (let i = 0; i < TIERS.length; i += 1) if (earned12mo >= TIERS[i].min) index = i;
+  const tier = TIERS[index];
+  const next = index < TIERS.length - 1 ? TIERS[index + 1] : null;
+  const toNext = next ? Math.max(0, round1(next.min - earned12mo)) : 0;
+  const span = next ? next.min - tier.min : 1;
+  const progress = next ? Math.min(1, Math.max(0, (earned12mo - tier.min) / (span || 1))) : 1;
+  return { tier, index, next, toNext, progress };
 }
