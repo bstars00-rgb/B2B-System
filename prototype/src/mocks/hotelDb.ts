@@ -27,7 +27,7 @@ interface HotelSeed {
   roomType?: string;
   /**
    * 추천 호텔 — 목록 카드에 `Recommendation` 오렌지 배지 표시 + Recommendation 정렬 시 상단 노출.
-   * (닷비즈 원본 기능 — 오사카 데이터는 2026-07-15 실사이트 스크린샷 기준)
+   * (마켓플레이스 원본 기능 — 오사카 데이터는 2026-07-15 실사이트 스크린샷 기준)
    */
   recommended?: boolean;
 }

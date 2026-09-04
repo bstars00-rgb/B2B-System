@@ -6,7 +6,7 @@ import EnhBadge from './EnhBadge';
  * Seller 메뉴 전체(Dashboard/Bookings/Create Booking/FAQ Board/Notice)가 화면 전환 동작하고,
  * 상단 "Enter Menu name" 검색으로 메뉴를 필터링(한/영 키워드·일치 부분 하이라이트)한다.
  *
- * ※ AI 요금 검색 메뉴는 2026-07-27 삭제 — ELLIS MCP는 닷비즈 내장이 아니라 고객사 Claude 플러그인 방식.
+ * ※ AI 요금 검색 메뉴는 2026-07-27 삭제 — ELLIS MCP는 마켓플레이스 내장이 아니라 고객사 Claude 플러그인 방식.
  */
 
 export type PortalView = 'dashboard' | 'bookings' | 'create-booking' | 'op-points' | 'faq' | 'notice' | 'staff';
@@ -20,7 +20,7 @@ interface MenuItem {
   view: PortalView;
   label: string;
   badge?: string;
-  /** 닷비즈 원본에 없는 메뉴 — UP 배지로 표기 */
+  /** 마켓플레이스 원본에 없는 메뉴 — UP 배지로 표기 */
   enh?: string;
   /** 검색 보조 키워드 (한/영) — 라벨 외 검색어 매칭용 */
   keywords: string[];
@@ -42,7 +42,7 @@ const MENU: MenuSection[] = [
       {
         view: 'dashboard',
         label: 'Dashboard',
-        enh: '닷비즈에 없던 통계 화면 — 예약·매출·목적지·베스트셀러를 한 화면에서 확인',
+        enh: '마켓플레이스에 없던 통계 화면 — 예약·매출·목적지·베스트셀러를 한 화면에서 확인',
         keywords: ['대시보드', '통계', 'statistics', 'data center', '리포트', 'report'],
       },
       { view: 'bookings', label: 'Bookings', keywords: ['예약', '예약목록', 'reservation'] },
@@ -50,7 +50,7 @@ const MENU: MenuSection[] = [
       {
         view: 'op-points',
         label: 'OP Points',
-        enh: '오피포인트 — 닷비즈 예약·투숙 완료 고객 리워드(포인트몰 리딤)',
+        enh: '오피포인트 — 마켓플레이스 예약·투숙 완료 고객 리워드(포인트몰 리딤)',
         keywords: ['오피포인트', 'op point', '포인트', '리워드', '포인트몰', 'reward'],
       },
       { view: 'faq', label: 'FAQ Board', keywords: ['자주 묻는 질문', '게시판'] },

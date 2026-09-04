@@ -20,7 +20,7 @@ import { applyDark, loadDark, saveDark } from '../utils/theme';
 /**
  * Ohmy Partners 포털 셸 — 실사이트 클론(사이드바·탭·헤더·푸터) 안에 Seller 화면들을 배치.
  *
- * ※ AI 요금 검색(ELLIS MCP)은 2026-07-27 닷비즈 마켓에서 **삭제**됨 — ELLIS MCP는 닷비즈에
+ * ※ AI 요금 검색(ELLIS MCP)은 2026-07-27 마켓플레이스에서 **삭제**됨 — ELLIS MCP는 마켓플레이스에
  *   내장하지 않고 고객사 본인 Claude에 **플러그인**으로 붙이는 방식으로 방향 전환.
  *   (파일명 AiSearchPage는 이력상 유지. 관련 컴포넌트/목데이터는 미사용으로 제거됨.)
  */
@@ -77,7 +77,7 @@ function PortalAccountMenu({
           }
         }}
         className="text-[13px] opacity-70 hover:opacity-100"
-        title="고도화 표기(UP 배지) 표시/숨김 — 닷비즈 원본과 다른 지점을 확인"
+        title="고도화 표기(UP 배지) 표시/숨김 — 마켓플레이스 원본과 다른 지점을 확인"
       >
         ✨
       </button>

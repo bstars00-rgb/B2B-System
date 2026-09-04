@@ -4,7 +4,7 @@ import type { PortalLang } from '../utils/portalLang';
 
 interface Props {
   kind: 'faq' | 'notice';
-  /** 포털 전역 언어 설정 — 게시판 콘텐츠는 이 설정을 따라감 (닷비즈 원본 동작) */
+  /** 포털 전역 언어 설정 — 게시판 콘텐츠는 이 설정을 따라감 (마켓플레이스 원본 동작) */
   portalLang: PortalLang;
 }
 
@@ -12,7 +12,7 @@ interface Props {
  * 실제 포털 FAQ Board / Notice Board 클론.
  * 검색 바 → 카운트/페이지 크기 → 목록 그리드(Post SEQ 링크) → 페이저,
  * Post SEQ 클릭 시 상세 모달(제목·Register Date·Views·본문·Close).
- * 언어는 포털 전역 설정을 따라감(닷비즈 원본에 언어팩 영·한·중·베·일 존재) — 미번역 언어는 영어 폴백.
+ * 언어는 포털 전역 설정을 따라감(마켓플레이스 원본에 언어팩 영·한·중·베·일 존재) — 미번역 언어는 영어 폴백.
  */
 export default function BoardPage({ kind, portalLang }: Props) {
   const posts = kind === 'faq' ? FAQ_POSTS : NOTICE_POSTS;

@@ -330,7 +330,7 @@ export interface MonthlyBookingRow {
  * 월별 확정/취소/이연 — 예약일 기준(취소 건도 '언제 예약됐나'로 묶어야 취소율 분모가 맞는다).
  *
  * Deferred Credit: 확정됐지만 미수(Unpaid)인 예약 — 여신으로 나간 뒤 아직 정산되지 않은 건.
- * [확인 필요] 닷비즈의 실제 'Deferred Credit' 정의와 일치하는지 재무 확인 필요.
+ * [확인 필요] 마켓플레이스의 실제 'Deferred Credit' 정의와 일치하는지 재무 확인 필요.
  */
 export function monthlyBookingStats(bookings: Booking[], today: string, months = 6): MonthlyBookingRow[] {
   return lastMonths(today, months).map((m) => {

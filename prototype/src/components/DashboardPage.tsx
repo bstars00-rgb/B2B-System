@@ -39,7 +39,7 @@ import {
 } from '../utils/dashboardStats';
 
 /**
- * 대시보드(통계) — 닷비즈 원본에 없는 고도화 신규 화면.
+ * 대시보드(통계) — 마켓플레이스 원본에 없는 고도화 신규 화면.
  *
  * 모든 수치는 Bookings 예약 목록에서 파생된다(utils/dashboardStats.ts) — 화면에 고정값을 적어두면
  * 셀러가 Bookings와 나란히 놓고 보는 순간 어긋난다. 집계 기준일·기간 셀렉트도 실제로 동작한다.
@@ -283,7 +283,7 @@ export default function DashboardPage({
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="flex items-center gap-1.5 text-[15px] font-bold text-slate-800">
           Dashboard
-          <EnhBadge note="닷비즈에 없던 통계 화면 — 예약·매출·목적지·베스트셀러를 한 화면에서 확인" />
+          <EnhBadge note="마켓플레이스에 없던 통계 화면 — 예약·매출·목적지·베스트셀러를 한 화면에서 확인" />
         </h2>
         <div className="flex flex-wrap items-center gap-2">
           <select

@@ -10,7 +10,7 @@ interface Props {
 }
 
 /**
- * 닷비즈 대문 (로그인) — 트렌드형 리뉴얼 시안 구현.
+ * 마켓플레이스 대문 (로그인) — 트렌드형 리뉴얼 시안 구현.
  * 좌측: "우리는 누구인가/무엇을 하는가" 광고판 (loginCampaigns 주기 교체·로테이션)
  * 우측: Welcome back 로그인 패널 (다크모드 토글 · 약관/개인정보 모달은 로그인 밖에서 열람 가능)
  * Mock — 아무 값이나 입력해도 로그인되며, 자격증명은 자리표시자로 채워져 있다.
@@ -116,7 +116,7 @@ export default function LoginPage({ onLogin }: Props) {
             <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" aria-hidden />
           </span>
           <span>
-            <span className="block text-2xl font-extrabold tracking-wide text-white">DOTBIZ</span>
+            <span className="block text-2xl font-extrabold tracking-wide text-white">Marketplace</span>
             <span className="block text-[11px] tracking-[0.2em] text-slate-400">BY OHMYHOTEL&amp;CO</span>
           </span>
         </div>
@@ -204,7 +204,7 @@ export default function LoginPage({ onLogin }: Props) {
         {/* 폼 */}
         <form onSubmit={submit} className="mx-auto mt-24 w-full max-w-[360px] flex-1">
           <h2 className="text-2xl font-bold">Welcome back</h2>
-          <p className={`mt-1 text-[13px] ${subText}`}>Sign in to your DOTBIZ account</p>
+          <p className={`mt-1 text-[13px] ${subText}`}>Sign in to your Marketplace account</p>
 
           <label className={`mt-8 block text-[12px] font-medium ${labelText}`}>
             Email <b className="text-rose-500">*</b>
@@ -276,7 +276,7 @@ export default function LoginPage({ onLogin }: Props) {
                 onClick={() => setLegal('agreement')}
                 className="font-semibold text-brand-500 underline underline-offset-2 hover:text-brand-600"
               >
-                DOTBIZ Platform Service Agreement
+                Marketplace Platform Service Agreement
               </button>
               ,{' '}
               <button
@@ -301,7 +301,7 @@ export default function LoginPage({ onLogin }: Props) {
 
           <div className="mt-6 flex items-center gap-3">
             <span className={`h-px flex-1 ${dark ? 'bg-slate-700' : 'bg-slate-200'}`} />
-            <span className={`text-[11px] ${subText}`}>New to DOTBIZ?</span>
+            <span className={`text-[11px] ${subText}`}>New to Marketplace?</span>
             <span className={`h-px flex-1 ${dark ? 'bg-slate-700' : 'bg-slate-200'}`} />
           </div>
 
