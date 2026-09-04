@@ -9,7 +9,7 @@ import { OP_ACCOUNTS, opAccountIdFor } from '../mocks/opAccounts';
 /**
  * OP 포인트 — 오피포인트. **프로토타입 · 폐기 가능.**
  *
- * 심플 지향(리딤은 포인트몰 외주=Tango aggregator 연동이라 우리 화면은 최소로). CI는 OHMYHOTEL 브랜드(오렌지).
+ * 포털(Dashboard) 카드 스타일과 통일한 풀폭 레이아웃. 리딤은 포인트몰 외주(Tango aggregator) 연동이라 우리 화면은 최소.
  * OP = 마켓플레이스 이용 고객. 예약·투숙 완료+지불 완료 시 자동 적립 → 등급제(Bronze~Diamond) → Tango 교환.
  * 적립 요율·계산식 비노출(배수 배지·상대 부스트만). 계정별 분리. 유효기간 1년.
  *
@@ -27,22 +27,8 @@ function PromoBadge({ label }: { label: string }) {
   return <span className="ml-1 rounded-sm bg-brand-500 px-1.5 py-0.5 text-[9px] font-bold text-white">{label} 적립</span>;
 }
 
-/** 반원 게이지 — 등급 진행률(원형). */
-function Gauge({ progress, center, sub }: { progress: number; center: string; sub: string }) {
-  const R = 90;
-  const len = Math.PI * R; // 반원 길이
-  return (
-    <div className="relative w-[200px]">
-      <svg viewBox="0 0 220 128" className="w-full">
-        <path d="M20 115 A90 90 0 0 1 200 115" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="13" strokeLinecap="round" />
-        <path d="M20 115 A90 90 0 0 1 200 115" fill="none" stroke="#fff" strokeWidth="13" strokeLinecap="round" strokeDasharray={`${Math.max(0, progress) * len} ${len}`} />
-      </svg>
-      <div className="pointer-events-none absolute inset-x-0 bottom-2 flex flex-col items-center">
-        <p className="text-2xl font-extrabold leading-none text-white">{center}</p>
-        <p className="mt-1 text-[10px] font-medium text-white/85">{sub}</p>
-      </div>
-    </div>
-  );
+function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return <div className={`rounded-lg border border-slate-200 bg-white p-4 shadow-sm ${className}`}>{children}</div>;
 }
 
 export default function OpPointsPage({
@@ -56,10 +42,8 @@ export default function OpPointsPage({
   const [promos, setPromos] = useState<PointPromo[]>(SEED_PROMOS);
   const [toast, setToast] = useState<string | null>(null);
   const [showEllis, setShowEllis] = useState(false);
-  const [modal, setModal] = useState<'summary' | 'redeem' | 'tiers' | null>(null);
-  const [selValue, setSelValue] = useState<number | null>(null); // 교환 모달 내 선택값
+  const [redeemValue, setRedeemValue] = useState<number | null>(null);
 
-  // 로그인 OP 계정 — 포인트는 계정별 분리 (프로토타입: 세션의 OP로 고정)
   const accountId = OP_ACCOUNTS[0].id;
   const account = OP_ACCOUNTS.find((a) => a.id === accountId) ?? OP_ACCOUNTS[0];
   const myBookings = useMemo(() => bookings.filter((b) => opAccountIdFor(b.ellis_code) === accountId), [bookings, accountId]);
@@ -82,131 +66,161 @@ export default function OpPointsPage({
   }, [today]);
   const expiringPoints = r1(accruals.filter((a) => a.stayCompleted < expiryCut).reduce((s, a) => s + a.points, 0));
 
-  const openRedeem = () => { setSelValue(null); setModal('redeem'); };
   const doRedeem = (points: number) => {
     if (balance < points) { setToast(`포인트가 부족합니다 (필요 ${pt(points)}, 사용 가능 ${pt(balance)})`); return; }
     const rec: TangoRedemption = { id: `${Date.now()}-${points}`, points, at: today };
     setRedeemedMap((prev) => ({ ...prev, [accountId]: [rec, ...(prev[accountId] ?? [])] }));
-    setModal(null); setSelValue(null);
+    setRedeemValue(null);
     setToast(`✓ ${pt(points)} 교환 — 고유 Tango 교환 링크가 이메일(${account.id})로 발송되었습니다. (데모)`);
   };
 
   const setPromo = (id: string, patch: Partial<PointPromo>) =>
     setPromos((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
 
-  const closeModal = () => { setModal(null); setSelValue(null); };
+  const Stat = ({ label, value, cls = 'text-slate-800' }: { label: string; value: string; cls?: string }) => (
+    <div className="px-4">
+      <p className="text-[11px] text-slate-500">{label}</p>
+      <p className={`text-xl font-extrabold ${cls}`}>{value}</p>
+    </div>
+  );
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50">
-      <div className="mx-auto max-w-[1080px] space-y-4 p-4">
+    <div className="min-h-0 w-full flex-1 overflow-y-auto bg-slate-50 p-4">
+      <div className="space-y-3">
         {/* 헤더 */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="flex items-center gap-1.5 text-[15px] font-bold text-slate-800">
             OP Points — 리워드
             <EnhBadge note="오피포인트 — 자동 적립 + 등급제 + Tango(외주 포인트몰) 교환. 프로토타입" />
           </h2>
-          <span className="text-[11px] text-slate-400">{account.name}</span>
+          <span className="text-[11px] text-slate-400">{account.name} · <span className="font-mono">{account.id}</span></span>
         </div>
 
-        {/* 히어로 배너 (OHMYHOTEL CI · 오렌지) */}
-        <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-brand-500 to-brand-600 shadow-sm">
-          <div className="flex flex-col items-center gap-6 p-6 sm:flex-row sm:justify-between sm:gap-4">
-            {/* 멤버십 카드 */}
-            <div
-              className="w-full max-w-[300px] rounded-xl p-5 text-white shadow-lg ring-1 ring-white/20"
-              style={{ background: `linear-gradient(135deg, ${tierStatus.tier.color}, ${tierStatus.tier.color}bb)` }}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-[0.16em] opacity-90">OHMYHOTEL · OP POINTS</span>
-                <span aria-hidden>◇</span>
+        {/* 등급 + 포인트 스트립 (풀폭) */}
+        <Card className="!p-0">
+          <div className="flex flex-col gap-4 p-4 xl:flex-row xl:items-center">
+            {/* 등급 */}
+            <div className="flex shrink-0 items-center gap-3">
+              <span className="flex h-11 w-11 items-center justify-center rounded-lg text-lg font-black text-white shadow-sm" style={{ background: tierStatus.tier.color }}>
+                {tierStatus.tier.name[0]}
+              </span>
+              <div>
+                <p className="text-[11px] text-slate-500">현재 등급</p>
+                <p className="text-lg font-extrabold leading-tight" style={{ color: tierStatus.tier.color }}>
+                  {tierStatus.tier.name} <span className="text-[12px] font-bold text-brand-600">{boostPct > 0 ? `+${boostPct}% 적립` : '기본'}</span>
+                </p>
               </div>
-              <p className="mt-6 text-lg font-extrabold">{account.name}</p>
-              <p className="text-[11px] opacity-80">{account.id}</p>
-              <p className="mt-3 inline-block rounded-md bg-white/20 px-2.5 py-1 text-[12px] font-bold">{tierStatus.tier.name} MEMBER</p>
             </div>
 
-            {/* 등급 진행 게이지 */}
-            <div className="flex flex-col items-center text-center text-white">
-              <p className="text-lg font-extrabold">
-                {tierStatus.next ? <>다음 등급 · {tierStatus.next.name}</> : '최고 등급 달성 🎉'}
+            {/* 진행 막대 (가운데, 늘어남) */}
+            <div className="min-w-0 flex-1 xl:px-4">
+              <div className="mb-1 flex items-center justify-between text-[11px]">
+                <span className="text-slate-500">
+                  {tierStatus.next ? <>다음 등급 <b style={{ color: tierStatus.next.color }}>{tierStatus.next.name}</b>까지 <b className="text-brand-600">{pt(tierStatus.toNext)}</b></> : <b className="text-slate-700">최고 등급 달성 🎉</b>}
+                </span>
+                <span className="text-slate-400">12개월 총적립 {pt(summary.earned)}</span>
+              </div>
+              <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+                <div className="h-full rounded-full transition-all" style={{ width: `${Math.round(tierStatus.progress * 100)}%`, background: tierStatus.tier.color }} />
+              </div>
+              <div className="mt-1 flex justify-between">
+                {TIERS.map((t, i) => (
+                  <span key={t.name} className={`text-[10px] font-semibold ${i === tierStatus.index ? '' : 'text-slate-300'}`} style={i === tierStatus.index ? { color: t.color } : undefined}>{t.name}</span>
+                ))}
+              </div>
+            </div>
+
+            {/* 포인트 통계 (우측) */}
+            <div className="flex shrink-0 items-center divide-x divide-slate-200 rounded-lg bg-slate-50 py-2">
+              <Stat label="사용 가능" value={pt(balance)} cls="text-brand-600" />
+              <Stat label="총적립" value={pt(summary.earned)} />
+              <Stat label="사용(교환)" value={pt(redeemedPts)} />
+              <Stat label="만료 예정" value={pt(expiringPoints)} cls="text-rose-500" />
+            </div>
+          </div>
+        </Card>
+
+        {/* 본문 2단 (풀폭) — 좌: 적립 내역(넓게) / 우: Tango 교환 */}
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
+          {/* 적립 내역 */}
+          <Card className="min-w-0">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-[13px] font-bold text-slate-800">적립 내역 <span className="text-[11px] font-normal text-slate-400">({accruals.length}건 · 투숙 완료 + 지불 완료 자동 적립)</span></p>
+              <span className="text-[10px] text-slate-400">예약 코드 클릭 시 예약으로 이동</span>
+            </div>
+            <div className="max-h-[560px] overflow-auto rounded-lg border border-slate-200">
+              <table className="w-full text-xs">
+                <thead className="sticky top-0 z-10">
+                  <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 [&>th]:sticky [&>th]:top-0 [&>th]:bg-slate-50">
+                    <th className="px-4 py-2.5 text-left font-semibold">날짜</th>
+                    <th className="px-4 py-2.5 text-left font-semibold">예약 코드</th>
+                    <th className="px-4 py-2.5 text-left font-semibold">호텔</th>
+                    <th className="px-4 py-2.5 text-right font-semibold">적립 포인트</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {accruals.length === 0 && <tr><td colSpan={4} className="px-4 py-10 text-center text-[11px] text-slate-400">아직 적립 내역이 없습니다.</td></tr>}
+                  {accruals.map((a: Accrual) => (
+                    <tr key={a.ellisCode} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70">
+                      <td className="px-4 py-2.5 text-slate-600">{a.stayCompleted}</td>
+                      <td className="px-4 py-2.5">
+                        <button type="button" onClick={() => onOpenBooking(a.ellisCode)} className="font-mono text-[11px] text-brand-600 underline underline-offset-2 hover:text-brand-700" title="이 예약을 Bookings에서 보기">{a.ellisCode}</button>
+                      </td>
+                      <td className="px-4 py-2.5 text-slate-700">{a.hotelName}{a.promoLabel && <PromoBadge label={a.promoLabel} />}</td>
+                      <td className="px-4 py-2.5 text-right font-bold text-brand-600">+{pt(a.points)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+
+          {/* Tango 교환 */}
+          <div className="min-w-0 space-y-3">
+            <Card>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="text-[13px] font-bold text-slate-800">기프트카드 교환</p>
+                <span className="rounded bg-[#4b2fbf] px-2 py-0.5 text-[10px] font-extrabold tracking-wide text-white">TANGO</span>
+              </div>
+              <p className="mb-3 text-[10px] leading-relaxed text-slate-400">
+                포인트를 <b className="text-slate-500">Tango 기프트카드</b>로 교환 — 값 선택 → <b>이메일 링크</b> → Tango에서 1,000+ 브랜드 중 선택. 상품몰은 외주(Tango)가 운영, 최소 {pt(MIN_REDEEM)}부터.
               </p>
-              {tierStatus.next && <p className="text-[12px] font-semibold text-white/90">다음 등급까지 {pt(tierStatus.toNext)}</p>}
-              <div className="mt-1">
-                <Gauge progress={tierStatus.progress} center={pt(summary.earned)} sub="12개월 총적립" />
-              </div>
-              <button
-                type="button"
-                onClick={() => setModal('tiers')}
-                className="rounded-md bg-white/20 px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-white/30"
-              >
-                등급 안내 {boostPct > 0 ? `· ${tierStatus.tier.name} +${boostPct}%` : ''}
-              </button>
-            </div>
-
-            {/* 여백/장식 */}
-            <div className="hidden w-[120px] shrink-0 lg:block" aria-hidden />
-          </div>
-        </div>
-
-        {/* Points & Rewards */}
-        <div>
-          <p className="mb-2 text-[15px] font-bold text-slate-800">Points &amp; Rewards</p>
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[300px_minmax(0,1fr)]">
-            {/* 사용 가능 + 포인트 내역 */}
-            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="rounded-xl border border-brand-200 bg-brand-50 p-4 text-center">
-                <span className="mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full bg-brand-500 text-white">🏆</span>
+              <div className="rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-center">
+                <p className="text-[10px] text-brand-600/80">사용 가능</p>
                 <p className="text-2xl font-extrabold text-brand-600">{pt(balance)}</p>
-                <p className="text-[11px] font-semibold text-brand-600/80">사용 가능 포인트</p>
               </div>
-              <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500">
-                <span>만료 예정 <b className="text-slate-700">{pt(expiringPoints)}</b></span>
-                <span>총적립 <b className="text-slate-700">{pt(summary.earned)}</b></span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setModal('summary')}
-                className="mt-3 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-[12px] font-semibold text-slate-600 hover:bg-slate-50"
-              >
-                포인트 내역
-              </button>
-            </div>
-
-            {/* Tango 교환 */}
-            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                <div className="flex h-[110px] w-full max-w-[260px] items-center justify-center rounded-xl bg-[#4b2fbf] text-white shadow-inner">
-                  <div className="text-center">
-                    <p className="text-2xl font-extrabold tracking-wide">TANGO</p>
-                    <p className="text-[11px] opacity-90">Gift card</p>
-                  </div>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[14px] font-bold text-slate-800">기프트카드로 교환</p>
-                  <p className="mt-1 text-[12px] leading-relaxed text-slate-500">
-                    적립 포인트를 <b>Tango 기프트카드</b>로 교환하고, 이메일로 받은 링크에서 <b>1,000+ 브랜드</b> 중 선택하세요.
-                  </p>
-                  <div className="mt-3 flex items-center justify-between">
-                    <span className="text-[12px] text-slate-500">최소 <b className="text-slate-700">{pt(MIN_REDEEM)}</b>부터</span>
-                    <button
-                      type="button"
-                      onClick={openRedeem}
-                      disabled={balance < MIN_REDEEM}
-                      className={`rounded-lg px-4 py-2 text-[12px] font-bold ${balance < MIN_REDEEM ? 'cursor-not-allowed bg-slate-100 text-slate-400' : 'bg-slate-800 text-white hover:bg-slate-900'}`}
-                    >
-                      교환하기 →
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {REDEEM_VALUES.map((v) => {
+                  const ok = balance >= v;
+                  return (
+                    <button key={v} type="button" onClick={() => setRedeemValue(v)} disabled={!ok}
+                      className={`rounded-lg border p-3 text-center transition ${ok ? 'border-slate-200 hover:border-brand-300 hover:bg-slate-50' : 'cursor-not-allowed border-slate-100 bg-slate-50 opacity-60'}`}>
+                      <p className="text-[15px] font-extrabold text-slate-800">{pt(v)}</p>
+                      <p className="mt-0.5 text-[10px] text-slate-400">{ok ? 'Tango 교환' : '포인트 부족'}</p>
                     </button>
-                  </div>
-                </div>
+                  );
+                })}
               </div>
-            </div>
+            </Card>
+
+            {redeemed.length > 0 && (
+              <Card>
+                <p className="mb-1.5 text-[12px] font-bold text-slate-800">교환 내역 <span className="text-[11px] font-normal text-slate-400">(Tango {redeemed.length}건)</span></p>
+                <div className="space-y-1">
+                  {redeemed.map((v) => (
+                    <div key={v.id} className="flex items-center justify-between rounded border border-slate-200 px-3 py-1.5 text-[11px]">
+                      <span className="text-slate-600">{v.at} · Tango 기프트카드</span>
+                      <span className="rounded-sm bg-emerald-50 px-1.5 py-px text-[9px] font-bold text-emerald-600">이메일 발송 · −{pt(v.points)}</span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
           </div>
         </div>
 
-        {/* 이용 안내 (간단) */}
-        <p className="text-[11px] leading-relaxed text-slate-400">
-          예약이 <b>투숙 완료 + 지불 완료</b>되면 <b>자동 적립</b>(취소·노쇼·환불 제외). <b>등급이 오를수록 더 많이 적립</b>됩니다.
-          프로모션 호텔은 추가 적립(배수 배지). 포인트는 <b>OP 계정별로 분리</b>되고 유효기간 <b>1년</b>. 상품 교환은 <b>Tango(외주 포인트몰)</b>가 처리합니다.
+        <p className="text-[10px] leading-relaxed text-slate-400">
+          예약이 <b>투숙 완료 + 지불 완료</b>되면 <b>자동 적립</b>(취소·노쇼·환불 제외). 등급이 오를수록 더 많이 적립되고, 프로모션 호텔은 추가 적립(배수 배지). 포인트는 <b>OP 계정별 분리</b>({account.name} 예약 {myBookings.length}건 중 {summary.eligibleCount}건 적립)·유효기간 1년. 상품 교환은 <b>Tango(외주 포인트몰)</b> 처리. 교환은 세션 내 표시(새로고침 시 초기화). 정책 확정: 기본 요율·등급 임계값/부스트·환율·연간 교환 한도·세무·Tango 정산.
         </p>
 
         {/* ELLIS 내부 프로모 관리 (고객 비노출) */}
@@ -218,7 +232,7 @@ export default function OpPointsPage({
           {showEllis && (
             <div className="mt-3">
               <p className="mb-2 text-[11px] leading-relaxed text-slate-500">
-                포인트 배수는 <b className="text-slate-700">ELLIS 내부</b>에서만 변경 — <b>지정 호텔 · 기간(예약일) · 룸타입</b>. 고객 화면엔 요율(내부 기본 {OP_POINT_POLICY.baseRatePct}%)이 아니라 <b>배수 배지</b>로만 노출. 값 변경 시 적립 즉시 재계산.
+                포인트 배수는 <b className="text-slate-700">ELLIS 내부</b>에서만 변경 — <b>지정 호텔 · 기간(예약일) · 룸타입</b>. 고객 화면엔 요율(내부 기본 {OP_POINT_POLICY.baseRatePct}%)이 아니라 <b>배수 배지</b>로만 노출. 값 변경 시 위 적립 내역 즉시 재계산.
               </p>
               <div className="overflow-x-auto rounded border border-slate-200 bg-white">
                 <table className="w-full min-w-[720px] text-[11px]">
@@ -256,128 +270,27 @@ export default function OpPointsPage({
         </div>
       </div>
 
-      {/* ===== 모달 ===== */}
-      {modal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4" onClick={closeModal}>
-          <div className="flex max-h-[85vh] w-full max-w-[540px] flex-col overflow-hidden rounded-xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      {/* Tango 교환 확인 팝업 */}
+      {redeemValue !== null && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4" onClick={() => setRedeemValue(null)}>
+          <div className="w-[360px] overflow-hidden rounded-xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3">
-              <span className="text-sm font-bold text-slate-800">
-                {modal === 'summary' ? '포인트 내역' : modal === 'redeem' ? 'Tango 기프트카드 교환' : '등급 안내'}
-              </span>
-              <button type="button" onClick={closeModal} className="text-slate-400 hover:text-slate-700" aria-label="닫기">✕</button>
+              <span className="text-sm font-bold text-slate-800">Tango 교환 확인</span>
+              <button type="button" onClick={() => setRedeemValue(null)} className="text-slate-400 hover:text-slate-700" aria-label="닫기">✕</button>
             </div>
-
-            {/* 포인트 내역 */}
-            {modal === 'summary' && (
-              <div className="overflow-y-auto px-5 py-4">
-                <div className="grid grid-cols-3 gap-2">
-                  {[['사용 가능', balance, 'text-brand-600'], ['총적립', summary.earned, 'text-slate-800'], ['만료 예정', expiringPoints, 'text-rose-500']].map(([lbl, val, cls]) => (
-                    <div key={lbl as string} className="rounded-lg border border-slate-200 p-2.5 text-center">
-                      <p className={`text-lg font-extrabold ${cls}`}>{pt(val as number)}</p>
-                      <p className="text-[10px] text-slate-400">{lbl as string}</p>
-                    </div>
-                  ))}
-                </div>
-                <p className="mb-1 mt-3 text-[11px] font-semibold text-slate-500">적립 내역 ({accruals.length}건) · 예약 코드 클릭 시 예약으로 이동</p>
-                <div className="max-h-[300px] overflow-auto rounded-lg border border-slate-200">
-                  <table className="w-full text-xs">
-                    <thead className="sticky top-0">
-                      <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 [&>th]:sticky [&>th]:top-0 [&>th]:bg-slate-50">
-                        <th className="px-3 py-2 text-left font-semibold">날짜</th>
-                        <th className="px-3 py-2 text-left font-semibold">예약 · 호텔</th>
-                        <th className="px-3 py-2 text-right font-semibold">포인트</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {accruals.length === 0 && <tr><td colSpan={3} className="px-3 py-8 text-center text-[11px] text-slate-400">아직 적립 내역이 없습니다.</td></tr>}
-                      {accruals.map((a: Accrual) => (
-                        <tr key={a.ellisCode} className="border-b border-slate-100 last:border-0">
-                          <td className="px-3 py-2 text-slate-600">{a.stayCompleted}</td>
-                          <td className="px-3 py-2">
-                            <button type="button" onClick={() => { closeModal(); onOpenBooking(a.ellisCode); }} className="font-mono text-[11px] text-brand-600 underline underline-offset-2 hover:text-brand-700">{a.ellisCode}</button>
-                            <span className="ml-1.5 text-slate-600">{a.hotelName}</span>
-                            {a.promoLabel && <PromoBadge label={a.promoLabel} />}
-                          </td>
-                          <td className="px-3 py-2 text-right font-bold text-brand-600">+{pt(a.points)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                {redeemed.length > 0 && (
-                  <>
-                    <p className="mb-1 mt-3 text-[11px] font-semibold text-slate-500">교환 내역 (Tango {redeemed.length}건)</p>
-                    <div className="space-y-1">
-                      {redeemed.map((v) => (
-                        <div key={v.id} className="flex items-center justify-between rounded border border-slate-200 px-3 py-1.5 text-[11px]">
-                          <span className="text-slate-600">{v.at} · Tango 기프트카드</span>
-                          <span className="font-bold text-slate-500">−{pt(v.points)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
+            <div className="px-5 py-4">
+              <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                <span className="flex items-center gap-1.5 text-[12px] font-semibold text-slate-700"><span className="rounded bg-[#4b2fbf] px-1.5 py-0.5 text-[9px] font-extrabold text-white">TANGO</span> 기프트카드</span>
+                <span className="text-[15px] font-extrabold text-brand-600">{pt(redeemValue)} 차감</span>
               </div>
-            )}
-
-            {/* Tango 교환 */}
-            {modal === 'redeem' && (
-              <div className="overflow-y-auto px-5 py-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-16 w-24 items-center justify-center rounded-lg bg-[#4b2fbf] text-white">
-                    <div className="text-center"><p className="text-sm font-extrabold">TANGO</p><p className="text-[9px] opacity-90">Gift card</p></div>
-                  </div>
-                  <div>
-                    <p className="text-[13px] font-bold text-slate-800">사용 가능 {pt(balance)}</p>
-                    <p className="text-[11px] text-slate-400">교환 값을 선택하세요</p>
-                  </div>
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {REDEEM_VALUES.map((v) => {
-                    const ok = balance >= v;
-                    const sel = selValue === v;
-                    return (
-                      <button key={v} type="button" disabled={!ok} onClick={() => setSelValue(v)}
-                        className={`rounded-lg border p-3 text-center transition ${sel ? 'border-brand-500 bg-brand-50 ring-1 ring-brand-300' : ok ? 'border-slate-200 hover:border-brand-300' : 'cursor-not-allowed border-slate-100 bg-slate-50 opacity-60'}`}>
-                        <p className="text-[15px] font-extrabold text-slate-800">{pt(v)}</p>
-                        <p className="mt-0.5 text-[10px] text-slate-400">{ok ? 'Tango' : '부족'}</p>
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="mt-3 text-[11px] leading-relaxed text-slate-400">
-                  ※ 실제 기프트카드 액면가·브랜드는 <b>Tango</b>에서 선택합니다(우리 화면은 포인트만). 확정 시 <b>{account.id}</b>로 고유 교환 링크가 발송됩니다. <b className="text-rose-500">교환은 취소할 수 없습니다.</b>
-                </p>
-                {selValue && <p className="mt-1 text-[11px] text-slate-500">교환 후 사용 가능 <b>{pt(r1(balance - selValue))}</b></p>}
-              </div>
-            )}
-
-            {/* 등급 안내 */}
-            {modal === 'tiers' && (
-              <div className="overflow-y-auto px-5 py-4">
-                <p className="text-[12px] leading-relaxed text-slate-600">최근 <b>12개월 적립 포인트</b>로 등급이 결정됩니다(자동, 별도 가입 없음). <b>등급이 오를수록 더 많이 적립</b>됩니다.</p>
-                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {TIERS.map((t, i) => (
-                    <div key={t.name} className={`rounded-lg border p-3 text-center ${i === tierStatus.index ? 'border-brand-300 bg-brand-50' : 'border-slate-200'}`}>
-                      <p className="text-[13px] font-extrabold" style={{ color: t.color }}>{t.name}</p>
-                      <p className="mt-0.5 text-[10px] text-slate-400">{t.min === 0 ? '기본 등급' : `${pt(t.min)}~`}</p>
-                      <p className="mt-1 text-[12px] font-bold text-slate-700">{t.boost > 1 ? `+${Math.round((t.boost - 1) * 100)}% 적립` : '기본 적립'}</p>
-                      {i === tierStatus.index && <p className="mt-1 text-[9px] font-bold text-brand-600">현재 등급</p>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 푸터 액션 */}
+              <p className="mt-2 text-[10px] text-slate-400">교환 후 사용 가능 {pt(r1(balance - redeemValue))}</p>
+              <p className="mt-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-medium leading-relaxed text-rose-600">
+                ⚠ 교환은 <b>취소할 수 없습니다.</b> 확정 시 <b>{account.id}</b>로 <b>고유 Tango 교환 링크</b>가 발송됩니다.
+              </p>
+            </div>
             <div className="flex gap-2 border-t border-slate-200 px-5 py-3">
-              <button type="button" onClick={closeModal} className="flex-1 rounded border border-slate-300 bg-white px-3 py-2 text-[12px] font-semibold text-slate-600 hover:bg-slate-50">닫기</button>
-              {modal === 'redeem' && (
-                <button type="button" disabled={!selValue} onClick={() => selValue && doRedeem(selValue)}
-                  className={`flex-1 rounded px-3 py-2 text-[12px] font-bold ${selValue ? 'bg-brand-500 text-white hover:bg-brand-600' : 'cursor-not-allowed bg-slate-100 text-slate-400'}`}>
-                  {selValue ? `${pt(selValue)} 교환하기` : '값을 선택하세요'}
-                </button>
-              )}
+              <button type="button" onClick={() => setRedeemValue(null)} className="flex-1 rounded border border-slate-300 bg-white px-3 py-2 text-[12px] font-semibold text-slate-600 hover:bg-slate-50">닫기</button>
+              <button type="button" onClick={() => doRedeem(redeemValue)} className="flex-1 rounded bg-brand-500 px-3 py-2 text-[12px] font-semibold text-white hover:bg-brand-600">교환하기</button>
             </div>
           </div>
         </div>
