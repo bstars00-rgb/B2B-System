@@ -66,6 +66,17 @@ export default function OpPointsPage({
   }, [today]);
   const expiringPoints = r1(accruals.filter((a) => a.stayCompleted < expiryCut).reduce((s, a) => s + a.points, 0));
 
+  // 적립 내역 기간 필터 (최근 N개월 / 전체)
+  const [period, setPeriod] = useState<'3m' | '6m' | '1y' | 'all'>('6m');
+  const shownAccruals = useMemo(() => {
+    if (period === 'all') return accruals;
+    const months = period === '3m' ? 3 : period === '6m' ? 6 : 12;
+    const d = new Date(`${today}T00:00:00Z`);
+    d.setUTCMonth(d.getUTCMonth() - months);
+    const cut = d.toISOString().slice(0, 10);
+    return accruals.filter((a) => a.stayCompleted >= cut);
+  }, [accruals, period, today]);
+
   const doRedeem = (points: number) => {
     if (balance < points) { setToast(`포인트가 부족합니다 (필요 ${pt(points)}, 사용 가능 ${pt(balance)})`); return; }
     const rec: TangoRedemption = { id: `${Date.now()}-${points}`, points, at: today };
@@ -145,8 +156,23 @@ export default function OpPointsPage({
           {/* 적립 내역 */}
           <Card className="min-w-0">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <p className="text-[13px] font-bold text-slate-800">적립 내역 <span className="text-[11px] font-normal text-slate-400">({accruals.length}건 · 투숙 완료 + 지불 완료 자동 적립)</span></p>
-              <span className="text-[10px] text-slate-400">예약 코드 클릭 시 예약으로 이동</span>
+              <p className="text-[13px] font-bold text-slate-800">
+                적립 내역 <span className="text-[11px] font-normal text-slate-400">(표시 {shownAccruals.length}건 / 전체 {accruals.length}건 · 투숙+지불 완료 자동 적립)</span>
+              </p>
+              <div className="flex items-center gap-2">
+                <select
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value as '3m' | '6m' | '1y' | 'all')}
+                  className="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-700 focus:border-brand-400 focus:outline-none"
+                  title="적립 내역 기간"
+                >
+                  <option value="3m">최근 3개월</option>
+                  <option value="6m">최근 6개월</option>
+                  <option value="1y">최근 1년</option>
+                  <option value="all">전체</option>
+                </select>
+                <span className="text-[10px] text-slate-400">예약 코드 클릭 시 이동</span>
+              </div>
             </div>
             <div className="max-h-[560px] overflow-auto rounded-lg border border-slate-200">
               <table className="w-full text-xs">
@@ -159,8 +185,8 @@ export default function OpPointsPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {accruals.length === 0 && <tr><td colSpan={4} className="px-4 py-10 text-center text-[11px] text-slate-400">아직 적립 내역이 없습니다.</td></tr>}
-                  {accruals.map((a: Accrual) => (
+                  {shownAccruals.length === 0 && <tr><td colSpan={4} className="px-4 py-10 text-center text-[11px] text-slate-400">{accruals.length === 0 ? '아직 적립 내역이 없습니다.' : '선택한 기간에 해당하는 적립 내역이 없습니다.'}</td></tr>}
+                  {shownAccruals.map((a: Accrual) => (
                     <tr key={a.ellisCode} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70">
                       <td className="px-4 py-2.5 text-slate-600">{a.stayCompleted}</td>
                       <td className="px-4 py-2.5">
