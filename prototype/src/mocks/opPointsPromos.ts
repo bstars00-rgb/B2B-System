@@ -22,6 +22,8 @@ export interface PointPromo {
   /** 배수 — 2.0 = 2X 리워드(=200% 적립) */
   multiplier: number;
   active: boolean;
+  /** 캠페인 카드 호텔 사진(선택) — 없으면 플레이스홀더. 실제로는 호텔 마스터/교섭 시 등록. */
+  image?: string;
 }
 
 export const SEED_PROMOS: PointPromo[] = [

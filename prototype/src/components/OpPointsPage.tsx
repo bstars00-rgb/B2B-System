@@ -5,6 +5,9 @@ import { todayIso } from '../utils/dashboardStats';
 import { OP_POINT_POLICY, computeAccruals, summarize, tierFor, TIERS, type Accrual } from '../utils/opPoints';
 import { SEED_PROMOS, type PointPromo } from '../mocks/opPointsPromos';
 import { OP_ACCOUNTS, opAccountIdFor } from '../mocks/opAccounts';
+import { hotelCodeOf, cityOfHotel } from '../mocks/hotelDb';
+
+export interface BookHotelTarget { code: string; destination: string; hotelName: string; }
 
 /**
  * OP 포인트 — 오피포인트. **프로토타입 · 폐기 가능.**
@@ -60,9 +63,12 @@ function Card({ children, className = '' }: { children: React.ReactNode; classNa
 export default function OpPointsPage({
   bookings,
   onOpenBooking,
+  onBookHotel,
 }: {
   bookings: Booking[];
   onOpenBooking: (ellisCode: string) => void;
+  /** 캠페인 호텔 카드 클릭 → Create Booking으로 이동(호텔 프리필) */
+  onBookHotel?: (target: BookHotelTarget) => void;
 }) {
   const today = todayIso();
   const [promos, setPromos] = useState<PointPromo[]>(SEED_PROMOS);
@@ -86,8 +92,9 @@ export default function OpPointsPage({
   const tierStatus = useMemo(() => tierFor(summary.earned), [summary.earned]);
   const boostPct = Math.round((tierStatus.tier.boost - 1) * 100);
 
-  // 진행 중인 배수 캠페인 (2X 이상) — 고객 배너용
+  // 진행 중인 배수 캠페인 (2X 이상) — 고객 카드용
   const campaigns = useMemo(() => promos.filter((p) => p.active && p.multiplier >= 2).sort((a, b) => b.multiplier - a.multiplier), [promos]);
+  const bookTarget = (p: PointPromo): BookHotelTarget => ({ code: hotelCodeOf(p.hotelId), destination: cityOfHotel(p.hotelId)?.destination ?? '', hotelName: p.hotelName });
 
   const expiryCut = useMemo(() => {
     const d = new Date(`${today}T00:00:00Z`);
@@ -181,15 +188,45 @@ export default function OpPointsPage({
           </div>
         </Card>
 
-        {/* 진행 중 배수 캠페인 배너 (2X 리워드 등) */}
+        {/* 리워드 X2 캠페인 — 호텔 프로모 카드 (호텔 교섭 프로모 · 클릭 시 예약 페이지 이동) */}
         {campaigns.length > 0 && (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-brand-200 bg-brand-50 px-4 py-2.5">
-            <span className="flex items-center gap-1.5 text-[13px] font-extrabold text-brand-700">🎁 리워드 {campaigns[0].multiplier}X 캠페인 진행 중</span>
-            <span className="text-[11px] text-slate-600">
-              {campaigns.slice(0, 2).map((c) => `${c.hotelName} (${c.start}~${c.end})`).join(' · ')}
-              {campaigns.length > 2 && ` 외 ${campaigns.length - 2}곳`}
-            </span>
-            <span className="ml-auto text-[10px] text-slate-400">해당 호텔 예약 시 <b className="text-brand-600">{Math.round(campaigns[0].multiplier * 100)}% 적립</b> · 예약일 기준</span>
+          <div>
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <p className="text-[15px] font-bold text-slate-800">🎁 리워드 X2 캠페인</p>
+              <span className="text-[11px] text-slate-400">호텔 프로모션 · 카드를 누르면 해당 호텔 예약 페이지로 이동합니다</span>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {campaigns.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => onBookHotel?.(bookTarget(c))}
+                  className="group overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-sm transition hover:border-brand-300 hover:shadow-md"
+                >
+                  {/* 호텔 사진 영역 */}
+                  <div className="relative h-32 overflow-hidden">
+                    {c.image ? (
+                      <img src={c.image} alt={c.hotelName} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-brand-400 to-brand-600 text-white">
+                        <span className="text-4xl opacity-90" aria-hidden>🏨</span>
+                      </div>
+                    )}
+                    <span className="absolute left-2 top-2 rounded-md bg-white/95 px-2 py-1 text-[13px] font-extrabold text-brand-600 shadow">{c.multiplier}X 리워드</span>
+                    <span className="absolute right-2 top-2 rounded-sm bg-slate-900/70 px-1.5 py-0.5 text-[9px] font-bold text-white">{Math.round(c.multiplier * 100)}% 적립</span>
+                  </div>
+                  {/* 정보 */}
+                  <div className="p-3">
+                    <p className="truncate text-[13px] font-bold text-slate-800">{c.hotelName}</p>
+                    <p className="mt-0.5 text-[11px] text-slate-400">예약 기간 {c.start} ~ {c.end} <span className="text-slate-300">(예약일 기준)</span></p>
+                    <p className="mt-2 flex items-center justify-between text-[12px] font-bold text-brand-600">
+                      <span>이 호텔 예약 시 {c.multiplier}배 적립</span>
+                      <span className="transition group-hover:translate-x-0.5">예약하기 →</span>
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
         )}
 

@@ -281,7 +281,7 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
         ) : view === 'create-booking' ? (
           <CreateBookingPage prefill={bookingPrefill} />
         ) : view === 'op-points' ? (
-          <OpPointsPage bookings={bookings} onOpenBooking={openBookingByCode} />
+          <OpPointsPage bookings={bookings} onOpenBooking={openBookingByCode} onBookHotel={bookHotelFromRanking} />
         ) : (
           <BookingsPage bookings={bookings} onOpenDetail={setDetailBooking} />
         )}
