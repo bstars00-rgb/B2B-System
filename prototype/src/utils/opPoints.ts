@@ -51,7 +51,7 @@ export const OP_POINT_POLICY = {
   pointUnitKRW: 1_000,
   /** 리딤 최소 (USD) */
   redeemMinUSD: 10,
-  /** 유효기간(개월) */
+  /** 유효기간(개월) — 1년. 현업 2026-09: 회계년도 마감과 연동(정책 확정 대상). */
   expiryMonths: 12,
 };
 
@@ -77,10 +77,13 @@ export function promoFor(b: Booking, promos: PointPromo[]): { multiplier: number
   const bookedOn = b.booking_date.slice(0, 10);
   let best = 1;
   let label: string | null = null;
+  const room = (b.room_type || '').toLowerCase();
   for (const p of promos) {
     if (!p.active || p.hotelId !== b.hotel_id) continue;
     if (bookedOn < p.start || bookedOn > p.end) continue;
-    if (p.roomTypes !== 'all' && !p.roomTypes.some((rt) => b.room_type.includes(rt))) continue;
+    // 베드타입 / 레이트플랜 지정 시 예약의 room_type(부분일치)으로 판정. 'all'=전체.
+    if (p.bedType !== 'all' && !p.bedType.some((bt) => room.includes(bt.toLowerCase()))) continue;
+    if (p.ratePlan !== 'all' && !p.ratePlan.some((rp) => room.includes(rp.toLowerCase()))) continue;
     if (p.multiplier > best) {
       best = p.multiplier;
       label = `${Math.round(p.multiplier * 100)}%`;

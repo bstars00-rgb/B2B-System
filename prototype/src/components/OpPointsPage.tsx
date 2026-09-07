@@ -18,8 +18,34 @@ import { OP_ACCOUNTS, opAccountIdFor } from '../mocks/opAccounts';
 
 const pt = (n: number) => `${n.toLocaleString('ko-KR', { maximumFractionDigits: 1 })} P`;
 const r1 = (n: number) => Math.round(n * 10) / 10;
+/** 콤마 구분 문자열 ↔ 리스트('all'=전체). ELLIS 베드타입·레이트플랜 편집용. */
+const listStr = (v: string[] | 'all') => (v === 'all' ? 'all' : v.join(', '));
+const parseList = (s: string): string[] | 'all' => {
+  const t = s.trim();
+  if (!t || t.toLowerCase() === 'all') return 'all';
+  return t.split(',').map((x) => x.trim()).filter(Boolean);
+};
 const REDEEM_VALUES = [10, 20, 50, 100];
 const MIN_REDEEM = REDEEM_VALUES[0];
+
+/**
+ * 리워드 가이드 — Bedsonline Rewards Guide 구조 참고(우리 프로그램에 맞게 재구성).
+ * ※ 자동 적립이라 'Join'/'Opt out' 카드는 제외. Tango·등급·프로모 중심.
+ */
+const GUIDE_ITEMS: { key: string; icon: string; title: string; desc: string; body: string }[] = [
+  { key: 'earn', icon: '✨', title: '적립 방법', desc: '포인트는 어떻게 쌓이나요?',
+    body: '마켓플레이스에서 예약하고 투숙을 마친 뒤 지불이 완료되면 자동으로 적립됩니다(별도 가입 없음). 취소·노쇼·환불은 제외되며, 선불 업체는 체크아웃 시점에, 후불 업체는 지불 완료 시점에 적립됩니다.' },
+  { key: 'tiers', icon: '🏆', title: '등급', desc: '등급 혜택 알아보기',
+    body: '최근 12개월 적립 포인트로 Bronze · Silver · Gold · Diamond 등급이 결정되며 연간 재산정됩니다. 등급이 오를수록 적립 부스트가 커져, 예약을 많이 할수록 더 많이 적립됩니다.' },
+  { key: 'campaign', icon: '🎁', title: '리워드 X2 캠페인', desc: '추가 적립 받는 법',
+    body: '지정된 프로모션 호텔에서 예약하면 리워드가 2배(2X) 등으로 추가 적립됩니다. 호텔별·베드타입별·레이트플랜별·기간(예약일)별로 운영되며, 목록·검색에 "200% 적립" 같은 배수 배지로 표시됩니다. 요율·계산식은 내부에서 관리되어 고객에겐 배지로만 노출됩니다.' },
+  { key: 'points', icon: '⭐', title: '포인트 · 유효기간', desc: '포인트는 어떻게 구분되나요?',
+    body: '포인트는 사용 가능 · 총적립(12개월) · 만료 예정으로 구분됩니다. 유효기간은 1년이며 회계년도 마감에 맞춰 관리됩니다. 포인트는 예약 담당자(OP) 개인 계정에 적립되어 계정별로 분리됩니다.' },
+  { key: 'redeem', icon: '💎', title: '교환 (리워드)', desc: '포인트 교환하는 법',
+    body: '적립 포인트를 Tango 기프트카드로 교환합니다. 값을 선택하면 등록 이메일로 고유 링크가 발송되고, Tango(1,000+ 브랜드·기프트/선불카드)에서 원하는 상품을 고릅니다. 최소 10 P부터 교환할 수 있습니다.' },
+  { key: 'support', icon: '❓', title: '고객지원', desc: '문의하기',
+    body: '포인트 미적립, 캠페인 적립 오류, 교환·이메일 링크 문제, 등급 관련 문의 등은 마켓플레이스 고객지원으로 연락해 주세요.' },
+];
 
 interface TangoRedemption { id: string; points: number; at: string; }
 
@@ -43,6 +69,7 @@ export default function OpPointsPage({
   const [toast, setToast] = useState<string | null>(null);
   const [showEllis, setShowEllis] = useState(false);
   const [redeemValue, setRedeemValue] = useState<number | null>(null);
+  const [guide, setGuide] = useState<string | null>(null);
 
   const accountId = OP_ACCOUNTS[0].id;
   const account = OP_ACCOUNTS.find((a) => a.id === accountId) ?? OP_ACCOUNTS[0];
@@ -58,6 +85,9 @@ export default function OpPointsPage({
 
   const tierStatus = useMemo(() => tierFor(summary.earned), [summary.earned]);
   const boostPct = Math.round((tierStatus.tier.boost - 1) * 100);
+
+  // 진행 중인 배수 캠페인 (2X 이상) — 고객 배너용
+  const campaigns = useMemo(() => promos.filter((p) => p.active && p.multiplier >= 2).sort((a, b) => b.multiplier - a.multiplier), [promos]);
 
   const expiryCut = useMemo(() => {
     const d = new Date(`${today}T00:00:00Z`);
@@ -150,6 +180,18 @@ export default function OpPointsPage({
             </div>
           </div>
         </Card>
+
+        {/* 진행 중 배수 캠페인 배너 (2X 리워드 등) */}
+        {campaigns.length > 0 && (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-brand-200 bg-brand-50 px-4 py-2.5">
+            <span className="flex items-center gap-1.5 text-[13px] font-extrabold text-brand-700">🎁 리워드 {campaigns[0].multiplier}X 캠페인 진행 중</span>
+            <span className="text-[11px] text-slate-600">
+              {campaigns.slice(0, 2).map((c) => `${c.hotelName} (${c.start}~${c.end})`).join(' · ')}
+              {campaigns.length > 2 && ` 외 ${campaigns.length - 2}곳`}
+            </span>
+            <span className="ml-auto text-[10px] text-slate-400">해당 호텔 예약 시 <b className="text-brand-600">{Math.round(campaigns[0].multiplier * 100)}% 적립</b> · 예약일 기준</span>
+          </div>
+        )}
 
         {/* 본문 2단 (풀폭) — 좌: 적립 내역(넓게) / 우: Tango 교환 */}
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -245,8 +287,27 @@ export default function OpPointsPage({
           </div>
         </div>
 
+        {/* 리워드 가이드 */}
+        <div>
+          <p className="mb-2 text-[15px] font-bold text-slate-800">리워드 가이드</p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {GUIDE_ITEMS.map((g) => (
+              <button
+                key={g.key}
+                type="button"
+                onClick={() => setGuide(g.key)}
+                className="flex flex-col items-center gap-1.5 rounded-lg border border-slate-200 bg-white p-4 text-center shadow-sm transition hover:border-brand-300 hover:shadow"
+              >
+                <span className="text-2xl leading-none" aria-hidden>{g.icon}</span>
+                <span className="text-[13px] font-bold text-slate-800">{g.title}</span>
+                <span className="text-[10px] text-brand-600 underline underline-offset-2">{g.desc}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <p className="text-[10px] leading-relaxed text-slate-400">
-          예약이 <b>투숙 완료 + 지불 완료</b>되면 <b>자동 적립</b>(취소·노쇼·환불 제외). 등급이 오를수록 더 많이 적립되고, 프로모션 호텔은 추가 적립(배수 배지). 포인트는 <b>OP 계정별 분리</b>({account.name} 예약 {myBookings.length}건 중 {summary.eligibleCount}건 적립)·유효기간 1년. 상품 교환은 <b>Tango(외주 포인트몰)</b> 처리. 교환은 세션 내 표시(새로고침 시 초기화). 정책 확정: 기본 요율·등급 임계값/부스트·환율·연간 교환 한도·세무·Tango 정산.
+          예약이 <b>투숙 완료 + 지불 완료</b>되면 <b>자동 적립</b>(취소·노쇼·환불 제외). 등급이 오를수록 더 많이 적립되고, 프로모션 호텔은 추가 적립(배수 배지). 포인트는 <b>OP 계정별 분리</b>({account.name} 예약 {myBookings.length}건 중 {summary.eligibleCount}건 적립)·<b>유효기간 1년(회계년도 기준)</b>. 상품 교환은 <b>Tango(외주 포인트몰)</b> 처리. 교환은 세션 내 표시(새로고침 시 초기화). 정책 확정: 기본 요율·등급 임계값/부스트·환율·연간 교환 한도·<b>유효기간(회계년도 마감 연동)</b>·세무·Tango 정산.
         </p>
 
         {/* ELLIS 내부 프로모 관리 (고객 비노출) */}
@@ -258,14 +319,15 @@ export default function OpPointsPage({
           {showEllis && (
             <div className="mt-3">
               <p className="mb-2 text-[11px] leading-relaxed text-slate-500">
-                포인트 배수는 <b className="text-slate-700">ELLIS 내부</b>에서만 변경 — <b>지정 호텔 · 기간(예약일) · 룸타입</b>. 고객 화면엔 요율(내부 기본 {OP_POINT_POLICY.baseRatePct}%)이 아니라 <b>배수 배지</b>로만 노출. 값 변경 시 위 적립 내역 즉시 재계산.
+                리워드 배수(예: <b className="text-slate-700">2X 리워드</b>)는 <b className="text-slate-700">ELLIS 내부</b>에서 설정 — <b>호텔별 · 베드타입별 · 레이트플랜별</b>(+ 예약일 기준 기간). 고객 화면엔 요율(내부 기본 {OP_POINT_POLICY.baseRatePct}%)이 아니라 <b>배수 배지</b>(예: 200% 적립)로만 노출. 값 변경 시 위 적립 내역 즉시 재계산. (베드타입·레이트플랜은 콤마로 여러 개, <code>all</code>=전체)
               </p>
               <div className="overflow-x-auto rounded border border-slate-200 bg-white">
-                <table className="w-full min-w-[720px] text-[11px]">
+                <table className="w-full min-w-[860px] text-[11px]">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
                       <th className="px-3 py-2 text-left font-semibold">호텔 (지정)</th>
-                      <th className="px-3 py-2 text-left font-semibold">룸타입</th>
+                      <th className="px-3 py-2 text-left font-semibold">베드타입</th>
+                      <th className="px-3 py-2 text-left font-semibold">레이트플랜</th>
                       <th className="px-3 py-2 text-left font-semibold">기간(예약일)</th>
                       <th className="px-3 py-2 text-center font-semibold">배수</th>
                       <th className="px-3 py-2 text-center font-semibold">고객 표시</th>
@@ -276,7 +338,14 @@ export default function OpPointsPage({
                     {promos.map((p) => (
                       <tr key={p.id} className="border-b border-slate-100 last:border-0">
                         <td className="px-3 py-2 text-slate-700">{p.hotelName} <span className="font-mono text-[10px] text-slate-400">{p.hotelId}</span></td>
-                        <td className="px-3 py-2 text-slate-600">{p.roomTypes === 'all' ? '전체' : p.roomTypes.join(', ')}</td>
+                        <td className="px-3 py-2">
+                          <input type="text" value={listStr(p.bedType)} onChange={(e) => setPromo(p.id, { bedType: parseList(e.target.value) })}
+                            className="w-28 rounded border border-slate-300 px-1.5 py-0.5 text-[11px] focus:border-brand-400 focus:outline-none" placeholder="all / Twin, 더블" />
+                        </td>
+                        <td className="px-3 py-2">
+                          <input type="text" value={listStr(p.ratePlan)} onChange={(e) => setPromo(p.id, { ratePlan: parseList(e.target.value) })}
+                            className="w-24 rounded border border-slate-300 px-1.5 py-0.5 text-[11px] focus:border-brand-400 focus:outline-none" placeholder="all / RP-1" />
+                        </td>
                         <td className="px-3 py-2 text-slate-600">{p.start} ~ {p.end}</td>
                         <td className="px-3 py-2 text-center">
                           <input type="number" step="0.1" min="1" value={p.multiplier}
@@ -321,6 +390,28 @@ export default function OpPointsPage({
           </div>
         </div>
       )}
+
+      {/* 리워드 가이드 모달 */}
+      {guide && (() => {
+        const g = GUIDE_ITEMS.find((x) => x.key === guide);
+        if (!g) return null;
+        return (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4" onClick={() => setGuide(null)}>
+            <div className="w-[440px] max-w-full overflow-hidden rounded-xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3">
+                <span className="flex items-center gap-2 text-sm font-bold text-slate-800"><span className="text-lg" aria-hidden>{g.icon}</span>{g.title}</span>
+                <button type="button" onClick={() => setGuide(null)} className="text-slate-400 hover:text-slate-700" aria-label="닫기">✕</button>
+              </div>
+              <div className="px-5 py-4">
+                <p className="text-[12px] leading-relaxed text-slate-600">{g.body}</p>
+              </div>
+              <div className="border-t border-slate-200 px-5 py-3">
+                <button type="button" onClick={() => setGuide(null)} className="w-full rounded bg-slate-800 px-3 py-2 text-[12px] font-semibold text-white hover:bg-slate-900">닫기</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {toast && (
         <div className="fixed bottom-6 left-1/2 z-[70] -translate-x-1/2 rounded-lg bg-slate-800 px-4 py-2 text-xs font-medium text-white shadow-lg">

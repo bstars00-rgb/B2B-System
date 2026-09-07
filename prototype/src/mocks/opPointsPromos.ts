@@ -1,44 +1,61 @@
 /**
- * ELLIS 포인트 프로모 — 지정 호텔 배수 적립 설정. **내부 시스템(ELLIS)에서 관리, 고객 비노출.**
- * 3차 고도화(오피포인트) 프로토타입. 폐기 시 이 파일도 함께 삭제.
+ * ELLIS 포인트 프로모 (리워드 배수 캠페인) — **내부 시스템(ELLIS)에서 관리, 고객 비노출.**
+ * 오피포인트 프로토타입. 폐기 시 이 파일도 함께 삭제.
  *
- * 현업 요구(2026-07-29): 포인트 배수는 ELLIS 내부에서 변경. **지정 호텔·기간·룸타입에만** 적용.
- * 고객은 요율(계산식)을 모르고 "150% 적립" 배지만 본다. (기간 = 예약일 기준)
+ * 현업 요구:
+ *  - 배수(예: **2X 리워드**)는 ELLIS 내부에서 설정, 고객은 요율 대신 "200% 적립" 배지만 본다.
+ *  - **호텔별 · 베드타입별 · 레이트플랜별** 로 설정 가능(+ 예약일 기준 기간).
+ *  - 매칭: 베드타입/레이트플랜은 예약의 room_type(부분일치)으로 판정('all'=전체). 기간은 예약일 기준.
  */
 
 export interface PointPromo {
   id: string;
   hotelId: string;
   hotelName: string;
-  /** 지정 룸타입 (부분일치) — 'all'이면 전 룸타입 */
-  roomTypes: string[] | 'all';
+  /** 베드타입 (트윈/더블/싱글/스위트 등, room_type 부분일치). 'all'=전체 */
+  bedType: string[] | 'all';
+  /** 레이트플랜 (RP-1 등, room_type/플랜 부분일치). 'all'=전체 */
+  ratePlan: string[] | 'all';
   /** 예약일 기준 적용 기간 */
   start: string;
   end: string;
-  /** 배수 — 1.5 = 기본의 150% */
+  /** 배수 — 2.0 = 2X 리워드(=200% 적립) */
   multiplier: number;
   active: boolean;
 }
 
 export const SEED_PROMOS: PointPromo[] = [
   {
-    id: 'promo-sotetsu-takada',
+    id: 'promo-2x-ginza',
+    hotelId: 'HTL-TYO-09',
+    hotelName: 'Sotetsu Fresa Inn Ginza Nanachome',
+    bedType: 'all',
+    ratePlan: 'all',
+    start: '2026-05-01',
+    end: '2026-09-30',
+    multiplier: 2.0, // 2X 리워드
+    active: true,
+  },
+  {
+    id: 'promo-takada-15',
     hotelId: 'HTL-TYO-12',
     hotelName: 'Sotetsu Grand Fresa Takadanobaba',
-    roomTypes: 'all',
+    bedType: 'all',
+    ratePlan: 'all',
     start: '2026-06-01',
     end: '2026-06-30',
     multiplier: 1.5,
     active: true,
   },
   {
-    id: 'promo-sotetsu-ginza',
-    hotelId: 'HTL-TYO-09',
-    hotelName: 'Sotetsu Fresa Inn Ginza Nanachome',
-    roomTypes: 'all',
-    start: '2026-05-01',
-    end: '2026-07-31',
+    id: 'promo-2x-twin-rp1',
+    hotelId: 'HTL-TYO-12',
+    hotelName: 'Sotetsu Grand Fresa Takadanobaba',
+    bedType: ['Twin', '트윈'], // 베드타입 지정 예시
+    ratePlan: ['RP-1'], // 레이트플랜 지정 예시
+    start: '2026-08-01',
+    end: '2026-09-30',
     multiplier: 2.0,
-    active: true,
+    active: false, // 시연용(비활성) — 호텔·베드타입·레이트플랜 지정 가능함을 보여주는 예
   },
 ];
