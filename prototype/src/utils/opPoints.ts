@@ -81,8 +81,8 @@ export function promoFor(b: Booking, promos: PointPromo[]): { multiplier: number
   for (const p of promos) {
     if (!p.active || p.hotelId !== b.hotel_id) continue;
     if (bookedOn < p.start || bookedOn > p.end) continue;
-    // 베드타입 / 레이트플랜 지정 시 예약의 room_type(부분일치)으로 판정. 'all'=전체.
-    if (p.bedType !== 'all' && !p.bedType.some((bt) => room.includes(bt.toLowerCase()))) continue;
+    // 룸타입 / 레이트플랜 지정 시 예약의 room_type(부분일치)으로 판정. 'all'=전체.
+    if (p.roomType !== 'all' && !p.roomType.some((rt) => room.includes(rt.toLowerCase()))) continue;
     if (p.ratePlan !== 'all' && !p.ratePlan.some((rp) => room.includes(rp.toLowerCase()))) continue;
     if (p.multiplier > best) {
       best = p.multiplier;

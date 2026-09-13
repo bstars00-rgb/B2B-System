@@ -76,9 +76,9 @@ multiplier   = 1        // 1 by default; >1 only for a matching hotel promo (§2
 - Specific hotels can accrue at a **multiple** of the base (e.g. base 1% → a hotel at 1.5% = **multiplier 1.5 = "150%"**).
 - **Managed only inside ELLIS (internal).** Scope of a promo = **designated hotel · date window (by booking date) · designated room types**. Data shape (`mocks/opPointsPromos.ts`):
   ```ts
-  PointPromo { id, hotelId, hotelName, roomTypes: string[] | 'all', start, end, multiplier, active }
+  PointPromo { id, hotelId, hotelName, roomType: string[] | 'all', ratePlan: string[] | 'all', start, end, multiplier, active, image? }
   ```
-- Matching (`promoFor`): a booking's `booking_date` falls in `[start, end]`, `hotel_id` matches, room type matches (or `'all'`); on overlap the **highest** multiplier wins.
+- Matching (`promoFor`): a booking's `booking_date` falls in `[start, end]`, `hotel_id` matches, room type matches (or `'all'`), and rate plan matches (or `'all'`) — both tested against the booking's `room_type` string (substring); on overlap the **highest** multiplier wins.
 
 ### 2.4 The rate is hidden from the customer (hard requirement)
 

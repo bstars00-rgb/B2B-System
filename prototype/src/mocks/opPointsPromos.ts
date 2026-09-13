@@ -4,16 +4,16 @@
  *
  * 현업 요구:
  *  - 배수(예: **2X 리워드**)는 ELLIS 내부에서 설정, 고객은 요율 대신 "200% 적립" 배지만 본다.
- *  - **호텔별 · 베드타입별 · 레이트플랜별** 로 설정 가능(+ 예약일 기준 기간).
- *  - 매칭: 베드타입/레이트플랜은 예약의 room_type(부분일치)으로 판정('all'=전체). 기간은 예약일 기준.
+ *  - **호텔별 · 룸타입별 · 레이트플랜별** 로 설정 가능(+ 예약일 기준 기간).
+ *  - 매칭: 룸타입/레이트플랜은 예약의 room_type(부분일치)으로 판정('all'=전체). 기간은 예약일 기준.
  */
 
 export interface PointPromo {
   id: string;
   hotelId: string;
   hotelName: string;
-  /** 베드타입 (트윈/더블/싱글/스위트 등, room_type 부분일치). 'all'=전체 */
-  bedType: string[] | 'all';
+  /** 룸타입 (트윈/더블/싱글/스위트 등, room_type 부분일치). 'all'=전체 */
+  roomType: string[] | 'all';
   /** 레이트플랜 (RP-1 등, room_type/플랜 부분일치). 'all'=전체 */
   ratePlan: string[] | 'all';
   /** 예약일 기준 적용 기간 */
@@ -31,7 +31,7 @@ export const SEED_PROMOS: PointPromo[] = [
     id: 'promo-2x-ginza',
     hotelId: 'HTL-TYO-09',
     hotelName: 'Sotetsu Fresa Inn Ginza Nanachome',
-    bedType: 'all',
+    roomType: 'all',
     ratePlan: 'all',
     start: '2026-05-01',
     end: '2026-09-30',
@@ -42,7 +42,7 @@ export const SEED_PROMOS: PointPromo[] = [
     id: 'promo-takada-15',
     hotelId: 'HTL-TYO-12',
     hotelName: 'Sotetsu Grand Fresa Takadanobaba',
-    bedType: 'all',
+    roomType: 'all',
     ratePlan: 'all',
     start: '2026-06-01',
     end: '2026-06-30',
@@ -53,11 +53,11 @@ export const SEED_PROMOS: PointPromo[] = [
     id: 'promo-2x-twin-rp1',
     hotelId: 'HTL-TYO-12',
     hotelName: 'Sotetsu Grand Fresa Takadanobaba',
-    bedType: ['Twin', '트윈'], // 베드타입 지정 예시
+    roomType: ['Twin', '트윈'], // 룸타입 지정 예시
     ratePlan: ['RP-1'], // 레이트플랜 지정 예시
     start: '2026-08-01',
     end: '2026-09-30',
     multiplier: 2.0,
-    active: false, // 시연용(비활성) — 호텔·베드타입·레이트플랜 지정 가능함을 보여주는 예
+    active: false, // 시연용(비활성) — 호텔·룸타입·레이트플랜 지정 가능함을 보여주는 예
   },
 ];

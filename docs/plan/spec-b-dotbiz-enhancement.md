@@ -209,7 +209,7 @@ AI 요금 검색(트랙 A)은 **차별화 신기능**, 본 기획(트랙 B)은 *
 
 **③ 지정 호텔 배수 프로모 (ELLIS 내부 관리)**
 - 특정 호텔은 기본요율의 **배수**로 적립(예: 기본 1% → 소테츠 신주쿠 1주간 1.5% = **배수 1.5 = 150%**).
-- **ELLIS 내부 시스템에서만 변경.** 적용 범위 = **지정 호텔 · 기간(예약일 기준) · 지정 룸타입.** 데이터: `mocks/opPointsPromos.ts`(`{hotelId, roomTypes, start, end, multiplier, active}`).
+- **ELLIS 내부 시스템에서만 변경.** 적용 범위 = **지정 호텔 · 기간(예약일 기준) · 지정 룸타입 · 지정 레이트플랜.** 데이터: `mocks/opPointsPromos.ts`(`{hotelId, roomType, ratePlan, start, end, multiplier, active, image?}`).
 - **고객은 요율을 모른다** — 목록/검색/적립 내역에 요율 대신 **"150% 적립" 배수 배지**만 노출. 계산식 은닉.
 
 **④ 한도·리딤·정책**

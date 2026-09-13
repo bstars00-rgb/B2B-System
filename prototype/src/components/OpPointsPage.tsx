@@ -21,7 +21,7 @@ export interface BookHotelTarget { code: string; destination: string; hotelName:
 
 const pt = (n: number) => `${n.toLocaleString('ko-KR', { maximumFractionDigits: 1 })} P`;
 const r1 = (n: number) => Math.round(n * 10) / 10;
-/** 콤마 구분 문자열 ↔ 리스트('all'=전체). ELLIS 베드타입·레이트플랜 편집용. */
+/** 콤마 구분 문자열 ↔ 리스트('all'=전체). ELLIS 룸타입·레이트플랜 편집용. */
 const listStr = (v: string[] | 'all') => (v === 'all' ? 'all' : v.join(', '));
 const parseList = (s: string): string[] | 'all' => {
   const t = s.trim();
@@ -41,7 +41,7 @@ const GUIDE_ITEMS: { key: string; icon: string; title: string; desc: string; bod
   { key: 'tiers', icon: '🏆', title: '등급', desc: '등급 혜택 알아보기',
     body: '최근 12개월 적립 포인트로 Bronze · Silver · Gold · Diamond 등급이 결정되며 연간 재산정됩니다. 등급이 오를수록 적립 부스트가 커져, 예약을 많이 할수록 더 많이 적립됩니다.' },
   { key: 'campaign', icon: '🎁', title: '리워드 X2 캠페인', desc: '추가 적립 받는 법',
-    body: '지정된 프로모션 호텔에서 예약하면 리워드가 2배(2X) 등으로 추가 적립됩니다. 호텔별·베드타입별·레이트플랜별·기간(예약일)별로 운영되며, 목록·검색에 "200% 적립" 같은 배수 배지로 표시됩니다. 요율·계산식은 내부에서 관리되어 고객에겐 배지로만 노출됩니다.' },
+    body: '지정된 프로모션 호텔에서 예약하면 리워드가 2배(2X) 등으로 추가 적립됩니다. 호텔별·룸타입별·레이트플랜별·기간(예약일)별로 운영되며, 목록·검색에 "200% 적립" 같은 배수 배지로 표시됩니다. 요율·계산식은 내부에서 관리되어 고객에겐 배지로만 노출됩니다.' },
   { key: 'points', icon: '⭐', title: '포인트 · 유효기간', desc: '포인트는 어떻게 구분되나요?',
     body: '포인트는 사용 가능 · 총적립(12개월) · 만료 예정으로 구분됩니다. 유효기간은 1년이며 회계년도 마감에 맞춰 관리됩니다. 포인트는 예약 담당자(OP) 개인 계정에 적립되어 계정별로 분리됩니다.' },
   { key: 'redeem', icon: '💎', title: '교환 (리워드)', desc: '포인트 교환하는 법',
@@ -356,14 +356,14 @@ export default function OpPointsPage({
           {showEllis && (
             <div className="mt-3">
               <p className="mb-2 text-[11px] leading-relaxed text-slate-500">
-                리워드 배수(예: <b className="text-slate-700">2X 리워드</b>)는 <b className="text-slate-700">ELLIS 내부</b>에서 설정 — <b>호텔별 · 베드타입별 · 레이트플랜별</b>(+ 예약일 기준 기간). 고객 화면엔 요율(내부 기본 {OP_POINT_POLICY.baseRatePct}%)이 아니라 <b>배수 배지</b>(예: 200% 적립)로만 노출. 값 변경 시 위 적립 내역 즉시 재계산. (베드타입·레이트플랜은 콤마로 여러 개, <code>all</code>=전체)
+                리워드 배수(예: <b className="text-slate-700">2X 리워드</b>)는 <b className="text-slate-700">ELLIS 내부</b>에서 설정 — <b>호텔별 · 룸타입별 · 레이트플랜별</b>(+ 예약일 기준 기간). 고객 화면엔 요율(내부 기본 {OP_POINT_POLICY.baseRatePct}%)이 아니라 <b>배수 배지</b>(예: 200% 적립)로만 노출. 값 변경 시 위 적립 내역 즉시 재계산. (룸타입·레이트플랜은 콤마로 여러 개, <code>all</code>=전체)
               </p>
               <div className="overflow-x-auto rounded border border-slate-200 bg-white">
                 <table className="w-full min-w-[860px] text-[11px]">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
                       <th className="px-3 py-2 text-left font-semibold">호텔 (지정)</th>
-                      <th className="px-3 py-2 text-left font-semibold">베드타입</th>
+                      <th className="px-3 py-2 text-left font-semibold">룸타입</th>
                       <th className="px-3 py-2 text-left font-semibold">레이트플랜</th>
                       <th className="px-3 py-2 text-left font-semibold">기간(예약일)</th>
                       <th className="px-3 py-2 text-center font-semibold">배수</th>
@@ -376,7 +376,7 @@ export default function OpPointsPage({
                       <tr key={p.id} className="border-b border-slate-100 last:border-0">
                         <td className="px-3 py-2 text-slate-700">{p.hotelName} <span className="font-mono text-[10px] text-slate-400">{p.hotelId}</span></td>
                         <td className="px-3 py-2">
-                          <input type="text" value={listStr(p.bedType)} onChange={(e) => setPromo(p.id, { bedType: parseList(e.target.value) })}
+                          <input type="text" value={listStr(p.roomType)} onChange={(e) => setPromo(p.id, { roomType: parseList(e.target.value) })}
                             className="w-28 rounded border border-slate-300 px-1.5 py-0.5 text-[11px] focus:border-brand-400 focus:outline-none" placeholder="all / Twin, 더블" />
                         </td>
                         <td className="px-3 py-2">
