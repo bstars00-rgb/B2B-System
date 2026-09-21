@@ -673,7 +673,7 @@ function DetailView({
             문의가 접수되었습니다. 대상 호텔에 <b>역경매(RFP)</b>로 뿌려 견적을 회수합니다.
           </p>
           <p className="mt-1 text-[11px] text-slate-400">
-            실제로는 SCM이 지역·앵커 거리 기준 호텔군에 문의를 배포하고 견적을 회수합니다. (아래는 프로토타입 시뮬레이트)
+            대상은 지역·앵커 거리 기준의 <b>기존 계약 호텔군</b>입니다(신규 소싱은 필수 아님 — 재고 부족 시에만). 견적을 회수합니다. (아래는 프로토타입 시뮬레이트)
           </p>
           <button type="button" onClick={onSource} className="mt-4 rounded bg-brand-500 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-600">
             역경매 견적 회수 (시뮬레이트)
