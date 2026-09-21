@@ -82,7 +82,7 @@ flowchart TD
 | **기간** | ✔ | 체크인~체크아웃 / 박수 | 11/23–11/30, **7박** |
 | **룸 요건** | ✔ | 룸타입 + 수량 여러 행 + **식사조건** | **Twin 5 + Single 5**, Room Only |
 | **인원** | ✔ | 총 인원 + (선택) 국적·비고 | **15명**, 중국 대표팀 선수 |
-| **예산** | ✔ | 총액 또는 1박·1실 기준(통화 포함) | **총 JPY 637,000** |
+| **예산** | ✔ | **1실·1박 기준** 입력(통화 포함) → 내부에서 × 실수 × 박수로 **총액 환산**(견적 비교 기준). 현업 확정 2026-09-21 | **JPY 9,100/실·박 (총 637,000)** |
 | **비고** | – | 특수요건 자유서술 | – |
 
 > 입력 UX: 목적지는 **드릴다운**(국가→지역→호텔, 중간에서 멈춤 허용). 룸 요건은 **행 추가**(룸타입+수량). 예산은 통화 선택.
@@ -138,7 +138,8 @@ GroupInquiry {
   rooms: { roomType: string, count: number }[],          // 예: [{Twin,5},{Single,5}]
   mealPlan: 'RO' | 'BB' | ...,
   guests: { total: number, nationality?: string, notes?: string },
-  budget: { currency: string, total?: number, perRoomNight?: number },
+  budgetPerRoomNight?: number,  // 고객 입력 = 1실·1박 기준
+  budgetTotal?: number,          // = perRoomNight × 실수 × 박수 (견적 비교 기준)
   notes?: string,
   createdAt, submittedAt, quoteDeadline?,
   quotes: HotelQuote[],
@@ -211,7 +212,7 @@ MarkupConfig { scope: 'global' | 'country' | 'region' | 'hotel', type: 'pct' | '
 | 기간 | 2026-11-23 ~ 11-30 (**7박**) |
 | 룸 | **Twin ×5, Single ×5** — Room Only |
 | 인원 | **15명** (중국 대표팀 선수) |
-| 예산 | 총 **JPY 637,000** |
+| 예산 | **JPY 9,100 / 실·박** (10실 × 7박 = 총 637,000) |
 
 > 이 문의가 지역(Ibaraki, 앵커 30분)의 호텔군에 RFP로 배포되고, 각 호텔 net 견적에 마크업이 얹혀 고객사에 리스트업된다.
 

@@ -62,6 +62,8 @@ export interface GroupInquiry {
   guests: number;
   nationality?: string;
   currency: string;
+  /** 예산 — 고객 입력은 **1실·1박 기준**. budgetTotal은 × 실수 × 박수로 환산한 총액(견적 비교 기준). */
+  budgetPerRoomNight?: number;
   budgetTotal?: number;
   notes?: string;
   createdAt: string;
@@ -162,6 +164,7 @@ export const SEED_INQUIRIES: GroupInquiry[] = [
     guests: 15,
     nationality: '중국 대표팀 선수',
     currency: 'JPY',
+    budgetPerRoomNight: 9100, // 10실 × 7박 × 9,100 = 637,000
     budgetTotal: 637000,
     notes: '경기장 차량 30분 이내. 선수단 단체 이동 — 동일 호텔 우선.',
     createdAt: '2026-09-21T02:10:00.000Z',
@@ -212,6 +215,7 @@ export const SEED_INQUIRIES: GroupInquiry[] = [
     guests: 12,
     nationality: '기업 연수단',
     currency: 'JPY',
+    budgetPerRoomNight: 30000, // 8실 × 3박 × 30,000 = 720,000
     budgetTotal: 720000,
     notes: '난바/신사이바시 도보권 선호.',
     createdAt: '2026-09-21T05:30:00.000Z',

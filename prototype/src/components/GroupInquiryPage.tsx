@@ -301,7 +301,15 @@ function ListView({
                   {roomsTotal(i.rooms)}실 · {i.guests}명
                 </td>
                 <td className="px-4 py-3 text-right text-slate-600">
-                  {i.budgetTotal ? fmtMoney(i.budgetTotal, i.currency) : '—'}
+                  {i.budgetPerRoomNight ? (
+                    <>
+                      {fmtMoney(i.budgetPerRoomNight, i.currency)}
+                      <span className="text-slate-400"> /실·박</span>
+                      <div className="text-[10px] text-slate-400">총 {fmtMoney(i.budgetTotal ?? 0, i.currency)}</div>
+                    </>
+                  ) : (
+                    '—'
+                  )}
                 </td>
                 <td className="px-4 py-3 text-center text-slate-600">{i.quotes.length || '—'}</td>
                 <td className="px-4 py-3 text-center">
@@ -404,11 +412,13 @@ function NewInquiryForm({
   const [mealPlan, setMealPlan] = useState('Room Only');
   const [guests, setGuests] = useState<number>(2);
   const [nationality, setNationality] = useState('');
-  const [budgetTotal, setBudgetTotal] = useState<number | ''>('');
+  /** 예산 입력 = 1실·1박 기준. 총액은 × 실수 × 박수로 환산. */
+  const [budgetPerNight, setBudgetPerNight] = useState<number | ''>('');
   const [notes, setNotes] = useState('');
 
   const currency = hotels[0]?.currency ?? 'JPY';
   const n = checkIn && checkOut ? calcNights(checkIn, checkOut) : 0;
+  const budgetTotalCalc = budgetPerNight === '' ? 0 : Number(budgetPerNight) * roomsTotal(rooms) * (n || 0);
   const valid = region && checkIn && checkOut && n > 0 && roomsTotal(rooms) > 0 && guests > 0;
 
   // 국가 변경 시 지역/호텔 리셋
@@ -445,7 +455,8 @@ function NewInquiryForm({
       guests,
       nationality: nationality.trim() || undefined,
       currency,
-      budgetTotal: budgetTotal === '' ? undefined : Number(budgetTotal),
+      budgetPerRoomNight: budgetPerNight === '' ? undefined : Number(budgetPerNight),
+      budgetTotal: budgetPerNight === '' ? undefined : budgetTotalCalc,
       notes: notes.trim() || undefined,
       createdAt: now,
       submittedAt: now,
@@ -573,8 +584,13 @@ function NewInquiryForm({
         {/* 예산·비고 */}
         <div className="mb-4 grid grid-cols-3 gap-3">
           <div>
-            <span className={labelCls}>총 예산 <span className="font-normal text-slate-400">({currency})</span></span>
-            <input type="number" min={0} value={budgetTotal} onChange={(e) => setBudgetTotal(e.target.value === '' ? '' : Math.max(0, Number(e.target.value) || 0))} placeholder="예: 637000" className={fieldCls} />
+            <span className={labelCls}>예산 <span className="font-normal text-slate-400">(1실·1박 기준 · {currency})</span></span>
+            <input type="number" min={0} value={budgetPerNight} onChange={(e) => setBudgetPerNight(e.target.value === '' ? '' : Math.max(0, Number(e.target.value) || 0))} placeholder="예: 9100" className={fieldCls} />
+            <p className="mt-1 text-[11px] text-slate-400">
+              {budgetTotalCalc > 0
+                ? `전체 환산: ${fmtMoney(budgetTotalCalc, currency)} (${roomsTotal(rooms)}실 × ${n}박)`
+                : '1실·1박 금액 → 실수·박수로 총액 자동 환산'}
+            </p>
           </div>
           <div className="col-span-2">
             <span className={labelCls}>비고 <span className="font-normal text-slate-400">(특수요건 — 선택)</span></span>
@@ -640,7 +656,12 @@ function DetailView({
           {info('식사', inq.mealPlan)}
           {info('룸', `${roomsSummary(inq.rooms)} (${roomsTotal(inq.rooms)}실)`)}
           {info('인원', `${inq.guests}명${inq.nationality ? ` · ${inq.nationality}` : ''}`)}
-          {info('예산', inq.budgetTotal ? fmtMoney(inq.budgetTotal, inq.currency) : '—')}
+          {info(
+            '예산',
+            inq.budgetPerRoomNight
+              ? `${fmtMoney(inq.budgetPerRoomNight, inq.currency)} /실·박 · 총 ${fmtMoney(inq.budgetTotal ?? 0, inq.currency)}`
+              : '—',
+          )}
           {info('비고', inq.notes ?? '—')}
         </div>
       </div>

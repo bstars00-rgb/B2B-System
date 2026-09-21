@@ -9,7 +9,7 @@ const INQ_KEY = 'omh_group_inquiries';
 const MARKUP_KEY = 'omh_group_markup';
 const SEQ_KEY = 'omh_group_seq';
 const SEED_VERSION_KEY = 'omh_group_seed_version';
-const SEED_VERSION = '1';
+const SEED_VERSION = '2'; // v2: 예산 1실·1박 기준(budgetPerRoomNight) 추가
 
 export function loadInquiries(): GroupInquiry[] {
   try {
