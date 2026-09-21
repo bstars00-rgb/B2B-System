@@ -9,7 +9,7 @@ import EnhBadge from './EnhBadge';
  * ※ AI 요금 검색 메뉴는 2026-07-27 삭제 — ELLIS MCP는 마켓플레이스 내장이 아니라 고객사 Claude 플러그인 방식.
  */
 
-export type PortalView = 'dashboard' | 'bookings' | 'create-booking' | 'op-points' | 'faq' | 'notice' | 'staff';
+export type PortalView = 'dashboard' | 'bookings' | 'create-booking' | 'group-inquiry' | 'op-points' | 'faq' | 'notice' | 'staff';
 
 interface Props {
   view: PortalView;
@@ -47,6 +47,12 @@ const MENU: MenuSection[] = [
       },
       { view: 'bookings', label: 'Bookings', keywords: ['예약', '예약목록', 'reservation'] },
       { view: 'create-booking', label: 'Create Booking', keywords: ['예약생성', '호텔검색', 'hotel search'] },
+      {
+        view: 'group-inquiry',
+        label: 'Group Inquiry',
+        enh: '단체 문의 · 역경매 — 단체 문의를 호텔에 뿌려 견적을 받고 마크업 자동 적용 후 리스트업(리퀘스트 예약)',
+        keywords: ['단체', '단체문의', '역경매', 'rfp', 'group', 'inquiry', '문의', '견적'],
+      },
       {
         view: 'op-points',
         label: 'OP Points',

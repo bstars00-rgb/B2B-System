@@ -9,6 +9,7 @@ import BookingDetailModal from './BookingDetailModal';
 import BookingsPage from './BookingsPage';
 import DashboardPage from './DashboardPage';
 import CreateBookingPage, { type BookingPrefill } from './CreateBookingPage';
+import GroupInquiryPage from './GroupInquiryPage';
 import OpPointsPage from './OpPointsPage';
 import PlaybookPage from './PlaybookPage';
 import PortalSidebar, { type PortalView } from './PortalSidebar';
@@ -30,6 +31,7 @@ const TAB_LABELS: Record<PortalView, string> = {
   dashboard: 'Dashboard',
   bookings: 'Bookings',
   'create-booking': 'Create Booking',
+  'group-inquiry': 'Group Inquiry',
   'op-points': 'OP Points',
   faq: 'FAQ Board',
   notice: 'Notice Board',
@@ -280,6 +282,8 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
           <BoardPage kind="notice" portalLang={portalLang} />
         ) : view === 'create-booking' ? (
           <CreateBookingPage prefill={bookingPrefill} />
+        ) : view === 'group-inquiry' ? (
+          <GroupInquiryPage />
         ) : view === 'op-points' ? (
           <OpPointsPage bookings={bookings} onOpenBooking={openBookingByCode} onBookHotel={bookHotelFromRanking} />
         ) : (
