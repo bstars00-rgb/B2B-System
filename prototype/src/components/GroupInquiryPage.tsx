@@ -518,10 +518,12 @@ function NewInquiryForm({
   const labelCls = 'mb-1 block text-[12px] font-semibold text-slate-600';
 
   return (
-    <div className="mx-auto max-w-[1000px]">
+    <div className="mx-auto max-w-[1400px]">
       <div className="rounded-lg border border-slate-200 bg-white p-6">
         <h2 className="mb-4 text-base font-bold text-slate-800">새 단체 문의 작성</h2>
 
+        <div className="grid grid-cols-1 gap-x-8 lg:grid-cols-2">
+          <div>
         {/* 목적지 */}
         <div className="mb-2">
           <span className={labelCls}>목적지 <span className="font-normal text-slate-400">(국가 → 지역 → 호텔 · 호텔은 선택)</span></span>
@@ -605,7 +607,9 @@ function NewInquiryForm({
             <span className="text-[12px] text-slate-400">합계 {roomsTotal(rooms)}실</span>
           </div>
         </div>
+          </div>{/* /좌측 */}
 
+          <div>{/* 우측 */}
         {/* 식사·인원·국적 */}
         <div className="mb-4 grid grid-cols-3 gap-3">
           <div>
@@ -706,6 +710,8 @@ function NewInquiryForm({
           <span className={labelCls}>비고 <span className="font-normal text-slate-400">(특수요건 — 선택)</span></span>
           <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="예: 선수단 단체 이동 — 동일 호텔 우선" className={fieldCls} />
         </div>
+          </div>{/* /우측 */}
+        </div>{/* /2단 그리드 */}
 
         {/* 비교견적 아님 동의 */}
         <label className="mb-2 flex cursor-pointer items-start gap-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-slate-700">
