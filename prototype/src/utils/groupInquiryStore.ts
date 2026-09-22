@@ -1,15 +1,15 @@
-import { SEED_INQUIRIES, DEFAULT_MARKUP, type GroupInquiry, type MarkupConfig } from '../mocks/groupInquiry';
+import { SEED_INQUIRIES, DEFAULT_COUNTRY_RATES, type GroupInquiry, type CountryRate } from '../mocks/groupInquiry';
 
 /**
- * 단체 문의·마크업 설정 localStorage 영속 스토어 (bookingStore 패턴).
+ * 단체 문의 · 국가별 요금 설정 localStorage 영속 스토어 (bookingStore 패턴).
  * 데이터 접근을 이 계층으로 일원화 — 추후 ELLIS API 연동 시 여기만 교체.
  */
 
 const INQ_KEY = 'omh_group_inquiries';
-const MARKUP_KEY = 'omh_group_markup';
+const RATES_KEY = 'omh_group_country_rates';
 const SEQ_KEY = 'omh_group_seq';
 const SEED_VERSION_KEY = 'omh_group_seed_version';
-const SEED_VERSION = '2'; // v2: 예산 1실·1박 기준(budgetPerRoomNight) 추가
+const SEED_VERSION = '3'; // v3: 폼 보강 + 국가별 요금(net/커미션) + 부대서비스·홀드·GoldenKey
 
 export function loadInquiries(): GroupInquiry[] {
   try {
@@ -35,21 +35,20 @@ export function saveInquiries(list: GroupInquiry[]): void {
   }
 }
 
-export function loadMarkup(): MarkupConfig {
+export function loadRates(): Record<string, CountryRate> {
   try {
-    const raw = localStorage.getItem(MARKUP_KEY);
-    if (!raw) return DEFAULT_MARKUP;
-    const parsed = JSON.parse(raw) as MarkupConfig;
-    if (parsed && (parsed.type === 'pct' || parsed.type === 'fixed') && Number.isFinite(parsed.value)) return parsed;
-    return DEFAULT_MARKUP;
+    const raw = localStorage.getItem(RATES_KEY);
+    if (!raw) return { ...DEFAULT_COUNTRY_RATES };
+    const parsed = JSON.parse(raw) as Record<string, CountryRate>;
+    return parsed && typeof parsed === 'object' ? { ...DEFAULT_COUNTRY_RATES, ...parsed } : { ...DEFAULT_COUNTRY_RATES };
   } catch {
-    return DEFAULT_MARKUP;
+    return { ...DEFAULT_COUNTRY_RATES };
   }
 }
 
-export function saveMarkup(cfg: MarkupConfig): void {
+export function saveRates(rates: Record<string, CountryRate>): void {
   try {
-    localStorage.setItem(MARKUP_KEY, JSON.stringify(cfg));
+    localStorage.setItem(RATES_KEY, JSON.stringify(rates));
   } catch {
     // 무시
   }

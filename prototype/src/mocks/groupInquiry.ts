@@ -3,41 +3,57 @@ import { allHotels, cityEnOf } from './hotelDb';
 /**
  * 단체 문의 · 역경매(RFP) 소싱 — **프로토타입 · 폐기 가능 구조.**
  *
- * 현업 기획(2026-09-21): 고객사가 마켓플레이스에서 단체 문의를 넣으면 메일로 접수 → 우리가
- * 호텔들에게 역경매로 뿌려 견적 회수 → **우리 마크업을 자동으로 얹어**(net→sell) 고객사에 리스트업
- * → 고객사 선택 시 리퀘스트 예약. 마크업은 **일률(글로벌 %) 설정.** net·마크업률은 고객 비노출.
+ * 현업 기획(2026-09-21) + SCM 피드백(2026-09-22) 반영:
+ * 고객사 단체 문의 접수(메일) → 우리가 **기존 계약 호텔**에 역경매로 뿌려 견적 회수 →
+ * **국가별 요금 구조로 고객가 산출**(한국=net+마크업 / 일본=단가+커미션) → 리스트업 → 리퀘스트 예약.
  *
  * 상세 기획: docs/plan/feature-group-inquiry-rfp.md
  * ※ 폐기 = 이 파일 + utils/groupInquiryStore.ts + components/GroupInquiryPage.tsx + 사이드바 한 줄 삭제.
  */
 
-export type InquiryStatus =
-  | 'Submitted' // 접수(메일 발송)
-  | 'Sourcing' // 호텔에 RFP 배포·견적 수집 중
-  | 'Quoted' // 견적 회수 + 마크업 적용 + 리스트업 완료
-  | 'Requested' // 고객 선택 → 리퀘스트 예약(호텔 응답 대기)
-  | 'Confirmed' // 호텔 수락
-  | 'Cancelled';
+export type InquiryStatus = 'Submitted' | 'Sourcing' | 'Quoted' | 'Requested' | 'Confirmed' | 'Cancelled';
 
 export interface RoomReq {
   roomType: string;
   count: number;
 }
 
-/** 호텔 회수 견적 1건. net(원가)만 저장 — sell(고객가)는 마크업 설정으로 화면에서 산출. */
+/** 부대 서비스 요청 (SCM 피드백 — 단체 성격에 따라 변수) */
+export interface Ancillary {
+  seminar: boolean; // 세미나실
+  banquet: boolean; // 연회장
+  partialBreakfast: boolean; // 투숙 중 일부만 조식
+  transport: boolean; // 행사장 차량
+}
+export const EMPTY_ANCILLARY: Ancillary = { seminar: false, banquet: false, partialBreakfast: false, transport: false };
+export const ANCILLARY_LABEL: Record<keyof Ancillary, string> = {
+  seminar: '세미나실',
+  banquet: '연회장',
+  partialBreakfast: '부분 조식',
+  transport: '행사장 차량',
+};
+
+/** 날짜별 예산 1일치 (1실·1박 기준) */
+export interface DateBudget {
+  date: string;
+  perRoomNight: number;
+}
+
+/** 호텔 회수 견적 1건. amount는 **국가 요금 구조 기준**(net국가=net원가 / 커미션국가=단가). */
 export interface HotelQuote {
   id: string;
   hotelId: string;
   hotelName: string;
   star?: number;
   location: string;
-  /** 앵커(기준점)로부터 차량 분 — 앵커 있을 때만 */
   distanceMin?: number;
-  /** 호텔 회수가(원가) — 내부. 고객 비노출 */
-  netAmount: number;
+  /** 호텔 회수 금액 — net국가=net(원가) / 커미션국가=단가(gross). 내부. */
+  amount: number;
   currency: string;
   condition: string;
   cancellation: string;
+  /** 무료취소 마감(있으면) — 이후 취소 시 수수료 발생 구간 */
+  freeCancelUntil?: string;
   validUntil: string;
   status: 'listed' | 'selected' | 'declined';
 }
@@ -51,7 +67,10 @@ export interface GroupInquiry {
   region: string;
   hotelId?: string;
   hotelName?: string;
-  /** 기준점(앵커) — 경기장 등 + 거리 제약 */
+  /** 희망 호텔·성급 (SCM/Aiden — 리스트 외 자유 희망) */
+  preferredHotel?: string;
+  preferredStar?: number;
+  /** 기준점(앵커) */
   anchorName?: string;
   anchorRadiusMin?: number;
   checkIn: string;
@@ -61,9 +80,23 @@ export interface GroupInquiry {
   mealPlan: string;
   guests: number;
   nationality?: string;
+  /** 단체 성격 (SCM — 국적/기업·인센티브 등) */
+  groupType?: string;
+  /** 담당 범위 — 객실만 / 객실+부대서비스 */
+  scope: 'rooms' | 'rooms_plus';
+  ancillary?: Ancillary;
+  ancillaryNote?: string;
+  /** 견적 시 객실 홀드 필요 여부 (SCM3 — 호텔은 기본 홀드 안 함) */
+  holdRequired?: boolean;
+  /** Golden Key — 확정에 가장 중요한 1가지 (SCM5) */
+  goldenKey?: string;
+  /** 비교견적용 아님 동의 (SCM4) */
+  comparisonAck?: boolean;
   currency: string;
-  /** 예산 — 고객 입력은 **1실·1박 기준**. budgetTotal은 × 실수 × 박수로 환산한 총액(견적 비교 기준). */
+  /** 예산 — 1실·1박 기준. 날짜별 입력 가능. budgetTotal은 총액 환산(견적 비교 기준). */
+  budgetMode: 'flat' | 'byDate';
   budgetPerRoomNight?: number;
+  budgetByDate?: DateBudget[];
   budgetTotal?: number;
   notes?: string;
   createdAt: string;
@@ -73,19 +106,54 @@ export interface GroupInquiry {
   selectedQuoteId?: string;
 }
 
-/** 마크업 설정 — 일률(글로벌). 정률(%) 기본. */
-export interface MarkupConfig {
-  type: 'pct' | 'fixed';
+/**
+ * 국가별 요금 구조 (SCM 피드백 2026-09-22).
+ * - net: 호텔이 net(원가) 제공 → 우리 **마크업(%)** 을 얹어 고객가. (예: 한국 대부분)
+ * - commission: 호텔이 **단가**(판매가)를 제시하고 **커미션(%)** 지급 → 고객가=단가, 우리 마진=커미션. (예: 일본)
+ * 고객에겐 어느 쪽이든 **고객가(sell)만** 노출. net·단가·마크업률·커미션율은 내부만.
+ */
+export interface CountryRate {
+  mode: 'net' | 'commission';
+  /** net: 마크업 % / commission: 커미션 % */
   value: number;
 }
-export const DEFAULT_MARKUP: MarkupConfig = { type: 'pct', value: 12 };
+export const DEFAULT_COUNTRY_RATES: Record<string, CountryRate> = {
+  Japan: { mode: 'commission', value: 10 },
+  'South Korea': { mode: 'net', value: 12 },
+  Thailand: { mode: 'net', value: 12 },
+  Singapore: { mode: 'net', value: 12 },
+  Vietnam: { mode: 'net', value: 12 },
+  Taiwan: { mode: 'net', value: 12 },
+  'Hong Kong': { mode: 'net', value: 12 },
+};
+export const FALLBACK_RATE: CountryRate = { mode: 'net', value: 12 };
+export const RATE_COUNTRIES = Object.keys(DEFAULT_COUNTRY_RATES);
+
+export function rateFor(country: string, rates: Record<string, CountryRate>): CountryRate {
+  return rates[country] ?? FALLBACK_RATE;
+}
 
 const roundTo = (n: number, unit: number) => Math.round(n / unit) * unit;
 
-/** net(원가) → sell(고객가). 고객에겐 sell만 보인다. */
-export function applyMarkup(net: number, cfg: MarkupConfig): number {
-  if (cfg.type === 'fixed') return net + cfg.value;
-  return roundTo(net * (1 + cfg.value / 100), 100);
+export interface PricedQuote {
+  sell: number; // 고객가
+  margin: number; // 우리 마진 (마크업 또는 커미션)
+  basisLabel: string; // 'net' | '단가'
+  marginLabel: string; // '마크업 12%' | '커미션 10%'
+}
+
+/** 호텔 회수 금액 + 국가 요금 구조 → 고객가·마진 산출. */
+export function priceQuote(amount: number, rate: CountryRate): PricedQuote {
+  if (rate.mode === 'commission') {
+    return {
+      sell: roundTo(amount, 100),
+      margin: roundTo((amount * rate.value) / 100, 100),
+      basisLabel: '단가',
+      marginLabel: `커미션 ${rate.value}%`,
+    };
+  }
+  const sell = roundTo(amount * (1 + rate.value / 100), 100);
+  return { sell, margin: sell - amount, basisLabel: 'net', marginLabel: `마크업 ${rate.value}%` };
 }
 
 export const fmtMoney = (n: number, currency: string) => `${currency} ${Math.round(n).toLocaleString()}`;
@@ -96,16 +164,34 @@ export const nights = (ci: string, co: string) =>
 export const roomsSummary = (rooms: RoomReq[]) => rooms.map((r) => `${r.roomType} ×${r.count}`).join(', ');
 export const roomsTotal = (rooms: RoomReq[]) => rooms.reduce((s, r) => s + (Number(r.count) || 0), 0);
 
-const addDays = (iso: string, d: number) =>
-  new Date(new Date(iso).getTime() + d * 86400000).toISOString();
+/** 예산 총액 환산 (견적 비교 기준). 날짜별이면 야간 합 × 실수, 아니면 1박값 × 실수 × 박수. */
+export function budgetTotalOf(inq: Pick<GroupInquiry, 'budgetMode' | 'budgetPerRoomNight' | 'budgetByDate' | 'rooms' | 'nights'>): number | undefined {
+  const rt = roomsTotal(inq.rooms);
+  if (inq.budgetMode === 'byDate' && inq.budgetByDate?.length) {
+    const sum = inq.budgetByDate.reduce((s, d) => s + (Number(d.perRoomNight) || 0), 0);
+    return sum > 0 ? sum * rt : undefined;
+  }
+  if (inq.budgetPerRoomNight) return inq.budgetPerRoomNight * rt * inq.nights;
+  return undefined;
+}
+
+/** 체크인~체크아웃 사이 각 박(night)의 날짜 목록 */
+export function nightDates(checkIn: string, checkOut: string): string[] {
+  const out: string[] = [];
+  if (!checkIn || !checkOut) return out;
+  const n = nights(checkIn, checkOut);
+  for (let i = 0; i < n; i += 1) out.push(new Date(new Date(checkIn).getTime() + i * 86400000).toISOString().slice(0, 10));
+  return out;
+}
+
+const addDays = (iso: string, d: number) => new Date(new Date(iso).getTime() + d * 86400000).toISOString();
 
 /**
- * 역경매 시뮬레이트 — 문의를 호텔들에 뿌려 견적을 회수한 결과(프로토타입 결정론적 생성).
- * 대상 = **기존 계약/마켓플레이스 호텔**(allHotels) — 신규 소싱 필수 아님. 호텔 특정 시 그 호텔+동일
- * 도시 형제, 지역만이면 해당 지역/국가 호텔군. 재고 부족 시에만 추가 소싱(운영 판단).
- * net은 예산 대비 스프레드(일부 예산 이하·일부 초과)로 생성 — 리스트업 비교가 드러나게.
+ * 역경매 시뮬레이트 — 문의를 **기존 계약 호텔**(allHotels)에 뿌려 견적을 회수한 결과(결정론적 생성).
+ * 대상: 호텔 특정 시 그 호텔+동일 도시 형제, 지역만이면 해당 지역/국가 호텔군. 신규 소싱 필수 아님.
+ * 금액은 목표 고객가(예산 대비 스프레드)에서 국가 요금 구조로 역산 — net국가=sell/(1+마크업), 커미션국가=단가=sell.
  */
-export function generateQuotes(inq: GroupInquiry): HotelQuote[] {
+export function generateQuotes(inq: GroupInquiry, rates: Record<string, CountryRate>): HotelQuote[] {
   const all = allHotels();
   let cands = [] as ReturnType<typeof allHotels>;
   if (inq.hotelId) {
@@ -120,31 +206,38 @@ export function generateQuotes(inq: GroupInquiry): HotelQuote[] {
   const factors = [0.88, 0.96, 1.03, 1.1, 0.92];
   const dists = [9, 15, 22, 27, 12];
   const cxl = [
-    '무료취소 · 체크인 14일 전까지',
-    '체크인 7일 전부터 1박 부과',
-    '비환불(그룹 특가)',
-    '무료취소 · 체크인 10일 전까지',
-    '체크인 3일 전부터 전액',
+    { txt: '무료취소 · 체크인 14일 전까지', days: 14 },
+    { txt: '체크인 7일 전부터 1박 부과', days: 7 },
+    { txt: '비환불(그룹 특가)', days: -1 },
+    { txt: '무료취소 · 체크인 10일 전까지', days: 10 },
+    { txt: '체크인 3일 전부터 전액', days: 3 },
   ];
-  const budget = inq.budgetTotal ?? 600000;
+  const budget = budgetTotalOf(inq) ?? 600000;
+  const rate = rateFor(inq.country, rates);
   const base = inq.submittedAt ?? inq.createdAt;
-  return picked.map((h, i) => ({
-    id: `Q-${inq.id}-${i + 1}`,
-    hotelId: h.id,
-    hotelName: h.name,
-    star: h.star,
-    location: cityEnOf(h.city.destination),
-    distanceMin: inq.anchorName ? dists[i % dists.length] : undefined,
-    netAmount: roundTo(budget * factors[i % factors.length], 100),
-    currency: inq.currency,
-    condition: `${roomsSummary(inq.rooms)} · ${inq.mealPlan} · ${inq.nights}박`,
-    cancellation: cxl[i % cxl.length],
-    validUntil: addDays(base, 5),
-    status: 'listed' as const,
-  }));
+  return picked.map((h, i) => {
+    const targetSell = budget * factors[i % factors.length];
+    const amount = rate.mode === 'commission' ? roundTo(targetSell, 100) : roundTo(targetSell / (1 + rate.value / 100), 100);
+    const c = cxl[i % cxl.length];
+    return {
+      id: `Q-${inq.id}-${i + 1}`,
+      hotelId: h.id,
+      hotelName: h.name,
+      star: h.star,
+      location: cityEnOf(h.city.destination),
+      distanceMin: inq.anchorName ? dists[i % dists.length] : undefined,
+      amount,
+      currency: inq.currency,
+      condition: `${roomsSummary(inq.rooms)} · ${inq.mealPlan} · ${inq.nights}박`,
+      cancellation: c.txt,
+      freeCancelUntil: c.days > 0 ? new Date(new Date(inq.checkIn).getTime() - c.days * 86400000).toISOString().slice(0, 10) : undefined,
+      validUntil: addDays(base, 5),
+      status: 'listed' as const,
+    };
+  });
 }
 
-/** 시드 문의 2건 — 이바라키(견적 회수 완료·선택 대기) + 오사카(접수·견적 대기). */
+/** 시드 문의 2건 — 이바라키(견적 도착·선택 대기, 일본=커미션) + 오사카(접수, 부대서비스 포함). */
 export const SEED_INQUIRIES: GroupInquiry[] = [
   {
     id: 'gi-ibaraki-cn',
@@ -163,40 +256,25 @@ export const SEED_INQUIRIES: GroupInquiry[] = [
     ],
     mealPlan: 'Room Only',
     guests: 15,
-    nationality: '중국 대표팀 선수',
+    nationality: '중국',
+    groupType: '스포츠 대표팀',
+    scope: 'rooms',
+    holdRequired: true,
+    goldenKey: '경기장 차량 30분 이내 + 동일 호텔에 10실 동시 확보',
+    comparisonAck: true,
     currency: 'JPY',
+    budgetMode: 'flat',
     budgetPerRoomNight: 9100, // 10실 × 7박 × 9,100 = 637,000
     budgetTotal: 637000,
-    notes: '경기장 차량 30분 이내. 선수단 단체 이동 — 동일 호텔 우선.',
+    notes: '선수단 단체 이동 — 동일 호텔 우선.',
     createdAt: '2026-09-21T02:10:00.000Z',
     submittedAt: '2026-09-21T02:10:00.000Z',
     quoteDeadline: '2026-09-26T02:10:00.000Z',
-    selectedQuoteId: undefined,
     quotes: [
-      {
-        id: 'Q-ibaraki-1', hotelId: 'HTL-IBR-01', hotelName: 'Route Inn Koga Ekimae', star: 3,
-        location: 'Koga, Ibaraki', distanceMin: 12, netAmount: 590000, currency: 'JPY',
-        condition: 'Twin ×5, Single ×5 · Room Only · 7박', cancellation: '무료취소 · 체크인 14일 전까지',
-        validUntil: '2026-09-26T02:10:00.000Z', status: 'listed',
-      },
-      {
-        id: 'Q-ibaraki-2', hotelId: 'HTL-IBR-02', hotelName: 'Hotel Sunroute Sakai', star: 3,
-        location: 'Sakai, Ibaraki', distanceMin: 9, netAmount: 618000, currency: 'JPY',
-        condition: 'Twin ×5, Single ×5 · Room Only · 7박', cancellation: '체크인 7일 전부터 1박 부과',
-        validUntil: '2026-09-26T02:10:00.000Z', status: 'listed',
-      },
-      {
-        id: 'Q-ibaraki-3', hotelId: 'HTL-IBR-03', hotelName: 'Toyoko Inn Koga-eki Kita-guchi', star: 3,
-        location: 'Koga, Ibaraki', distanceMin: 18, netAmount: 648000, currency: 'JPY',
-        condition: 'Twin ×5, Single ×5 · Room Only · 7박', cancellation: '비환불(그룹 특가)',
-        validUntil: '2026-09-26T02:10:00.000Z', status: 'listed',
-      },
-      {
-        id: 'Q-ibaraki-4', hotelId: 'HTL-IBR-04', hotelName: 'Business Hotel Sashima', star: 3,
-        location: 'Sashima, Ibaraki', distanceMin: 25, netAmount: 560000, currency: 'JPY',
-        condition: 'Twin ×5, Single ×5 · Room Only · 7박', cancellation: '체크인 10일 전까지 무료취소',
-        validUntil: '2026-09-26T02:10:00.000Z', status: 'listed',
-      },
+      { id: 'Q-ibaraki-1', hotelId: 'HTL-IBR-01', hotelName: 'Route Inn Koga Ekimae', star: 3, location: 'Koga, Ibaraki', distanceMin: 12, amount: 590000, currency: 'JPY', condition: 'Twin ×5, Single ×5 · Room Only · 7박', cancellation: '무료취소 · 체크인 14일 전까지', freeCancelUntil: '2026-11-09', validUntil: '2026-09-26', status: 'listed' },
+      { id: 'Q-ibaraki-2', hotelId: 'HTL-IBR-02', hotelName: 'Hotel Sunroute Sakai', star: 3, location: 'Sakai, Ibaraki', distanceMin: 9, amount: 618000, currency: 'JPY', condition: 'Twin ×5, Single ×5 · Room Only · 7박', cancellation: '체크인 7일 전부터 1박 부과', freeCancelUntil: '2026-11-16', validUntil: '2026-09-26', status: 'listed' },
+      { id: 'Q-ibaraki-3', hotelId: 'HTL-IBR-03', hotelName: 'Toyoko Inn Koga-eki Kita-guchi', star: 3, location: 'Koga, Ibaraki', distanceMin: 18, amount: 648000, currency: 'JPY', condition: 'Twin ×5, Single ×5 · Room Only · 7박', cancellation: '비환불(그룹 특가)', validUntil: '2026-09-26', status: 'listed' },
+      { id: 'Q-ibaraki-4', hotelId: 'HTL-IBR-04', hotelName: 'Business Hotel Sashima', star: 3, location: 'Sashima, Ibaraki', distanceMin: 25, amount: 560000, currency: 'JPY', condition: 'Twin ×5, Single ×5 · Room Only · 7박', cancellation: '무료취소 · 체크인 10일 전까지', freeCancelUntil: '2026-11-13', validUntil: '2026-09-26', status: 'listed' },
     ],
   },
   {
@@ -214,8 +292,16 @@ export const SEED_INQUIRIES: GroupInquiry[] = [
     ],
     mealPlan: 'Breakfast',
     guests: 12,
-    nationality: '기업 연수단',
+    nationality: '한국',
+    groupType: '기업 연수단(인센티브)',
+    scope: 'rooms_plus',
+    ancillary: { seminar: true, banquet: false, partialBreakfast: true, transport: false },
+    ancillaryNote: '연수 세미나실 1일 · 조식은 2·3일차만.',
+    holdRequired: false,
+    goldenKey: '세미나실 확보 + 난바/신사이바시 도보권',
+    comparisonAck: true,
     currency: 'JPY',
+    budgetMode: 'flat',
     budgetPerRoomNight: 30000, // 8실 × 3박 × 30,000 = 720,000
     budgetTotal: 720000,
     notes: '난바/신사이바시 도보권 선호.',
