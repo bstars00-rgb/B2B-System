@@ -33,8 +33,8 @@ export default function MVillagePavilion({ onBookHotel }: { onBookHotel?: (t: { 
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-100">
-      {/* 브랜드 히어로 — 실제 브랜드 사진 + 그린 오버레이 */}
-      <div className="relative overflow-hidden px-8 py-9 text-white">
+      {/* 브랜드 히어로 — 실제 브랜드 사진 + 그린 오버레이. shrink-0 + 고정 최소높이로 항상 동일 사이즈 */}
+      <div className="relative flex shrink-0 flex-col justify-center overflow-hidden px-8 py-9 text-white" style={{ minHeight: 210 }}>
         <img src={MV_BRAND.banner} alt="" className="absolute inset-0 h-full w-full object-cover" aria-hidden />
         <div className="absolute inset-0" style={{ background: `linear-gradient(100deg, ${ACCENT}f2 0%, ${ACCENT}d9 48%, #0a3d34cc 100%)` }} aria-hidden />
         <div className="relative mx-auto max-w-[1400px]">
