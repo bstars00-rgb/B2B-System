@@ -33,9 +33,10 @@ export default function MVillagePavilion({ onBookHotel }: { onBookHotel?: (t: { 
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-100">
-      {/* 브랜드 히어로 */}
-      <div className="relative overflow-hidden px-8 py-9 text-white" style={{ background: `linear-gradient(120deg, #0a3d34 0%, ${ACCENT} 60%, #0e7490 100%)` }}>
-        <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-white/10 blur-2xl" aria-hidden />
+      {/* 브랜드 히어로 — 실제 브랜드 사진 + 그린 오버레이 */}
+      <div className="relative overflow-hidden px-8 py-9 text-white">
+        <img src={MV_BRAND.banner} alt="" className="absolute inset-0 h-full w-full object-cover" aria-hidden />
+        <div className="absolute inset-0" style={{ background: `linear-gradient(100deg, ${ACCENT}f2 0%, ${ACCENT}d9 48%, #0a3d34cc 100%)` }} aria-hidden />
         <div className="relative mx-auto max-w-[1400px]">
           <div className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.25em] text-white/70">
             <span className="rounded bg-white/15 px-2 py-0.5">M Village</span> 브랜드관 · Marketplace 단독
@@ -125,10 +126,11 @@ export function MVillageBanner({ onOpen }: { onOpen: () => void }) {
     <button
       type="button"
       onClick={onOpen}
-      className="group flex w-full items-center justify-between gap-4 overflow-hidden rounded-lg px-5 py-3 text-left text-white"
-      style={{ background: `linear-gradient(100deg, #0a3d34 0%, ${ACCENT} 55%, #0e7490 100%)` }}
+      className="group relative flex w-full items-center justify-between gap-4 overflow-hidden rounded-lg px-5 py-3 text-left text-white"
     >
-      <div className="flex items-center gap-3">
+      <img src={MV_BRAND.banner} alt="" className="absolute inset-0 h-full w-full object-cover" aria-hidden />
+      <div className="absolute inset-0" style={{ background: `linear-gradient(100deg, ${ACCENT}f2 0%, ${ACCENT}cc 58%, ${ACCENT}99 100%)` }} aria-hidden />
+      <div className="relative flex items-center gap-3">
         <span className="flex h-9 w-9 items-center justify-center rounded bg-white/15 text-lg font-black">M</span>
         <div>
           <div className="text-[13px] font-bold">
@@ -137,7 +139,7 @@ export function MVillageBanner({ onOpen }: { onOpen: () => void }) {
           <div className="text-[11.5px] text-white/80">{MV_BRAND.taglineKo}</div>
         </div>
       </div>
-      <span className="shrink-0 rounded-full bg-white/15 px-3 py-1.5 text-[12px] font-semibold group-hover:bg-white/25">브랜드관 바로가기 →</span>
+      <span className="relative shrink-0 rounded-full bg-white/20 px-3 py-1.5 text-[12px] font-semibold backdrop-blur-sm group-hover:bg-white/30">브랜드관 바로가기 →</span>
     </button>
   );
 }

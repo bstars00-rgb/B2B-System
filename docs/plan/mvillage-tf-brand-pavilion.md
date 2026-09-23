@@ -21,7 +21,8 @@
 | **Bookings 배너** | Bookings 상단 그린 배너 → "브랜드관 바로가기" → 브랜드관 이동. `MVillageBanner` |
 | **브랜드관** | 브랜드 히어로 + **티어 필터**(전체/GS/Signature/Premier/MVH/Express) + **물건 카드**(티어 배지·도시·소개·태그) → **예약하기 →** → Create Booking 프리필. `MVillagePavilion` |
 | **예약 연결** | 물건 클릭 = `onBookHotel({code, destination(도시), hotelName})` → Create Booking 검색창 프리필 + 체크인 달력 오픈(기존 `bookHotelFromRanking` 재사용) |
-| **사이드바** | Seller 메뉴에 **M Village** 항목 — **그린 "M Village" 배지**(고도화 UP 배지와 구분) |
+| **사이드바** | **Seller 기능 메뉴에서 분리** — 하단에 **브랜드 프로모 카드**(그린, M 로고, "M Village 브랜드관 · Korea GSA")로 배치. *기능이 아니라 브랜드/광고로 읽히도록* 〔현업 2026-09-23〕 |
+| **실제 컨텐츠** | 배너·물건 사진·CI(딥그린 #2f4f43 + 테라코타 #b5674a)·슬로건("A More Meaningful Stay", "Vietnam Lifestyle Collection")을 **클라이언트 덱에서 추출한 실제 브랜드 컨텐츠**로 반영. `src/assets/mvillage/*.jpg` |
 
 ## 3. 파일 (자체완결 · 폐기 가능)
 - `mocks/mvillage.ts` — 브랜드·티어·물건 데이터 + `mvBookTarget`
@@ -34,7 +35,7 @@
 - 문서·실적에서 **"고도화 3차"로 지정하지 않는다.** 엠빌리지TF로 관리.
 
 ## 5. 미확정 / 다음 단계
-- ⚠ **물건 목록은 프로토타입 예시**(M Village Kim Ma 외 명칭 가안) — **실제 GSA 물건·요금·사진 확정 후 교체.**
-- 브랜드 CI(로고·컬러) 실제 가이드 반영(현재 액센트 그린 `#0f766e` 임시).
+- ⚠ **물건 명칭·요금은 아직 예시**(M Village Kim Ma 외 가안) — 실제 GSA 물건 리스트·요금 확정 후 교체. *사진·CI·슬로건은 덱 기준 실제 반영 완료.*
+- 브랜드 로고 실제 이미지(현재 텍스트 "M" 마크) 반영 여부.
 - 물건→예약 시 **M Village 실물 호텔을 검색 인벤토리에 연결**할지(현재 프리필+도시 결과) 결정.
 - 로그인 홍보를 **캠페인 슬라이드**에 편입할지, 상시 노출 유지할지.

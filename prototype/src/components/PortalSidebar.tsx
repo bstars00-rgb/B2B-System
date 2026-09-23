@@ -56,12 +56,6 @@ const MENU: MenuSection[] = [
         keywords: ['단체', '단체문의', '역경매', 'rfp', 'group', 'inquiry', '문의', '견적'],
       },
       {
-        view: 'mvillage',
-        label: 'M Village',
-        mv: true,
-        keywords: ['엠빌리지', '엠빌리지관', '브랜드관', 'modern village', 'mvillage', 'm village', 'gsa', '베트남'],
-      },
-      {
         view: 'op-points',
         label: 'OP Points',
         enh: '오피포인트 — 마켓플레이스 예약·투숙 완료 고객 리워드(포인트몰 리딤)',
@@ -260,6 +254,24 @@ export default function PortalSidebar({ view, onNavigate }: Props) {
           ),
         )}
       </nav>
+
+      {/* 엠빌리지TF — 브랜드관 프로모 (Seller 기능 메뉴와 분리, 하단 고정) */}
+      <button
+        type="button"
+        onClick={() => onNavigate('mvillage')}
+        className={`mx-3 mb-2 mt-1 flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-white shadow-sm transition-transform hover:scale-[1.01] ${
+          view === 'mvillage' ? 'ring-2 ring-white/70' : ''
+        }`}
+        style={{ background: 'linear-gradient(120deg, #2f4f43 0%, #3d6b57 100%)' }}
+        title="Modern Village Lifestyle 브랜드관 — OMH 한국 GSA (고도화와 별개 · 엠빌리지TF)"
+      >
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-white/15 text-base font-black">M</span>
+        <span className="min-w-0">
+          <span className="block text-[12px] font-bold leading-tight">M Village 브랜드관</span>
+          <span className="block text-[10px] text-white/75">Modern Village · Korea GSA</span>
+        </span>
+        <span className="ml-auto text-white/70">→</span>
+      </button>
 
       <p className="border-t border-slate-100 px-3 py-2 text-[9px] leading-snug text-slate-400">
         실제 Ohmy Partners 메뉴 구조 클론 — Seller 메뉴 전체가 동작합니다.
