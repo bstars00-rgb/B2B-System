@@ -9,7 +9,7 @@ import EnhBadge from './EnhBadge';
  * ※ AI 요금 검색 메뉴는 2026-07-27 삭제 — ELLIS MCP는 마켓플레이스 내장이 아니라 고객사 Claude 플러그인 방식.
  */
 
-export type PortalView = 'dashboard' | 'bookings' | 'create-booking' | 'group-inquiry' | 'op-points' | 'faq' | 'notice' | 'staff';
+export type PortalView = 'dashboard' | 'bookings' | 'create-booking' | 'group-inquiry' | 'mvillage' | 'op-points' | 'faq' | 'notice' | 'staff';
 
 interface Props {
   view: PortalView;
@@ -22,6 +22,8 @@ interface MenuItem {
   badge?: string;
   /** 마켓플레이스 원본에 없는 메뉴 — UP 배지로 표기 */
   enh?: string;
+  /** 엠빌리지TF — 고도화와 별개. 'M Village' 배지(그린)로 구분 */
+  mv?: boolean;
   /** 검색 보조 키워드 (한/영) — 라벨 외 검색어 매칭용 */
   keywords: string[];
 }
@@ -52,6 +54,12 @@ const MENU: MenuSection[] = [
         label: 'Group Inquiry',
         enh: '단체 문의 · 역경매 — 단체 문의를 호텔에 뿌려 견적을 받고 마크업 자동 적용 후 리스트업(리퀘스트 예약)',
         keywords: ['단체', '단체문의', '역경매', 'rfp', 'group', 'inquiry', '문의', '견적'],
+      },
+      {
+        view: 'mvillage',
+        label: 'M Village',
+        mv: true,
+        keywords: ['엠빌리지', '엠빌리지관', '브랜드관', 'modern village', 'mvillage', 'm village', 'gsa', '베트남'],
       },
       {
         view: 'op-points',
@@ -91,6 +99,7 @@ function NavItem({
   active,
   badge,
   enh,
+  mv,
   onClick,
 }: {
   label: string;
@@ -98,6 +107,7 @@ function NavItem({
   active: boolean;
   badge?: string;
   enh?: string;
+  mv?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -120,6 +130,11 @@ function NavItem({
           </span>
         )}
         {enh && <EnhBadge note={enh} />}
+        {mv && (
+          <span className="rounded px-1 py-px text-[8px] font-black uppercase tracking-wide text-white" style={{ background: '#0f766e' }} title="엠빌리지TF — Modern Village 브랜드관(고도화와 별개)">
+            M Village
+          </span>
+        )}
       </button>
     </li>
   );
@@ -206,6 +221,7 @@ export default function PortalSidebar({ view, onNavigate }: Props) {
                     query={query}
                     badge={it.badge}
                     enh={it.enh}
+                    mv={it.mv}
                     active={view === it.view}
                     onClick={() => onNavigate(it.view)}
                   />
@@ -234,6 +250,7 @@ export default function PortalSidebar({ view, onNavigate }: Props) {
                     query={query}
                     badge={it.badge}
                     enh={it.enh}
+                    mv={it.mv}
                     active={view === it.view}
                     onClick={() => onNavigate(it.view)}
                   />

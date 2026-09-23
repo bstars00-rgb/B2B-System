@@ -3,6 +3,7 @@ import { loadPortalLang, savePortalLang, PORTAL_LANGS, type PortalLang } from '.
 import { applyDark, loadDark, saveDark } from '../utils/theme';
 import { CAMPAIGN_INTERVAL_MS, LOGIN_CAMPAIGNS } from '../mocks/loginCampaigns';
 import LegalModal from './LegalModal';
+import { MVillageLoginPromo } from './MVillagePavilion';
 
 interface Props {
   /** stay = Remember me 체크 여부 (localStorage 로그인 유지) */
@@ -144,6 +145,11 @@ export default function LoginPage({ onLogin }: Props) {
               </span>
             ))}
           </div>
+        </div>
+
+        {/* 엠빌리지TF — 로그인 홍보 (Modern Village 브랜드관) — 히어로 하단 고정 */}
+        <div className="relative">
+          <MVillageLoginPromo />
         </div>
 
         {/* 하단: 캠페인 인디케이터 + AI 엔진 상태 */}

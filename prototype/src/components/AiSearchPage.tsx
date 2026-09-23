@@ -10,6 +10,7 @@ import BookingsPage from './BookingsPage';
 import DashboardPage from './DashboardPage';
 import CreateBookingPage, { type BookingPrefill } from './CreateBookingPage';
 import GroupInquiryPage from './GroupInquiryPage';
+import MVillagePavilion, { MVillageBanner } from './MVillagePavilion';
 import OpPointsPage from './OpPointsPage';
 import PlaybookPage from './PlaybookPage';
 import PortalSidebar, { type PortalView } from './PortalSidebar';
@@ -32,6 +33,7 @@ const TAB_LABELS: Record<PortalView, string> = {
   bookings: 'Bookings',
   'create-booking': 'Create Booking',
   'group-inquiry': 'Group Inquiry',
+  mvillage: 'M Village',
   'op-points': 'OP Points',
   faq: 'FAQ Board',
   notice: 'Notice Board',
@@ -284,10 +286,18 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
           <CreateBookingPage prefill={bookingPrefill} />
         ) : view === 'group-inquiry' ? (
           <GroupInquiryPage />
+        ) : view === 'mvillage' ? (
+          <MVillagePavilion onBookHotel={bookHotelFromRanking} />
         ) : view === 'op-points' ? (
           <OpPointsPage bookings={bookings} onOpenBooking={openBookingByCode} onBookHotel={bookHotelFromRanking} />
         ) : (
-          <BookingsPage bookings={bookings} onOpenDetail={setDetailBooking} />
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            {/* 엠빌리지TF — Bookings 상단 브랜드관 배너 */}
+            <div className="shrink-0 px-4 pt-3">
+              <MVillageBanner onOpen={() => navigate('mvillage')} />
+            </div>
+            <BookingsPage bookings={bookings} onOpenDetail={setDetailBooking} />
+          </div>
         )}
 
         {/* ── 실제 포털 푸터 ── */}
