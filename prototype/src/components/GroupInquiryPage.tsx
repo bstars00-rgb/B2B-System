@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import EnhBadge from './EnhBadge';
+import type { Booking } from '../types';
 import { allHotels } from '../mocks/hotelDb';
 import {
   ANCILLARY_LABEL,
@@ -59,7 +60,15 @@ const rateBasisNote = (rate: CountryRate) =>
 
 const activeAncillary = (a?: Ancillary) => (a ? ANCILLARY_KEYS.filter((k) => a[k]).map((k) => ANCILLARY_LABEL[k]) : []);
 
-export default function GroupInquiryPage() {
+export default function GroupInquiryPage({
+  onCreateBooking,
+  onUpdateBookingStatus,
+  onOpenBookings,
+}: {
+  onCreateBooking?: (b: Booking) => void;
+  onUpdateBookingStatus?: (ref: string, status: Booking['status']) => void;
+  onOpenBookings?: () => void;
+} = {}) {
   const [inquiries, setInquiries] = useState<GroupInquiry[]>(loadInquiries);
   const [rates, setRates] = useState<Record<string, CountryRate>>(loadRates);
   const [mode, setMode] = useState<'list' | 'new' | 'detail'>('list');
@@ -106,8 +115,33 @@ export default function GroupInquiryPage() {
       selectedQuoteId: q.id,
       quotes: inq.quotes.map((x) => ({ ...x, status: x.id === q.id ? 'selected' : 'declined' })),
     });
+    // 낙찰 → Marketplace Bookings에 리퀘스트 예약 생성 (고객가·호텔 컨펌 대기)
+    const pr = priceQuote(q.amount, rateFor(inq.country, rates));
+    const booking: Booking = {
+      ellis_code: inq.ref,
+      seller_code: inq.ref,
+      booking_date: new Date().toISOString(),
+      status: 'Requested',
+      payment_status: 'Unpaid',
+      hotel_id: q.hotelId,
+      hotel_name: q.hotelName,
+      region: inq.region,
+      check_in: inq.checkIn,
+      check_out: inq.checkOut,
+      nights: inq.nights,
+      room_type: roomsSummary(inq.rooms),
+      room_count: roomsTotal(inq.rooms),
+      traveler_name: inq.groupType ?? '단체',
+      travelers: inq.guests,
+      currency: q.currency,
+      sum_amt: pr.sell,
+      client_cancel_dl: q.freeCancelUntil ?? null,
+      cancel_date: null,
+      group_ref: inq.ref,
+    };
+    onCreateBooking?.(booking);
     setConfirmQuote(null);
-    setToast(`${q.hotelName} 리퀘스트 예약이 접수되었습니다 — 호텔 확정 응답을 기다립니다.`);
+    setToast(`${q.hotelName} 리퀘스트 예약이 생성되었습니다 (${inq.ref}) — Bookings에서 확인 · 호텔 컨펌 대기.`);
   }
 
   return (
@@ -181,9 +215,11 @@ export default function GroupInquiryPage() {
             showInternal={showInternal}
             onSource={() => sourceQuotes(active)}
             onSelectQuote={(q) => setConfirmQuote(q)}
+            onOpenBookings={onOpenBookings}
             onConfirmHotel={() => {
               patchInquiry(active.id, { status: 'Confirmed' });
-              setToast('호텔이 리퀘스트 예약을 수락했습니다 — 확정되었습니다. (시뮬레이트)');
+              onUpdateBookingStatus?.(active.ref, 'Confirmed');
+              setToast('호텔이 리퀘스트 예약을 수락했습니다 — 예약 확정. (시뮬레이트)');
             }}
           />
         )}
@@ -737,6 +773,7 @@ function DetailView({
   onSource,
   onSelectQuote,
   onConfirmHotel,
+  onOpenBookings,
 }: {
   inq: GroupInquiry;
   rates: Record<string, CountryRate>;
@@ -744,6 +781,7 @@ function DetailView({
   onSource: () => void;
   onSelectQuote: (q: HotelQuote) => void;
   onConfirmHotel: () => void;
+  onOpenBookings?: () => void;
 }) {
   const rate = rateFor(inq.country, rates);
   const selected = inq.quotes.find((q) => q.id === inq.selectedQuoteId) ?? null;
@@ -840,15 +878,41 @@ function DetailView({
         </div>
       )}
 
-      {inq.status === 'Requested' && selected && (
-        <div className="mt-5 rounded-lg border border-blue-200 bg-blue-50 p-5 text-center">
-          <p className="text-[13px] text-slate-700"><b>{selected.hotelName}</b> 리퀘스트 예약이 접수되었습니다 — 호텔 확정 응답 대기 중입니다.</p>
-          <button type="button" onClick={onConfirmHotel} className="mt-3 rounded border border-blue-300 bg-white px-4 py-1.5 text-[12px] font-semibold text-blue-600 hover:bg-blue-100">호텔 수락 (시뮬레이트)</button>
-        </div>
-      )}
-      {inq.status === 'Confirmed' && selected && (
-        <div className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 p-5 text-center text-[13px] font-semibold text-emerald-700">✅ {selected.hotelName} 예약이 확정되었습니다. (계약서·단체 핸들링 F/U 진행)</div>
-      )}
+      {selected && (inq.status === 'Requested' || inq.status === 'Confirmed') && (() => {
+        const pr = priceQuote(selected.amount, rate);
+        const hotelReceive = pr.sell - pr.margin;
+        const requested = inq.status === 'Requested';
+        return (
+          <div className={`mt-5 rounded-lg border p-5 ${requested ? 'border-blue-200 bg-blue-50' : 'border-emerald-200 bg-emerald-50'}`}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-[13px] text-slate-700">
+                {requested ? (
+                  <><b>{selected.hotelName}</b> 리퀘스트 예약 생성됨 (<span className="font-mono">{inq.ref}</span>) — 호텔 컨펌 대기</>
+                ) : (
+                  <>✅ <b>{selected.hotelName}</b> 예약 확정 — 계약서·단체 F/U 진행</>
+                )}
+              </p>
+              <div className="flex gap-2">
+                {onOpenBookings && (
+                  <button type="button" onClick={onOpenBookings} className="rounded border border-slate-300 bg-white px-3 py-1.5 text-[12px] font-semibold text-slate-600 hover:bg-slate-50">Bookings에서 보기 →</button>
+                )}
+                {requested && (
+                  <button type="button" onClick={onConfirmHotel} className="rounded border border-blue-300 bg-white px-3 py-1.5 text-[12px] font-semibold text-blue-600 hover:bg-blue-100">호텔 수락 (시뮬레이트)</button>
+                )}
+              </div>
+            </div>
+            {/* 정산(MOR) — OMH가 대신 수금·지불 */}
+            <div className="mt-3 grid grid-cols-2 gap-3 rounded border border-slate-200 bg-white/70 p-3 text-[12px] md:grid-cols-3">
+              <div><div className="text-[10px] text-slate-400">고객 결제 (→OMH)</div><div className="font-bold text-slate-800">{fmtMoney(pr.sell, selected.currency)}</div></div>
+              <div><div className="text-[10px] text-slate-400">호텔 지불 (OMH→)</div><div className="text-slate-700">{fmtMoney(hotelReceive, selected.currency)}</div></div>
+              {showInternal && (
+                <div><div className="text-[10px] text-slate-400">우리 마진 ({pr.marginLabel})</div><div className="font-semibold text-brand-600">{fmtMoney(pr.margin, selected.currency)}</div></div>
+              )}
+            </div>
+            <p className="mt-1 text-[10px] text-slate-400">OMH가 대신 수금·지불(MOR) — 고객사가 OMH에 결제, OMH가 호텔에 정산. 취소 시 정책 수수료는 고객 청구 후 호텔 전달.</p>
+          </div>
+        );
+      })()}
     </div>
   );
 }

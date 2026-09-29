@@ -285,7 +285,13 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
         ) : view === 'create-booking' ? (
           <CreateBookingPage prefill={bookingPrefill} />
         ) : view === 'group-inquiry' ? (
-          <GroupInquiryPage />
+          <GroupInquiryPage
+            onCreateBooking={(b) => setBookings((prev) => [b, ...prev])}
+            onUpdateBookingStatus={(ref, status) =>
+              setBookings((prev) => prev.map((x) => (x.group_ref === ref ? { ...x, status } : x)))
+            }
+            onOpenBookings={() => navigate('bookings')}
+          />
         ) : view === 'mvillage' ? (
           <MVillagePavilion onBookHotel={bookHotelFromRanking} />
         ) : view === 'op-points' ? (

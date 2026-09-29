@@ -140,6 +140,7 @@ export default function BookingsPage({ bookings, onOpenDetail }: Props) {
               <select value={f.status} onChange={(e) => set({ status: e.target.value })} className={`${input} w-32`}>
                 <option value="">Select</option>
                 <option value="Confirmed">Confirmed</option>
+                <option value="Requested">Requested</option>
                 <option value="Cancelled">Cancelled</option>
               </select>
             </div>
@@ -308,9 +309,10 @@ export default function BookingsPage({ bookings, onOpenDetail }: Props) {
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">{b.seller_code}</td>
                     <td className="whitespace-nowrap px-3 py-2.5">
-                      <span className={b.status === 'Cancelled' ? 'text-rose-600' : 'text-slate-700'}>
+                      <span className={b.status === 'Cancelled' ? 'text-rose-600' : b.status === 'Requested' ? 'font-medium text-blue-600' : 'text-slate-700'}>
                         {b.status}
                       </span>
+                      {b.group_ref && <span className="ml-1 rounded bg-brand-100 px-1 py-px text-[9px] font-bold text-brand-600">GROUP</span>}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">
                       {b.payment_status}

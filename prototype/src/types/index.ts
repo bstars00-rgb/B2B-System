@@ -123,7 +123,8 @@ export interface Booking {
   /** 셀러 예약 코드 (예: ATTIC202607110001) */
   seller_code: string;
   booking_date: string;
-  status: 'Confirmed' | 'Cancelled';
+  /** Requested = 단체 리퀘스트 예약(호텔 컨펌 대기) — 낙찰 후 생성, 컨펌 시 Confirmed */
+  status: 'Confirmed' | 'Cancelled' | 'Requested';
   payment_status: 'Unpaid' | 'Partially Paid' | 'Fully Paid' | 'Refunded' | 'Partially Refunded';
   hotel_id: string;
   hotel_name: string;
@@ -140,6 +141,8 @@ export interface Booking {
   sum_amt: number;
   client_cancel_dl: string | null;
   cancel_date: string | null;
+  /** 단체 문의 낙찰로 생성된 리퀘스트 예약이면 그 문의 접수번호(GRP-…) */
+  group_ref?: string | null;
   /** 취소 사유 (status가 Cancelled일 때만) — 대시보드 Cancel Reasons 분포의 원천 */
   cancel_reason?: string | null;
   /** 발행된 인보이스 번호 (미발행 시 null) */
