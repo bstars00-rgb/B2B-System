@@ -19,7 +19,7 @@ import type { Booking } from '../types';
  *
  * ※ 폐기 용이성: 예약 데이터를 읽기만 함(Booking·seed 불변). 폐기 = opPoints.ts +
  *   OpPointsPage.tsx + opPointsPromos.ts + opAccounts.ts + 사이드바 메뉴 한 줄 삭제.
- *   (교환은 자체 Gift Mall + Giftlunut Gift API — 카탈로그 예시: mocks/giftCatalog.ts, 2026-09-29 미팅 확정.)
+ *   (교환은 자체 Gift Mall + Giftronaut Gift API — 카탈로그 예시: mocks/giftCatalog.ts, 2026-09-29 미팅 확정.)
  */
 
 import type { PointPromo } from '../mocks/opPointsPromos';
@@ -72,13 +72,16 @@ export function usdToPoints(usd: number): number {
 
 /**
  * 기프트카드 권종(현지통화) → 필요 포인트 (소수 첫째 자리 올림).
- * ⚠ 1P 가치(pointUnitKRW)는 **미확정** — Giftlunut Open API 수령 후 결정(USD Deposit 구조상 재검토).
+ * ⚠ 1P 가치(pointUnitKRW)는 **미확정** — Giftronaut Balance·Choice Card가 USD라 USD 기준 재정의 검토(결정 대기).
  */
 export function faceToPoints(face: number, currency: string): number {
   return Math.ceil((toKRW(face, currency) / OP_POINT_POLICY.pointUnitKRW) * 10) / 10;
 }
 
-/** 권종 → USD (Giftlunut Deposit 차감 시연용 환산 — 실제 차감은 Giftlunut 공급 단가) */
+/**
+ * 권종 → USD (Balance 차감 시연용 환산).
+ * 실제 차감 = 액면가를 **Giftronaut 상품 환율**로 USD 환산한 금액(API 문서) — 우리 환율표와 차이 가능(주문 전 견적 방법 확인 필요).
+ */
 export function faceToUsd(face: number, currency: string): number {
   return Math.round((toKRW(face, currency) / FX_TO_KRW.USD) * 100) / 100;
 }
