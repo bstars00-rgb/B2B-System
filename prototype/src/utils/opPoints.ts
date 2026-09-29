@@ -13,8 +13,8 @@ import type { Booking } from '../types';
  *     고객은 **계산식(요율)을 모른다.** "150% 적립" 같은 **배수 배지**만 노출.
  *   · **적립 한도 없음.**
  *   · 다통화 예약 → **환율로 공통 기준(KRW) 환산** 후 적립.
- *   · **화폐값을 노출하지 않는다.** 140,000원×1% = 1,400원 대신 **1.4 오마이포인트**로 표시
- *     (1 포인트 = 1,000원 value). 리딤은 **USD 기준**(최소 USD 10부터, 포인트로 안내).
+ *   · **화폐값을 노출하지 않는다.** 140,000원×1% = 1,400원 대신 **1.4 오마이포인트**로 표시.
+ *     1P 가치·최소 교환은 **ELLIS 정책값**(PointPolicy, 기본 1P = ₩1,000 · 최소 14.8P).
  *   · 유효기간 **1년**.
  *
  * ※ 폐기 용이성: 예약 데이터를 읽기만 함(Booking·seed 불변). 폐기 = opPoints.ts +
@@ -49,33 +49,55 @@ export function toKRW(amount: number, currency: string): number {
 export const OP_POINT_POLICY = {
   /** 기본 적립 요율 (%) — 내부값. 고객에겐 배수(배지)로만 표현. */
   baseRatePct: 1,
-  /** 1 오마이포인트 = N KRW value (화폐값 은닉용 환산 단위) */
-  pointUnitKRW: 1_000,
-  /** 리딤 최소 (USD) */
-  redeemMinUSD: 10,
   /** 유효기간(개월) — 1년. 현업 2026-09: 회계년도 마감과 연동(정책 확정 대상). */
   expiryMonths: 12,
+  /**
+   * 기프트카드 유효기간(일) — 확정 2026-09-29: **180일, 미사용분은 환급 없이 소멸**
+   * (Giftronaut `refundOption: false`). 내부 감사(Audit)로 발급·만료를 추적.
+   */
+  giftCardValidityDays: 180,
 };
+
+/**
+ * ELLIS에서 설정하는 포인트 정책 — 2026-09-29 결정: **1P 가치·최소 교환은 지금 고정하지 않고 ELLIS 정책값**으로 둔다.
+ * 아래 기본값은 기존 임시값(1P = ₩1,000 · 최소 교환 USD 10 상당).
+ */
+export interface PointPolicy {
+  /** 1P 가치 표시 통화 */
+  unitCurrency: 'KRW' | 'USD';
+  /** 1P 가치 (unitCurrency 기준) */
+  unitValue: number;
+  /** 1회 최소 교환 포인트 */
+  minRedeemPts: number;
+}
+
+export const DEFAULT_POINT_POLICY: PointPolicy = { unitCurrency: 'KRW', unitValue: 1_000, minRedeemPts: 14.8 };
+
+/** 정책 → 1P의 KRW 가치 (내부 계산 기준통화 KRW) */
+export const unitKRWOf = (p: PointPolicy): number => toKRW(p.unitValue, p.unitCurrency);
+const DEFAULT_UNIT_KRW = unitKRWOf(DEFAULT_POINT_POLICY);
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
-/** 예약금액(로컬통화) → 오마이포인트. KRW 환산 × 요율 × 배수 / 포인트 단위. */
-export function pointsFor(amount: number, currency: string, multiplier: number): number {
+/** 예약금액(로컬통화) → 오마이포인트. KRW 환산 × 요율 × 배수 / 1P 가치(KRW). */
+export function pointsFor(amount: number, currency: string, multiplier: number, unitKRW = DEFAULT_UNIT_KRW): number {
   const krwValue = toKRW(amount, currency) * (OP_POINT_POLICY.baseRatePct / 100) * multiplier;
-  return round1(krwValue / OP_POINT_POLICY.pointUnitKRW);
+  return round1(krwValue / unitKRW);
 }
 
-/** USD 금액 → 필요 포인트 (리딤 표시용) */
-export function usdToPoints(usd: number): number {
-  return round1(toKRW(usd, 'USD') / OP_POINT_POLICY.pointUnitKRW);
+/** USD 금액 → 포인트 (표시용) */
+export function usdToPoints(usd: number, unitKRW = DEFAULT_UNIT_KRW): number {
+  return round1(toKRW(usd, 'USD') / unitKRW);
 }
 
-/**
- * 기프트카드 권종(현지통화) → 필요 포인트 (소수 첫째 자리 올림).
- * ⚠ 1P 가치(pointUnitKRW)는 **미확정** — Giftronaut Balance·Choice Card가 USD라 USD 기준 재정의 검토(결정 대기).
- */
-export function faceToPoints(face: number, currency: string): number {
-  return Math.ceil((toKRW(face, currency) / OP_POINT_POLICY.pointUnitKRW) * 10) / 10;
+/** 포인트 → USD 상당 (ELLIS 표시용) */
+export function pointsToUsd(points: number, unitKRW = DEFAULT_UNIT_KRW): number {
+  return Math.round(((points * unitKRW) / FX_TO_KRW.USD) * 100) / 100;
+}
+
+/** 기프트카드 권종(현지통화) → 필요 포인트 (소수 첫째 자리 올림). 1P 가치는 ELLIS 정책값. */
+export function faceToPoints(face: number, currency: string, unitKRW = DEFAULT_UNIT_KRW): number {
+  return Math.ceil((toKRW(face, currency) / unitKRW) * 10) / 10;
 }
 
 /**
@@ -156,7 +178,7 @@ function isPaid(b: Booking): boolean {
   return b.payment_status === 'Fully Paid';
 }
 
-function toAccrual(b: Booking, promos: PointPromo[], today: string): Accrual {
+function toAccrual(b: Booking, promos: PointPromo[], today: string, unitKRW: number): Accrual {
   const { multiplier, label } = promoFor(b, promos);
   return {
     ellisCode: b.ellis_code,
@@ -168,7 +190,7 @@ function toAccrual(b: Booking, promos: PointPromo[], today: string): Accrual {
     paymentStatus: b.payment_status,
     multiplier,
     promoLabel: label,
-    points: pointsFor(b.sum_amt, b.currency, multiplier),
+    points: pointsFor(b.sum_amt, b.currency, multiplier, unitKRW),
   };
 }
 
@@ -176,22 +198,22 @@ function toAccrual(b: Booking, promos: PointPromo[], today: string): Accrual {
  * 확정 적립 — **투숙 완료 + 지불 완료(Fully Paid)** 건만. 투숙 완료일 내림차순. 한도 없음.
  * (현업 2026-07-29: 체크아웃 기준이라도 지불 완료된 건만 적립.)
  */
-export function computeAccruals(bookings: Booking[], today: string, promos: PointPromo[]): Accrual[] {
+export function computeAccruals(bookings: Booking[], today: string, promos: PointPromo[], unitKRW = DEFAULT_UNIT_KRW): Accrual[] {
   return bookings
     .filter((b) => isStayed(b, today) && isPaid(b))
     .sort((a, b) => b.check_out.localeCompare(a.check_out))
-    .map((b) => toAccrual(b, promos, today));
+    .map((b) => toAccrual(b, promos, today, unitKRW));
 }
 
 /**
  * 적립 예정(지불 대기) — 투숙은 완료됐으나 아직 지불 미완결(후불 업체 등)인 건.
  * 지불이 완료되면 적립된다. 투숙 완료일 내림차순.
  */
-export function computePending(bookings: Booking[], today: string, promos: PointPromo[]): Accrual[] {
+export function computePending(bookings: Booking[], today: string, promos: PointPromo[], unitKRW = DEFAULT_UNIT_KRW): Accrual[] {
   return bookings
     .filter((b) => isStayed(b, today) && !isPaid(b))
     .sort((a, b) => b.check_out.localeCompare(a.check_out))
-    .map((b) => toAccrual(b, promos, today));
+    .map((b) => toAccrual(b, promos, today, unitKRW));
 }
 
 export interface OpPointSummary {

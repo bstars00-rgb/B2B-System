@@ -118,9 +118,54 @@ export interface GiftRedemption {
   usd: number;
   at: string;
   status: RedeemStatus;
+  /** 내부 사유(API 코드 등) — **ELLIS 전용**, 고객 화면엔 일반 문구만 */
   failReason?: string;
   resent?: number;
+  /** 감사(Audit) 이력 — 추가만(append-only). 요청·주문 생성·발송·반송·재발송(이메일 변경 전→후)·실패 */
+  events: { at: string; text: string }[];
 }
 
 /** Balance(USD 선충전) 시연 초기 잔액 — Production 가정. (Sandbox는 가상 $10,000, $1,000 미만 시 자동 보충) */
 export const SEED_DEPOSIT_USD = 2000;
+
+const shift = (iso: string, days: number) => new Date(new Date(`${iso}T00:00:00Z`).getTime() + days * 86400000).toISOString().slice(0, 10);
+
+/** 유효기간 만료일 — 발송일 + N일 (확정 2026-09-29: 180일, 미사용 소멸) */
+export const expiryOf = (sentOn: string, days: number): string => shift(sentOn, days);
+
+/**
+ * 감사(Audit) 시연용 과거 교환 — 같은 회사 다른 OP 계정(고객 화면엔 안 보임, ELLIS 로그에만).
+ * 만료(소멸) · 만료 임박 · 재발송(이메일 변경) · 정상 사례. 포인트·USD는 당시 값으로 **저장된 값**(정책이 바뀌어도 불변).
+ */
+export function seedRedemptions(today: string): GiftRedemption[] {
+  const rec = (
+    n: number, accountId: string, productId: string, face: number, daysAgo: number, points: number, usd: number,
+    extra: Partial<GiftRedemption> = {}, events?: { at: string; text: string }[],
+  ): GiftRedemption => {
+    const at = shift(today, -daysAgo);
+    const orderNo = `OT${at.replace(/-/g, '')}${String(100000 + n * 7919).slice(-6)}`;
+    return {
+      id: `seed-${n}`, orderNo, idempotencyKey: `omh-rdm-seed-${n}`, accountId, email: accountId, productId, country: 'KR',
+      face, points, usd, at, status: 'sent',
+      events: events ?? [
+        { at: `${at} 10:0${n}`, text: `교환 요청 · ${points} P 보류` },
+        { at: `${at} 10:0${n}`, text: `주문 생성 ${orderNo} · Balance −USD ${usd.toFixed(2)}` },
+        { at: `${at} 10:1${n}`, text: '발송 완료 (order.delivery_complete)' },
+      ],
+      ...extra,
+    };
+  };
+  const b = shift(today, -45);
+  return [
+    rec(1, 'osaka.desk@attic-tours.com', 'kr-cu', 20000, 200, 20, 13.51),
+    rec(2, 'fit.team@attic-tours.com', 'kr-oliveyoung', 30000, 172, 30, 20.27),
+    rec(3, 'osaka.desk@attic-tours.com', 'kr-baemin', 20000, 45, 20, 13.51, { email: 'osaka.kansai@attic-tours.com', resent: 1 }, [
+      { at: `${b} 14:02`, text: '교환 요청 · 20 P 보류' },
+      { at: `${b} 14:02`, text: '주문 생성 · Balance −USD 13.51' },
+      { at: `${b} 14:09`, text: '이메일 반송 (order.bounced)' },
+      { at: `${b} 16:30`, text: '재발송 osaka.desk@attic-tours.com → osaka.kansai@attic-tours.com' },
+      { at: `${b} 16:31`, text: '발송 완료 (order.delivery_complete)' },
+    ]),
+    rec(4, 'fit.team@attic-tours.com', 'kr-gs25', 20000, 12, 20, 13.51),
+  ];
+}

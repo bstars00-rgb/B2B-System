@@ -2,7 +2,10 @@ import { useMemo, useState } from 'react';
 import type { Booking } from '../types';
 import EnhBadge from './EnhBadge';
 import { todayIso } from '../utils/dashboardStats';
-import { OP_POINT_POLICY, computeAccruals, summarize, tierFor, TIERS, faceToPoints, faceToUsd, usdToPoints, type Accrual } from '../utils/opPoints';
+import {
+  OP_POINT_POLICY, DEFAULT_POINT_POLICY, computeAccruals, summarize, tierFor, TIERS, faceToPoints, faceToUsd, pointsToUsd, unitKRWOf, toKRW,
+  type Accrual, type PointPolicy,
+} from '../utils/opPoints';
 import { SEED_PROMOS, type PointPromo } from '../mocks/opPointsPromos';
 import { OP_ACCOUNTS, opAccountIdFor } from '../mocks/opAccounts';
 import { hotelCodeOf, cityOfHotel } from '../mocks/hotelDb';
@@ -12,7 +15,9 @@ import {
   SEED_DEPOSIT_USD,
   catalogOf,
   countryInfo,
+  expiryOf,
   fmtFace,
+  seedRedemptions,
   type GiftCountry,
   type GiftProduct,
   type GiftRedemption,
@@ -30,7 +35,9 @@ export interface BookHotelTarget { code: string; destination: string; hotelName:
  *   (국가별 상품·권종 선택 → `POST /orders/branded-cards` → 기프트카드를 OP 이메일로 발송, OMH USD Balance에서 차감).
  *   API 문서(https://api.giftronaut.com/docs/reference) 검토 반영: 주문 상태·반송(bounce)·재발송·idempotencyKey·Balance.
  * 적립 요율·계산식 비노출(배수 배지·상대 부스트만). 계정별 분리. 유효기간 1년.
- * ⚠ 미확정(결정 대기): 1P 가치 · 적립률 · 최소 교환 · 국가 노출 · 카드 타입(Branded/Choice) · 카드 유효기간(환급 옵션) — 현재 값은 기존 임시값.
+ * 결정(2026-09-29): 1P 가치·최소 교환 = **ELLIS 정책값**(지금 고정 안 함) · 기프트카드 **180일, 미사용 소멸(환급 없음) + 내부 Audit** ·
+ *   Balance 충전 = **해외송금만**, 잔액은 ELLIS에서 `GET /balance`로 확인(고객 비노출, 별도 알림 없음).
+ * ⚠ 미확정: 국가 노출 · 카드 타입(Branded/Choice) — 현재는 거래처 국가 Branded만.
  *
  * ※ 폐기: opPoints.ts + 이 파일 + opPointsPromos.ts + opAccounts.ts + giftCatalog.ts + 사이드바 메뉴 한 줄 삭제.
  */
@@ -46,10 +53,16 @@ const parseList = (s: string): string[] | 'all' => {
 };
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const usd = (n: number) => `USD ${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-/** 최소 교환 — 기존 임시값(USD 10 상당). ⚠ 미확정: Open API 수령 후 결정 */
-const MIN_REDEEM_PTS = usdToPoints(OP_POINT_POLICY.redeemMinUSD);
-/** Balance 잔액 경고 표시(시연). ⚠ 실제 알림 기준 미확정 */
-const DEPOSIT_WARN_USD = 300;
+/** 로컬 시각 'YYYY-MM-DD HH:mm' — 감사 이력용 */
+const stamp = () => {
+  const d = new Date();
+  const z = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`;
+};
+const daysBetween = (a: string, b: string) => Math.round((new Date(`${b}T00:00:00Z`).getTime() - new Date(`${a}T00:00:00Z`).getTime()) / 86400000);
+const VALID_DAYS = OP_POINT_POLICY.giftCardValidityDays;
+/** 고객 화면용 실패 문구 — 내부 사유(API 코드·Balance 부족)는 고객에게 노출하지 않는다 */
+const CUSTOMER_FAIL_MSG = '일시적인 오류로 교환되지 않았습니다 · 포인트는 복원되었습니다';
 
 const REDEEM_STYLE: Record<RedeemStatus, { label: string; cls: string }> = {
   processing: { label: '처리 중 · 포인트 보류', cls: 'bg-amber-50 text-amber-600' },
@@ -81,7 +94,7 @@ const GUIDE_ITEMS: { key: string; icon: string; title: string; desc: string; bod
   { key: 'points', icon: '⭐', title: '포인트 · 유효기간', desc: '포인트는 어떻게 구분되나요?',
     body: '포인트는 사용 가능 · 총적립(12개월) · 만료 예정으로 구분됩니다. 유효기간은 1년이며 회계년도 마감에 맞춰 관리됩니다. 포인트는 예약 담당자(OP) 개인 계정에 적립되어 계정별로 분리됩니다.' },
   { key: 'redeem', icon: '💎', title: '교환 (Gift Mall)', desc: '포인트 교환하는 법',
-    body: 'Gift Mall에서 상품과 권종을 고르면 포인트로 교환되고, 기프트카드가 등록 이메일로 발송됩니다. 이메일의 Redeem 버튼을 누른 뒤 이메일 인증(1-클릭 링크)을 거치면 사용할 수 있습니다. 기프트카드는 국가별 상품이라 소속 거래처 국가에서 사용할 수 있는 상품이 노출됩니다. 교환은 취소할 수 없으며, 주문이 처리되지 않으면 포인트는 자동으로 복원됩니다. 이메일이 반송되면 교환 내역에서 이메일을 확인해 재발송할 수 있습니다.' },
+    body: 'Gift Mall에서 상품과 권종을 고르면 포인트로 교환되고, 기프트카드가 등록 이메일로 발송됩니다. 이메일의 Redeem 버튼을 누른 뒤 이메일 인증(1-클릭 링크)을 거치면 사용할 수 있습니다. 기프트카드는 국가별 상품이라 소속 거래처 국가에서 사용할 수 있는 상품이 노출됩니다. 교환은 취소할 수 없으며, 주문이 처리되지 않으면 포인트는 자동으로 복원됩니다. 이메일이 반송되면 교환 내역에서 이메일을 확인해 재발송할 수 있습니다. 기프트카드 유효기간은 발송일로부터 180일이며, 기간 내 사용하지 않으면 소멸됩니다(환불 없음).' },
   { key: 'support', icon: '❓', title: '고객지원', desc: '문의하기',
     body: '포인트 미적립, 캠페인 적립 오류, 기프트카드 미수신·이메일 반송, 등급 관련 문의 등은 마켓플레이스 고객지원으로 연락해 주세요.' },
 ];
@@ -114,10 +127,32 @@ export default function OpPointsPage({
   const account = OP_ACCOUNTS.find((a) => a.id === accountId) ?? OP_ACCOUNTS[0];
   const myBookings = useMemo(() => bookings.filter((b) => opAccountIdFor(b.ellis_code) === accountId), [bookings, accountId]);
 
+  // ── ELLIS 포인트 정책 (2026-09-29 결정: 1P 가치·최소 교환은 ELLIS 정책값) ──
+  const [policy, setPolicy] = useState<PointPolicy>(DEFAULT_POINT_POLICY);
+  const [policyDraft, setPolicyDraft] = useState<PointPolicy>(DEFAULT_POINT_POLICY);
+  /** 정책 변경 이력 — 감사용(append-only) */
+  const [policyLog, setPolicyLog] = useState<{ at: string; item: string; from: string; to: string }[]>([]);
+  const unitKRW = unitKRWOf(policy);
+  const minRedeemPts = policy.minRedeemPts;
+  const fmtUnit = (p: PointPolicy) => (p.unitCurrency === 'USD' ? `US$${p.unitValue}` : `₩${p.unitValue.toLocaleString()}`);
+  const draftValid = policyDraft.unitValue > 0 && policyDraft.minRedeemPts > 0;
+  const draftChanged = JSON.stringify(policyDraft) !== JSON.stringify(policy);
+  const applyPolicy = () => {
+    if (!draftValid || !draftChanged) return;
+    const at = stamp();
+    const logs: { at: string; item: string; from: string; to: string }[] = [];
+    if (policyDraft.unitCurrency !== policy.unitCurrency || policyDraft.unitValue !== policy.unitValue) logs.push({ at, item: '1P 가치', from: fmtUnit(policy), to: fmtUnit(policyDraft) });
+    if (policyDraft.minRedeemPts !== policy.minRedeemPts) logs.push({ at, item: '최소 교환', from: pt(policy.minRedeemPts), to: pt(policyDraft.minRedeemPts) });
+    setPolicyLog((prev) => [...logs, ...prev]);
+    setPolicy(policyDraft);
+    setToast('포인트 정책을 적용했습니다 (변경 이력 기록)');
+  };
+
   // ── Gift Mall (자체 UI) + Giftronaut Gift API(시연) ──
   const mallCountry: GiftCountry = account.country; // 기존 결정: 거래처 국가 1개 노출 (⚠ 노출 방식 미확정)
   const mallProducts = useMemo(() => catalogOf(mallCountry), [mallCountry]);
-  const [redemptions, setRedemptions] = useState<GiftRedemption[]>([]); // 전 계정 주문 로그(ELLIS) — 고객 화면은 본인 것만
+  // 전 계정 주문 로그(ELLIS · 감사) — 고객 화면은 본인 것만. 과거 사례(다른 OP 계정) 시드 포함
+  const [redemptions, setRedemptions] = useState<GiftRedemption[]>(() => seedRedemptions(todayIso()));
   const [deposit, setDeposit] = useState(SEED_DEPOSIT_USD);
   const [simNext, setSimNext] = useState<SimOutcome>('ok');
   /** 반송 건 재발송 — 이메일 확인·수정(`updatedEmail`) */
@@ -126,8 +161,10 @@ export default function OpPointsPage({
   const [giftFace, setGiftFace] = useState<number | null>(null);
   const [previewCountry, setPreviewCountry] = useState<GiftCountry>('CN');
   const redeemed = useMemo(() => redemptions.filter((x) => x.accountId === accountId), [redemptions, accountId]);
+  const addEvent = (recId: string, text: string, patch: Partial<GiftRedemption> = {}) =>
+    setRedemptions((prev) => prev.map((x) => (x.id === recId ? { ...x, ...patch, events: [...x.events, { at: stamp(), text }] } : x)));
 
-  const accruals = useMemo(() => computeAccruals(myBookings, today, promos), [myBookings, today, promos]);
+  const accruals = useMemo(() => computeAccruals(myBookings, today, promos, unitKRW), [myBookings, today, promos, unitKRW]);
   const summary = useMemo(() => summarize(accruals, today), [accruals, today]);
   // 처리 중(보류)·발송·반송은 차감 — 반송은 카드가 이미 발급돼 재발송 대상. 실패(주문 미생성)만 복원되어 잔액에 포함
   const redeemedPts = r1(redeemed.filter((x) => x.status !== 'failed').reduce((s, x) => s + x.points, 0));
@@ -158,22 +195,32 @@ export default function OpPointsPage({
     return accruals.filter((a) => a.stayCompleted >= cut);
   }, [accruals, period, today]);
 
+  // ── 감사(Audit) 집계 — 발급(주문 생성) 건 기준. 유효기간 180일, 미사용분 환급 없이 소멸 ──
+  const issued = redemptions.filter((x) => x.orderNo);
+  const expiringSoon = issued.filter((x) => {
+    const d = daysBetween(today, expiryOf(x.at, VALID_DAYS));
+    return d >= 0 && d <= 30;
+  });
+  const expired = issued.filter((x) => expiryOf(x.at, VALID_DAYS) < today);
+  const issuedUsd = r2(issued.reduce((s, x) => s + x.usd, 0));
+
   /**
-   * 교환 — 포인트 보류(processing) → `POST /orders/branded-cards`(IMMEDIATE, idempotencyKey) →
+   * 교환 — 포인트 보류(processing) → `POST /orders/branded-cards`(IMMEDIATE, idempotencyKey, refundOption=false) →
    *  · 201 생성 → COMPLETE(`order.delivery_complete`): 이메일 발송·Balance 차감(sent)
    *  · 201 생성 → `order.bounced`: 카드 발급·Balance 차감됨 → 포인트 유지, 이메일 확인 후 재발송(bounced)
-   *  · 402/400 거절: 주문 미생성 → 포인트 자동 복원(failed)
+   *  · 402/400 거절: 주문 미생성 → 포인트 자동 복원(failed). 사유는 ELLIS에만, 고객에겐 일반 문구
    * (타임아웃 등 결과 불명 시엔 키를 바꿔 재시도하지 않고 `GET /orders?clientOrderId={key}`로 확인 — 실서비스 처리)
    */
   const doRedeem = (product: GiftProduct, face: number) => {
     const cur = countryInfo(product.country).currency;
-    const points = faceToPoints(face, cur);
+    const points = faceToPoints(face, cur, unitKRW);
     const cost = faceToUsd(face, cur);
     if (balance < points) { setToast(`포인트가 부족합니다 (필요 ${pt(points)}, 사용 가능 ${pt(balance)})`); return; }
     const id = `${Date.now()}`;
     const rec: GiftRedemption = {
       id, idempotencyKey: `omh-rdm-${id}`, accountId, email: account.id, productId: product.id, country: product.country,
       face, points, usd: cost, at: today, status: 'processing',
+      events: [{ at: stamp(), text: `교환 요청 · ${pt(points)} 보류 (1P = ${fmtUnit(policy)})` }],
     };
     const sim = simNext;
     const outcome: SimOutcome = sim === 'ok' && deposit < cost ? 'insufficient' : sim;
@@ -181,22 +228,29 @@ export default function OpPointsPage({
     setRedemptions((prev) => [rec, ...prev]);
     setGiftProduct(null);
     setGiftFace(null);
-    setToast(`주문 접수 — Giftronaut 발송 처리 중 (${pt(points)} 보류)`);
+    setToast(`교환 요청 접수 — 기프트카드 발송 처리 중 (${pt(points)} 보류)`);
     window.setTimeout(() => {
       if (outcome === 'validation' || outcome === 'insufficient') {
         const reason = outcome === 'validation' ? '400 VALIDATION_ERROR — 유효하지 않은 권종' : '402 INSUFFICIENT_BALANCE — Balance 부족';
-        setRedemptions((prev) => prev.map((x) => (x.id === id ? { ...x, status: 'failed', failReason: reason } : x)));
-        setToast(`✕ 주문 실패(${reason}) — ${pt(points)} 복원되었습니다`);
+        addEvent(id, `주문 거절 ${reason} · ${pt(points)} 복원`, { status: 'failed', failReason: reason });
+        setToast(`✕ ${CUSTOMER_FAIL_MSG}`);
         return;
       }
       const orderNo = `OT${today.replace(/-/g, '')}${id.slice(-6)}`;
+      const created = { at: stamp(), text: `주문 생성 ${orderNo} · Balance −${usd(cost)}` };
       setDeposit((d) => r2(d - cost));
       if (outcome === 'bounce') {
-        setRedemptions((prev) => prev.map((x) => (x.id === id ? { ...x, orderNo, status: 'bounced', failReason: '이메일 반송(order.bounced)' } : x)));
+        setRedemptions((prev) => prev.map((x) => (x.id === id ? {
+          ...x, orderNo, status: 'bounced', failReason: '이메일 반송(order.bounced)',
+          events: [...x.events, created, { at: stamp(), text: '이메일 반송 (order.bounced)' }],
+        } : x)));
         setToast(`⚠ ${account.id}로 보낸 기프트카드 이메일이 반송되었습니다 — 교환 내역에서 이메일 확인 후 재발송하세요`);
         return;
       }
-      setRedemptions((prev) => prev.map((x) => (x.id === id ? { ...x, orderNo, status: 'sent' } : x)));
+      setRedemptions((prev) => prev.map((x) => (x.id === id ? {
+        ...x, orderNo, status: 'sent',
+        events: [...x.events, created, { at: stamp(), text: '발송 완료 (order.delivery_complete)' }],
+      } : x)));
       setToast(`✓ ${product.name} ${fmtFace(face, product.country)} — ${account.id}로 기프트카드가 발송되었습니다 (시연)`);
     }, 1200);
   };
@@ -205,11 +259,14 @@ export default function OpPointsPage({
   const doResend = (recId: string, email: string) => {
     const to = email.trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) { setToast('이메일 형식을 확인해 주세요'); return; }
+    const prevEmail = redemptions.find((x) => x.id === recId)?.email ?? '';
     setResend(null);
-    setRedemptions((prev) => prev.map((x) => (x.id === recId ? { ...x, email: to, status: 'processing', failReason: undefined } : x)));
+    addEvent(recId, `재발송 ${prevEmail}${to !== prevEmail ? ` → ${to}` : ' (동일 주소)'}`, { email: to, status: 'processing', failReason: undefined });
     setToast(`재발송 요청 — ${to}`);
     window.setTimeout(() => {
-      setRedemptions((prev) => prev.map((x) => (x.id === recId ? { ...x, status: 'sent', resent: (x.resent ?? 0) + 1 } : x)));
+      setRedemptions((prev) => prev.map((x) => (x.id === recId ? {
+        ...x, status: 'sent', resent: (x.resent ?? 0) + 1, events: [...x.events, { at: stamp(), text: '발송 완료 (order.delivery_complete)' }],
+      } : x)));
       setToast(`✓ ${to}로 기프트카드를 재발송했습니다 (시연)`);
     }, 1000);
   };
@@ -335,7 +392,7 @@ export default function OpPointsPage({
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             {mallProducts.map((p) => {
               const cur = countryInfo(p.country).currency;
-              const minPts = faceToPoints(Math.min(...p.prices), cur);
+              const minPts = faceToPoints(Math.min(...p.prices), cur, unitKRW);
               const affordable = balance >= minPts;
               return (
                 <button
@@ -441,7 +498,10 @@ export default function OpPointsPage({
                         <span className="text-slate-400">{v.at} · {fmtFace(v.face, v.country)}</span>
                         <span className={`rounded-sm px-1.5 py-px text-[9px] font-bold ${st.cls}`}>{st.label}</span>
                       </div>
-                      {v.failReason && <p className={`mt-1 text-[10px] ${v.status === 'bounced' ? 'text-orange-600' : 'text-rose-500'}`}>사유: {v.failReason}</p>}
+                      {/* 고객에겐 일반 문구만 — 내부 사유(API 코드·Balance 부족)는 ELLIS 감사 로그에만 */}
+                      {v.status === 'failed' && <p className="mt-1 text-[10px] text-rose-500">{CUSTOMER_FAIL_MSG}</p>}
+                      {v.status === 'bounced' && <p className="mt-1 text-[10px] text-orange-600">받는 이메일로 전달되지 않았습니다(반송).</p>}
+                      {v.orderNo && v.status !== 'bounced' && <p className="mt-1 text-[10px] text-slate-400">유효기간 ~ {expiryOf(v.at, VALID_DAYS)} (미사용 시 소멸)</p>}
                       {v.status === 'bounced' && (
                         <button
                           type="button"
@@ -480,18 +540,108 @@ export default function OpPointsPage({
         </div>
 
         <p className="text-[10px] leading-relaxed text-slate-400">
-          예약이 <b>투숙 완료 + 지불 완료</b>되면 <b>자동 적립</b>(취소·노쇼·환불 제외). 등급이 오를수록 더 많이 적립되고, 프로모션 호텔은 추가 적립(배수 배지). 포인트는 <b>OP 계정별 분리</b>({account.name} 예약 {myBookings.length}건 중 {summary.eligibleCount}건 적립)·<b>유효기간 1년(회계년도 기준)</b>. 교환은 <b>자체 Gift Mall</b>에서 하고 발송은 <b>Giftronaut Gift API</b>가 처리(USD Balance 차감). 교환은 세션 내 표시(새로고침 시 초기화). <b>미확정(결정 대기)</b>: 1P 가치 · 적립률 · 최소 교환 · 국가 노출 · 카드 타입(Branded/Choice) · 카드 유효기간(환급 옵션) — 현재 표시는 기존 임시값. 그 외 정책: 등급 임계값/부스트·세무.
+          예약이 <b>투숙 완료 + 지불 완료</b>되면 <b>자동 적립</b>(취소·노쇼·환불 제외). 등급이 오를수록 더 많이 적립되고, 프로모션 호텔은 추가 적립(배수 배지). 포인트는 <b>OP 계정별 분리</b>({account.name} 예약 {myBookings.length}건 중 {summary.eligibleCount}건 적립)·<b>유효기간 1년(회계년도 기준)</b>. 교환은 <b>자체 Gift Mall</b>에서 하고 발송은 <b>Giftronaut Gift API</b>가 처리(USD Balance 차감). 교환은 세션 내 표시(새로고침 시 초기화). <b>1P 가치·최소 교환은 ELLIS 정책값</b>(아래 ELLIS 패널에서 변경 · 이력 기록). 기프트카드 <b>유효기간 180일 · 미사용 소멸(환불 없음)</b>. <b>미확정</b>: 국가 노출 · 카드 타입(Branded/Choice) · 적립률. 그 외 정책: 등급 임계값/부스트·세무.
         </p>
 
         {/* ELLIS 내부 프로모 관리 (고객 비노출) */}
         <div className="rounded-lg border border-dashed border-slate-300 bg-slate-100/60 p-3">
           <button type="button" onClick={() => setShowEllis((v) => !v)} className="flex w-full items-center justify-between text-left">
-            <span className="text-[12px] font-bold text-slate-700">🔧 ELLIS 내부 — 포인트 프로모 · Gift API 관리 <span className="font-normal text-slate-400">(고객 비노출 · 시연)</span></span>
+            <span className="text-[12px] font-bold text-slate-700">🔧 ELLIS 내부 — 포인트 정책 · Gift API · 감사 · 프로모 관리 <span className="font-normal text-slate-400">(고객 비노출 · 시연)</span></span>
             <span className="text-[10px] text-slate-400">{showEllis ? '접기 ▲' : '펼치기 ▼'}</span>
           </button>
           {showEllis && (
             <div className="mt-3">
-              {/* Giftronaut Gift API — Balance · 주문 로그 · 실패/반송 처리 · 국가 카탈로그 */}
+              {/* 포인트 정책 (ELLIS 설정) — 1P 가치·최소 교환은 지금 고정하지 않고 ELLIS에서 결정 (2026-09-29) */}
+              <div className="mb-4 rounded border border-slate-200 bg-white p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[12px] font-bold text-slate-800">포인트 정책</span>
+                  <span className="rounded-sm bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-600">ELLIS 설정값</span>
+                  <span className="text-[10px] text-slate-400">변경 시 이력 기록(감사) · 시연은 즉시 재계산</span>
+                </div>
+                <div className="mt-2 grid grid-cols-1 gap-2 lg:grid-cols-4">
+                  <label className="rounded border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
+                    <span className="block text-[10px] text-slate-500">1P 가치</span>
+                    <span className="mt-1 flex items-center gap-1.5">
+                      <select
+                        value={policyDraft.unitCurrency}
+                        onChange={(e) => setPolicyDraft({ ...policyDraft, unitCurrency: e.target.value as PointPolicy['unitCurrency'] })}
+                        className="rounded border border-slate-300 bg-white px-1.5 py-0.5 text-[11px] focus:border-brand-400 focus:outline-none"
+                        title="1P 가치 통화"
+                      >
+                        <option value="KRW">KRW</option>
+                        <option value="USD">USD</option>
+                      </select>
+                      <input
+                        type="number"
+                        min={0}
+                        step={policyDraft.unitCurrency === 'USD' ? 0.1 : 100}
+                        value={policyDraft.unitValue}
+                        onChange={(e) => setPolicyDraft({ ...policyDraft, unitValue: Number(e.target.value) || 0 })}
+                        className="w-24 rounded border border-slate-300 px-1.5 py-0.5 text-right text-[11px] focus:border-brand-400 focus:outline-none"
+                        title="1P 가치 금액"
+                      />
+                    </span>
+                    <span className="mt-1 block text-[10px] text-slate-400">
+                      ≈ ₩{Math.round(toKRW(policyDraft.unitValue, policyDraft.unitCurrency)).toLocaleString()} · US${pointsToUsd(1, toKRW(policyDraft.unitValue, policyDraft.unitCurrency) || 1)}
+                    </span>
+                  </label>
+                  <label className="rounded border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
+                    <span className="block text-[10px] text-slate-500">최소 교환 (1회)</span>
+                    <span className="mt-1 flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.1}
+                        value={policyDraft.minRedeemPts}
+                        onChange={(e) => setPolicyDraft({ ...policyDraft, minRedeemPts: Number(e.target.value) || 0 })}
+                        className="w-24 rounded border border-slate-300 px-1.5 py-0.5 text-right text-[11px] focus:border-brand-400 focus:outline-none"
+                        title="최소 교환 포인트"
+                      />
+                      P
+                    </span>
+                    <span className="mt-1 block text-[10px] text-slate-400">≈ US${pointsToUsd(policyDraft.minRedeemPts, toKRW(policyDraft.unitValue, policyDraft.unitCurrency) || 1)}</span>
+                  </label>
+                  <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] leading-relaxed text-slate-500">
+                    <span className="block text-slate-500">기프트카드 유효기간 <span className="rounded-sm bg-emerald-50 px-1 font-bold text-emerald-600">확정</span></span>
+                    <b className="text-[12px] text-slate-800">{VALID_DAYS}일 · 미사용 소멸</b><br />
+                    환급 없음 (<code>refundOption: false</code>) · 발급·만료는 아래 감사 로그로 추적
+                  </div>
+                  <div className="flex flex-col justify-between gap-1.5 rounded border border-slate-200 bg-slate-50 px-3 py-2">
+                    <span className="text-[10px] text-slate-500">현재 적용: 1P = <b className="text-slate-700">{fmtUnit(policy)}</b> · 최소 <b className="text-slate-700">{pt(policy.minRedeemPts)}</b></span>
+                    <span className="flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={applyPolicy}
+                        disabled={!draftValid || !draftChanged}
+                        className="flex-1 rounded bg-brand-500 px-2 py-1 text-[11px] font-semibold text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        정책 적용
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPolicyDraft(policy)}
+                        disabled={!draftChanged}
+                        className="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+                      >
+                        되돌리기
+                      </button>
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-2 text-[10px] text-slate-500">
+                  <span className="font-semibold text-slate-600">변경 이력</span>{' '}
+                  {policyLog.length === 0 ? <span className="text-slate-400">없음 (초기값 1P = ₩1,000 · 최소 14.8 P)</span> : (
+                    <span className="mt-1 block space-y-0.5">
+                      {policyLog.map((l, i) => (
+                        <span key={`${l.at}-${i}`} className="block font-mono">{l.at} · {l.item} {l.from} → <b className="text-slate-700">{l.to}</b> · ELLIS 관리자(시연)</span>
+                      ))}
+                    </span>
+                  )}
+                  <span className="mt-1 block text-slate-400">실서비스: 변경 적용일 이후 적립·교환부터 반영 — 기존 잔액 환산 규칙은 정책 변경 시 함께 정한다. 이미 교환된 건의 포인트·USD는 당시 값으로 저장(불변).</span>
+                </div>
+              </div>
+
+              {/* Giftronaut Gift API — Balance · 감사 로그 · 실패/반송 처리 · 국가 카탈로그 */}
               <div className="mb-4 rounded border border-slate-200 bg-white p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-[12px] font-bold text-slate-800">Giftronaut Gift API</span>
@@ -509,12 +659,11 @@ export default function OpPointsPage({
                     </select>
                   </label>
                 </div>
-                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  <div className={`rounded border px-3 py-2 ${deposit < DEPOSIT_WARN_USD ? 'border-rose-200 bg-rose-50' : 'border-slate-200 bg-slate-50'}`}>
-                    <p className="text-[10px] text-slate-500">Balance (USD 선충전 · <code>GET /balance</code>)</p>
-                    <p className={`text-[15px] font-extrabold ${deposit < DEPOSIT_WARN_USD ? 'text-rose-600' : 'text-slate-800'}`}>{usd(deposit)}</p>
-                    {deposit < DEPOSIT_WARN_USD && <p className="text-[10px] text-rose-500">잔액 부족 임박 — 충전 필요</p>}
-                    <p className="text-[9px] text-slate-400">Production 가정 시연 (Sandbox는 가상 $10,000 자동 보충)</p>
+                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2">
+                    <p className="text-[10px] text-slate-500">남은 Balance (<code>GET /balance</code>)</p>
+                    <p className="text-[15px] font-extrabold text-slate-800">{usd(deposit)}</p>
+                    <p className="text-[9px] text-slate-400">송금 확인 대기(pendingBalance) USD 0.00 · 고객 비노출</p>
                   </div>
                   <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2">
                     <p className="text-[10px] text-slate-500">발송 / 반송 / 실패</p>
@@ -523,36 +672,53 @@ export default function OpPointsPage({
                     </p>
                     <p className="text-[9px] text-slate-400">웹훅: delivery_complete · bounced(5분 배치) — HMAC 서명 검증</p>
                   </div>
+                  <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2">
+                    <p className="text-[10px] text-slate-500">발급 누계 (Balance 차감)</p>
+                    <p className="text-[15px] font-extrabold text-slate-800">{usd(issuedUsd)}</p>
+                    <p className="text-[9px] text-slate-400">원장 대사: <code>GET /balance/ledger</code> referenceNumber = orderId 1:1</p>
+                  </div>
                   <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] leading-relaxed text-slate-500">
-                    충전(포털 Add Funds, USD만): Wire <b>무수수료</b>·1–2영업일 · 카드 <b>3%</b>·~10분 · API 충전(ACH)은 미국 EIN 필요<br />
-                    잔액 알림: low_balance 웹훅 <b>미제공(예정)</b> → 자체 조회로 알림 · 기준 <b className="text-amber-600">미확정</b><br />
-                    일·월 주문 한도(USD): 계정 설정값 <b className="text-amber-600">확인 필요</b> · 증액은 요청 API
+                    충전: <b className="text-slate-700">해외송금(Wire)만</b> <span className="rounded-sm bg-emerald-50 px-1 font-bold text-emerald-600">확정</span> · 무수수료·1–2영업일 (포털 Add Funds, USD)<br />
+                    잔액은 ELLIS에서 조회 — 별도 알림 없음<br />
+                    일·월 주문 한도(USD): 계정 설정값 <b className="text-amber-600">확인 필요</b>
                   </div>
                 </div>
 
-                {/* 주문 로그 */}
-                <div className="mt-3 overflow-x-auto rounded border border-slate-200">
-                  <table className="w-full min-w-[720px] text-[11px]">
+                {/* 감사(Audit) 로그 — 발급·발송·반송·재발송(이메일 변경)·실패·만료를 추가 전용으로 기록 */}
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
+                  <span className="font-semibold text-slate-700">교환 감사 로그</span>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-600">전체 {redemptions.length}건</span>
+                  <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">30일 내 만료 {expiringSoon.length}건</span>
+                  <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-600">만료·소멸 {expired.length}건 · {usd(r2(expired.reduce((s, x) => s + x.usd, 0)))}</span>
+                  <span className="text-[10px] text-slate-400">사용 여부는 Giftronaut <code>recipient.redeemed</code> 웹훅(제공 예정) 필요 — 그 전까진 “확인 불가”</span>
+                </div>
+                <div className="mt-1.5 overflow-x-auto rounded border border-slate-200">
+                  <table className="w-full min-w-[980px] text-[11px]">
                     <thead>
                       <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
-                        <th className="px-3 py-1.5 text-left font-semibold">orderId · idempotencyKey</th>
+                        <th className="px-3 py-1.5 text-left font-semibold">요청일 · orderId · idempotencyKey</th>
                         <th className="px-3 py-1.5 text-left font-semibold">계정 · 발송 이메일</th>
                         <th className="px-3 py-1.5 text-left font-semibold">상품 · 권종</th>
                         <th className="px-3 py-1.5 text-right font-semibold">포인트</th>
                         <th className="px-3 py-1.5 text-right font-semibold">Balance 차감</th>
                         <th className="px-3 py-1.5 text-center font-semibold">상태</th>
+                        <th className="px-3 py-1.5 text-left font-semibold">유효기간 · 사용</th>
+                        <th className="px-3 py-1.5 text-left font-semibold">이력</th>
                       </tr>
                     </thead>
                     <tbody>
                       {redemptions.length === 0 && (
-                        <tr><td colSpan={6} className="px-3 py-4 text-center text-slate-400">주문 없음 — 고객이 Gift Mall에서 교환하면 여기에 기록됩니다.</td></tr>
+                        <tr><td colSpan={8} className="px-3 py-4 text-center text-slate-400">주문 없음 — 고객이 Gift Mall에서 교환하면 여기에 기록됩니다.</td></tr>
                       )}
                       {redemptions.map((x) => {
                         const prod = GIFT_CATALOG.find((g) => g.id === x.productId);
                         const st = REDEEM_STYLE[x.status];
+                        const exp = x.orderNo ? expiryOf(x.at, VALID_DAYS) : null;
+                        const left = exp ? daysBetween(today, exp) : null;
                         return (
-                          <tr key={x.id} className="border-b border-slate-100 last:border-0">
+                          <tr key={x.id} className="border-b border-slate-100 align-top last:border-0">
                             <td className="px-3 py-1.5 font-mono text-slate-600">
+                              <span className="block text-[10px] text-slate-500">{x.at}</span>
                               {x.orderNo ?? <span className="text-slate-400">— (미생성)</span>}
                               <span className="block text-[9px] text-slate-400">{x.idempotencyKey}</span>
                             </td>
@@ -563,7 +729,24 @@ export default function OpPointsPage({
                             <td className="px-3 py-1.5 text-slate-700">{prod?.name ?? x.productId} · {fmtFace(x.face, x.country)}</td>
                             <td className="px-3 py-1.5 text-right text-slate-700">{pt(x.points)}</td>
                             <td className="px-3 py-1.5 text-right text-slate-700">{x.orderNo ? usd(x.usd) : '—'}</td>
-                            <td className="px-3 py-1.5 text-center"><span className={`rounded-sm px-1.5 py-px text-[9px] font-bold ${st.cls}`}>{st.label}</span>{x.failReason && <span className="ml-1 text-[10px] text-rose-500">{x.failReason}</span>}</td>
+                            <td className="px-3 py-1.5 text-center">
+                              <span className={`rounded-sm px-1.5 py-px text-[9px] font-bold ${st.cls}`}>{st.label}</span>
+                              {x.failReason && <span className="mt-0.5 block text-[10px] text-rose-500">{x.failReason}</span>}
+                            </td>
+                            <td className="px-3 py-1.5 text-[10px] text-slate-600">
+                              {exp === null ? <span className="text-slate-400">— (미발급)</span> : (
+                                <>
+                                  <span className="block">~ {exp}</span>
+                                  {left !== null && left < 0
+                                    ? <span className="font-semibold text-slate-500">만료 · 소멸(환급 없음)</span>
+                                    : <span className={left !== null && left <= 30 ? 'font-semibold text-amber-600' : 'text-slate-400'}>D-{left}</span>}
+                                  <span className="block text-slate-400">사용: 확인 불가</span>
+                                </>
+                              )}
+                            </td>
+                            <td className="px-3 py-1.5 text-[10px] text-slate-500">
+                              {x.events.map((e, i) => <span key={i} className="block whitespace-nowrap"><span className="font-mono text-slate-400">{e.at.slice(5)}</span> {e.text}</span>)}
+                            </td>
                           </tr>
                         );
                       })}
@@ -653,7 +836,7 @@ export default function OpPointsPage({
       {giftProduct && (() => {
         const p = giftProduct;
         const cur = countryInfo(p.country).currency;
-        const selPts = giftFace !== null ? faceToPoints(giftFace, cur) : null;
+        const selPts = giftFace !== null ? faceToPoints(giftFace, cur, unitKRW) : null;
         return (
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4" onClick={() => setGiftProduct(null)}>
             <div className="w-[440px] max-w-full overflow-hidden rounded-xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
@@ -672,8 +855,8 @@ export default function OpPointsPage({
                 <p className="mb-1.5 mt-4 text-[12px] font-bold text-slate-800">권종 선택</p>
                 <div className="grid grid-cols-3 gap-2">
                   {p.prices.map((d) => {
-                    const need = faceToPoints(d, cur);
-                    const belowMin = need < MIN_REDEEM_PTS;
+                    const need = faceToPoints(d, cur, unitKRW);
+                    const belowMin = need < minRedeemPts;
                     const ok = balance >= need && !belowMin;
                     const on = giftFace === d;
                     return (
@@ -701,6 +884,7 @@ export default function OpPointsPage({
                 <div className="mt-3 rounded-lg border border-slate-200 px-3 py-2 text-[11px] leading-relaxed text-slate-600">
                   <p>발송 이메일 <b className="font-mono text-slate-800">{account.id}</b></p>
                   <p className="text-slate-500">받은 이메일의 <b>Redeem</b> 버튼 → 이메일 인증(1-클릭 링크, 10분 유효) 후 사용합니다. 받는 사람이 이 메일함에 접근할 수 있어야 합니다.</p>
+                  <p className="mt-1 text-slate-500">유효기간 <b className="text-slate-700">발송일로부터 {VALID_DAYS}일</b> — 기간 내 사용하지 않으면 소멸됩니다(환불 없음).</p>
                 </div>
                 <p className="mt-2 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-medium leading-relaxed text-rose-600">
                   ⚠ 교환은 <b>취소할 수 없습니다.</b> 주문이 처리되지 않으면 포인트는 자동 복원되고, 이메일이 반송되면 교환 내역에서 재발송할 수 있습니다.
