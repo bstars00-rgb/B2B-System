@@ -19,7 +19,7 @@ import type { Booking } from '../types';
  *
  * ※ 폐기 용이성: 예약 데이터를 읽기만 함(Booking·seed 불변). 폐기 = opPoints.ts +
  *   OpPointsPage.tsx + opPointsPromos.ts + opAccounts.ts + 사이드바 메뉴 한 줄 삭제.
- *   (리딤은 Tango aggregator 연동 — 상품몰 목데이터 없음.)
+ *   (교환은 자체 Gift Mall + Giftlunut Gift API — 카탈로그 예시: mocks/giftCatalog.ts, 2026-09-29 미팅 확정.)
  */
 
 import type { PointPromo } from '../mocks/opPointsPromos';
@@ -32,6 +32,8 @@ export const FX_TO_KRW: Record<string, number> = {
   THB: 41,
   SGD: 1_090,
   VND: 0.058,
+  CNY: 205, // Gift Mall 국가(중국)
+  INR: 17, // Gift Mall 국가(인도)
   TWD: 46,
   HKD: 189,
 };
@@ -66,6 +68,19 @@ export function pointsFor(amount: number, currency: string, multiplier: number):
 /** USD 금액 → 필요 포인트 (리딤 표시용) */
 export function usdToPoints(usd: number): number {
   return round1(toKRW(usd, 'USD') / OP_POINT_POLICY.pointUnitKRW);
+}
+
+/**
+ * 기프트카드 권종(현지통화) → 필요 포인트 (소수 첫째 자리 올림).
+ * ⚠ 1P 가치(pointUnitKRW)는 **미확정** — Giftlunut Open API 수령 후 결정(USD Deposit 구조상 재검토).
+ */
+export function faceToPoints(face: number, currency: string): number {
+  return Math.ceil((toKRW(face, currency) / OP_POINT_POLICY.pointUnitKRW) * 10) / 10;
+}
+
+/** 권종 → USD (Giftlunut Deposit 차감 시연용 환산 — 실제 차감은 Giftlunut 공급 단가) */
+export function faceToUsd(face: number, currency: string): number {
+  return Math.round((toKRW(face, currency) / FX_TO_KRW.USD) * 100) / 100;
 }
 
 /**

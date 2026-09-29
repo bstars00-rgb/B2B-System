@@ -11,6 +11,8 @@
  * ※ 폐기: 이 파일 + OpPointsPage.tsx의 계정 관련 코드만 제거하면 됨.
  */
 
+import type { GiftCountry } from './giftCatalog';
+
 export interface OpAccount {
   /** 로그인 ID (이메일) — 유저인포에서 생성 */
   id: string;
@@ -20,13 +22,15 @@ export interface OpAccount {
   dept: string;
   /** 소속 고객사(법인) — 같은 회사라도 계정별 분리 */
   company: string;
+  /** 소속 고객사 국가 — Gift Mall은 이 국가 카탈로그만 노출(기존 결정: 거래처 국가 1개) */
+  country: GiftCountry;
 }
 
-/** 데모용 OP 계정 — 모두 같은 고객사(ATTIC TOURS) 소속. 포인트는 계정별로 분리된다. */
+/** 데모용 OP 계정 — 모두 같은 고객사(ATTIC TOURS, 한국) 소속. 포인트는 계정별로 분리된다. */
 export const OP_ACCOUNTS: OpAccount[] = [
-  { id: 'tyosales@attic-tours.com', name: 'TYO SALES', dept: 'Japan Sales', company: 'ATTIC TOURS' },
-  { id: 'osaka.desk@attic-tours.com', name: 'OSAKA DESK', dept: 'Kansai Desk', company: 'ATTIC TOURS' },
-  { id: 'fit.team@attic-tours.com', name: 'FIT TEAM', dept: 'FIT Booking', company: 'ATTIC TOURS' },
+  { id: 'tyosales@attic-tours.com', name: 'TYO SALES', dept: 'Japan Sales', company: 'ATTIC TOURS', country: 'KR' },
+  { id: 'osaka.desk@attic-tours.com', name: 'OSAKA DESK', dept: 'Kansai Desk', company: 'ATTIC TOURS', country: 'KR' },
+  { id: 'fit.team@attic-tours.com', name: 'FIT TEAM', dept: 'FIT Booking', company: 'ATTIC TOURS', country: 'KR' },
 ];
 
 /**
