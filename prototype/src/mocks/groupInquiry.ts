@@ -101,6 +101,7 @@ export interface GroupInquiry {
   notes?: string;
   createdAt: string;
   submittedAt?: string;
+  /** 회신 기한(ISO) — 고객사가 문의 시 지정. 호텔은 이 시각까지 견적 회신. 경과 시 회신 마감 */
   quoteDeadline?: string;
   quotes: HotelQuote[];
   selectedQuoteId?: string;
@@ -157,6 +158,34 @@ export function priceQuote(amount: number, rate: CountryRate): PricedQuote {
 }
 
 export const fmtMoney = (n: number, currency: string) => `${currency} ${Math.round(n).toLocaleString()}`;
+
+export type RemainTone = 'danger' | 'warning' | 'neutral' | 'expired';
+
+/** 회신 기한까지 남은 시간 — 24h 미만 danger · 48h 미만 warning · 경과 시 expired('회신 마감'). */
+export function remainingInfo(deadlineIso: string | undefined, now: number): { expired: boolean; label: string; tone: RemainTone } | null {
+  if (!deadlineIso) return null;
+  const ms = new Date(deadlineIso).getTime() - now;
+  if (ms <= 0) return { expired: true, label: '회신 마감', tone: 'expired' };
+  const totalMin = Math.floor(ms / 60000);
+  const d = Math.floor(totalMin / 1440);
+  const h = Math.floor((totalMin % 1440) / 60);
+  const m = totalMin % 60;
+  const label = d >= 1 ? `D-${d} · ${h}시간 남음` : h >= 1 ? `${h}시간 ${m}분 남음` : `${m}분 남음`;
+  const hours = ms / 3600000;
+  return { expired: false, label, tone: hours < 24 ? 'danger' : hours < 48 ? 'warning' : 'neutral' };
+}
+
+/** ISO → 'YYYY-MM-DD HH:mm' (로컬) */
+export function fmtDateTime(iso?: string): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+/** 시드 회신 기한은 최초 로드 시각 기준 상대값 — 데모를 언제 열어도 남은 시간이 보이도록. */
+const SEED_NOW = Date.now();
+const inHours = (h: number) => new Date(SEED_NOW + h * 3600000).toISOString();
 
 export const nights = (ci: string, co: string) =>
   Math.max(1, Math.round((new Date(co).getTime() - new Date(ci).getTime()) / 86400000));
@@ -269,7 +298,7 @@ export const SEED_INQUIRIES: GroupInquiry[] = [
     notes: '선수단 단체 이동 — 동일 호텔 우선.',
     createdAt: '2026-09-21T02:10:00.000Z',
     submittedAt: '2026-09-21T02:10:00.000Z',
-    quoteDeadline: '2026-09-26T02:10:00.000Z',
+    quoteDeadline: inHours(29), // 회신 기한 — 견적 4건 도착, 마감까지 약 1일 5시간
     quotes: [
       { id: 'Q-ibaraki-1', hotelId: 'HTL-IBR-01', hotelName: 'Route Inn Koga Ekimae', star: 3, location: 'Koga, Ibaraki', distanceMin: 12, amount: 590000, currency: 'JPY', condition: 'Twin ×5, Single ×5 · Room Only · 7박', cancellation: '무료취소 · 체크인 14일 전까지', freeCancelUntil: '2026-11-09', validUntil: '2026-09-26', status: 'listed' },
       { id: 'Q-ibaraki-2', hotelId: 'HTL-IBR-02', hotelName: 'Hotel Sunroute Sakai', star: 3, location: 'Sakai, Ibaraki', distanceMin: 9, amount: 618000, currency: 'JPY', condition: 'Twin ×5, Single ×5 · Room Only · 7박', cancellation: '체크인 7일 전부터 1박 부과', freeCancelUntil: '2026-11-16', validUntil: '2026-09-26', status: 'listed' },
@@ -307,6 +336,7 @@ export const SEED_INQUIRIES: GroupInquiry[] = [
     notes: '난바/신사이바시 도보권 선호.',
     createdAt: '2026-09-21T05:30:00.000Z',
     submittedAt: '2026-09-21T05:30:00.000Z',
+    quoteDeadline: inHours(68), // 회신 기한 — 약 2일 20시간 남음
     quotes: [],
   },
 ];

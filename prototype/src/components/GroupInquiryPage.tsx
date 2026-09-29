@@ -6,8 +6,11 @@ import {
   ANCILLARY_LABEL,
   budgetTotalOf,
   EMPTY_ANCILLARY,
+  fmtDateTime,
   fmtMoney,
   generateQuotes,
+  remainingInfo,
+  type RemainTone,
   nightDates,
   nights as calcNights,
   priceQuote,
@@ -59,6 +62,36 @@ const rateBasisNote = (rate: CountryRate) =>
     : 'net 국가 — 호텔 net 견적에 마크업을 얹어 고객가 산출.';
 
 const activeAncillary = (a?: Ancillary) => (a ? ANCILLARY_KEYS.filter((k) => a[k]).map((k) => ANCILLARY_LABEL[k]) : []);
+
+/** 남은 시간 실시간 갱신용 현재시각 (30초 주기) */
+function useNow(intervalMs = 30000): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(t);
+  }, [intervalMs]);
+  return now;
+}
+
+const REMAIN_STYLE: Record<RemainTone, string> = {
+  danger: 'bg-rose-100 text-rose-700',
+  warning: 'bg-amber-100 text-amber-700',
+  neutral: 'bg-slate-100 text-slate-600',
+  expired: 'bg-slate-200 text-slate-500',
+};
+
+/** 회신 기한 남은 시간 배지 */
+function RemainBadge({ deadline, now }: { deadline?: string; now: number }) {
+  const r = remainingInfo(deadline, now);
+  if (!r) return <span className="text-slate-300">—</span>;
+  return <span className={`whitespace-nowrap rounded px-1.5 py-0.5 text-[11px] font-semibold ${REMAIN_STYLE[r.tone]}`}>⏱ {r.label}</span>;
+}
+
+/** datetime-local 입력값 ('YYYY-MM-DDTHH:mm', 로컬) */
+const toLocalInput = (d: Date) => {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+};
 
 export default function GroupInquiryPage({
   onCreateBooking,
@@ -290,6 +323,7 @@ function ListView({
   showInternal: boolean;
   setShowInternal: (v: boolean) => void;
 }) {
+  const now = useNow();
   return (
     <div className="mx-auto max-w-[1400px]">
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
@@ -301,6 +335,7 @@ function ListView({
               <th className="px-4 py-2.5 font-semibold">기간</th>
               <th className="px-4 py-2.5 font-semibold">룸 / 인원</th>
               <th className="px-4 py-2.5 text-right font-semibold">예산</th>
+              <th className="px-4 py-2.5 font-semibold">회신 기한</th>
               <th className="px-4 py-2.5 text-center font-semibold">견적</th>
               <th className="px-4 py-2.5 text-center font-semibold">상태</th>
             </tr>
@@ -335,6 +370,20 @@ function ListView({
                     '—'
                   )}
                 </td>
+                <td className="px-4 py-3 text-slate-600">
+                  {i.quoteDeadline ? (
+                    <>
+                      <div className="text-[12px]">{fmtDateTime(i.quoteDeadline)}</div>
+                      {['Submitted', 'Sourcing', 'Quoted'].includes(i.status) ? (
+                        <RemainBadge deadline={i.quoteDeadline} now={now} />
+                      ) : (
+                        <span className="text-[11px] text-slate-400">회신 종료</span>
+                      )}
+                    </>
+                  ) : (
+                    '—'
+                  )}
+                </td>
                 <td className="px-4 py-3 text-center text-slate-600">{i.quotes.length || '—'}</td>
                 <td className="px-4 py-3 text-center">
                   <span className={`rounded px-2 py-0.5 text-[11px] font-semibold ${STATUS_STYLE[i.status]}`}>{STATUS_LABEL[i.status]}</span>
@@ -343,7 +392,7 @@ function ListView({
             ))}
             {inquiries.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-slate-400">
+                <td colSpan={8} className="px-4 py-10 text-center text-slate-400">
                   아직 단체 문의가 없습니다. 우측 상단 <b>＋ 새 단체 문의</b>로 접수하세요.
                 </td>
               </tr>
@@ -465,6 +514,17 @@ function NewInquiryForm({
   const [budgetPerNight, setBudgetPerNight] = useState<number | ''>('');
   const [budgetByDate, setBudgetByDate] = useState<DateBudget[]>([]);
   const [notes, setNotes] = useState('');
+  /** 회신 기한 — 호텔이 이 시각까지 견적 회신. 기본 72시간 뒤 */
+  const [deadline, setDeadline] = useState(() => toLocalInput(new Date(Date.now() + 72 * 3600000)));
+  const deadlinePresets = [
+    { label: '24시간', h: 24 },
+    { label: '48시간', h: 48 },
+    { label: '72시간', h: 72 },
+    { label: '1주일', h: 168 },
+  ];
+  const deadlineMs = deadline ? new Date(deadline).getTime() : NaN;
+  const deadlineTooSoon = !Number.isFinite(deadlineMs) || deadlineMs < Date.now() + 3600000; // 최소 1시간 뒤
+  const deadlineAfterCheckIn = !!checkIn && Number.isFinite(deadlineMs) && deadlineMs >= new Date(`${checkIn}T00:00`).getTime();
 
   const currency = hotels[0]?.currency ?? (country === 'Japan' ? 'JPY' : 'KRW');
   const rate = rateFor(country, rates);
@@ -487,7 +547,8 @@ function NewInquiryForm({
       ? budgetByDate.reduce((s, d) => s + (Number(d.perRoomNight) || 0), 0) * roomsTotal(rooms)
       : budgetPerNight === '' ? 0 : Number(budgetPerNight) * roomsTotal(rooms) * (n || 0);
 
-  const valid = region && checkIn && checkOut && n > 0 && roomsTotal(rooms) > 0 && guests > 0 && comparisonAck && goldenKey.trim();
+  const valid =
+    region && checkIn && checkOut && n > 0 && roomsTotal(rooms) > 0 && guests > 0 && comparisonAck && goldenKey.trim() && !deadlineTooSoon && !deadlineAfterCheckIn;
 
   function changeCountry(c: string) {
     setCountry(c);
@@ -545,6 +606,7 @@ function NewInquiryForm({
       notes: notes.trim() || undefined,
       createdAt: now,
       submittedAt: now,
+      quoteDeadline: new Date(deadline).toISOString(),
       quotes: [],
     };
     onSubmit(inq);
@@ -741,6 +803,35 @@ function NewInquiryForm({
           </div>
         </div>
 
+        {/* 회신 기한 — 호텔은 이 시각까지 견적 회신 */}
+        <div className="mb-4 rounded border border-brand-200 bg-brand-50/40 px-3 py-3">
+          <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+            <span className="text-[12px] font-semibold text-slate-600">
+              회신 기한 <span className="text-brand-500">*</span> <span className="font-normal text-slate-400">(호텔은 이 시각까지 견적 회신)</span>
+            </span>
+            <div className="flex gap-1 text-[11px]">
+              {deadlinePresets.map((p) => (
+                <button
+                  key={p.h}
+                  type="button"
+                  onClick={() => setDeadline(toLocalInput(new Date(Date.now() + p.h * 3600000)))}
+                  className="rounded border border-slate-300 bg-white px-2 py-0.5 text-slate-600 hover:border-brand-400 hover:text-brand-600"
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <input type="datetime-local" value={deadline} onChange={(e) => setDeadline(e.target.value)} className={fieldCls} />
+          <p className={`mt-1 text-[11px] ${deadlineTooSoon || deadlineAfterCheckIn ? 'text-rose-600' : 'text-slate-400'}`}>
+            {deadlineTooSoon
+              ? '회신 기한은 지금부터 최소 1시간 이후로 지정하세요.'
+              : deadlineAfterCheckIn
+                ? '회신 기한은 체크인 이전이어야 합니다.'
+                : `호텔 견적 마감: ${fmtDateTime(new Date(deadline).toISOString())} — 기한이 지나면 추가 회신을 받지 않습니다.`}
+          </p>
+        </div>
+
         {/* 비고 */}
         <div className="mb-4">
           <span className={labelCls}>비고 <span className="font-normal text-slate-400">(특수요건 — 선택)</span></span>
@@ -756,7 +847,7 @@ function NewInquiryForm({
         </label>
 
         <div className="mt-4 flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
-          {!valid && <span className="mr-auto text-[12px] text-amber-600">목적지·기간·룸·인원·Golden Key·비교견적 동의를 확인하세요.</span>}
+          {!valid && <span className="mr-auto text-[12px] text-amber-600">목적지·기간·룸·인원·Golden Key·회신 기한·비교견적 동의를 확인하세요.</span>}
           <button type="button" onClick={onCancel} className="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">취소</button>
           <button type="button" onClick={submit} disabled={!valid} className="rounded bg-brand-500 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40">문의 제출 (메일 접수)</button>
         </div>
@@ -784,6 +875,9 @@ function DetailView({
   onOpenBookings?: () => void;
 }) {
   const rate = rateFor(inq.country, rates);
+  const now = useNow();
+  const remain = remainingInfo(inq.quoteDeadline, now);
+  const collecting = ['Submitted', 'Sourcing', 'Quoted'].includes(inq.status); // 호텔 회신 수집 중
   const selected = inq.quotes.find((q) => q.id === inq.selectedQuoteId) ?? null;
   const extras = activeAncillary(inq.ancillary);
   const info = (label: string, value: ReactNode) => (
@@ -802,7 +896,12 @@ function DetailView({
             <span className={`rounded px-2 py-0.5 text-[11px] font-semibold ${STATUS_STYLE[inq.status]}`}>{STATUS_LABEL[inq.status]}</span>
             {inq.holdRequired && <span className="rounded bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700">객실 홀드 요청</span>}
           </div>
-          {inq.quoteDeadline && inq.status === 'Quoted' && <span className="text-[11px] text-slate-400">견적 유효 ~ {fmtDate(inq.quoteDeadline)}</span>}
+          {inq.quoteDeadline && collecting && (
+            <span className="flex items-center gap-2 text-[12px] text-slate-500">
+              회신 기한 {fmtDateTime(inq.quoteDeadline)}
+              <RemainBadge deadline={inq.quoteDeadline} now={now} />
+            </span>
+          )}
         </div>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {info('목적지', `${inq.country} · ${inq.region}${inq.hotelName ? ` · ${inq.hotelName}` : ''}`)}
@@ -816,6 +915,7 @@ function DetailView({
           {info('예산', inq.budgetPerRoomNight ? `${fmtMoney(inq.budgetPerRoomNight, inq.currency)} /실·박${inq.budgetMode === 'byDate' ? '(날짜별 평균)' : ''} · 총 ${fmtMoney(inq.budgetTotal ?? 0, inq.currency)}` : '—')}
           {info('Golden Key', inq.goldenKey ?? '—')}
           {info('비고', inq.notes ?? '—')}
+          {info('회신 기한', inq.quoteDeadline ? `${fmtDateTime(inq.quoteDeadline)}${collecting && remain ? ` · ${remain.label}` : ''}` : '—')}
           {info('요금 구조', `${inq.country} · ${rate.mode === 'commission' ? '단가+커미션' : 'net+마크업'}`)}
         </div>
       </div>
@@ -824,14 +924,35 @@ function DetailView({
         <div className="mt-5 rounded-lg border border-dashed border-brand-300 bg-brand-50/50 p-6 text-center">
           <p className="text-[13px] text-slate-600">문의가 접수되었습니다. <b>기존 계약 호텔</b>에 <b>역경매(RFP)</b>로 뿌려 견적을 회수합니다.</p>
           <p className="mt-1 text-[11px] text-slate-400">대상은 지역·앵커 거리 기준의 기존 계약 호텔군(신규 소싱은 재고 부족 시에만). {rateBasisNote(rate)} (아래는 프로토타입 시뮬레이트)</p>
-          <button type="button" onClick={onSource} className="mt-4 rounded bg-brand-500 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-600">역경매 견적 회수 (시뮬레이트)</button>
+          {inq.quoteDeadline && (
+            <p className="mt-3 flex items-center justify-center gap-2 text-[12px] text-slate-600">
+              호텔 회신 기한 <b>{fmtDateTime(inq.quoteDeadline)}</b> <RemainBadge deadline={inq.quoteDeadline} now={now} />
+            </p>
+          )}
+          {remain?.expired ? (
+            <p className="mt-4 text-[13px] font-semibold text-slate-500">회신 기한이 지나 더 이상 견적을 받지 않습니다 — 받은 견적이 없습니다.</p>
+          ) : (
+            <button type="button" onClick={onSource} className="mt-4 rounded bg-brand-500 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-600">역경매 견적 회수 (시뮬레이트)</button>
+          )}
         </div>
       )}
 
       {inq.quotes.length > 0 && inq.status !== 'Submitted' && inq.status !== 'Sourcing' && (
         <div className="mt-5">
           <div className="mb-2 flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-700">회수 견적 {inq.quotes.length}건 {inq.status === 'Quoted' && <span className="font-normal text-slate-400">— 원하는 호텔을 선택하세요</span>}</h3>
+            <h3 className="flex flex-wrap items-center gap-2 text-sm font-bold text-slate-700">
+              회수 견적 {inq.quotes.length}건
+              {inq.status === 'Quoted' && inq.quoteDeadline && (
+                remain?.expired ? (
+                  <span className="text-[12px] font-normal text-slate-400">— 회신 마감 · 받은 견적 중에서 선택하세요</span>
+                ) : (
+                  <>
+                    <span className="text-[12px] font-normal text-slate-400">— 회신 마감까지 추가 견적이 도착할 수 있습니다</span>
+                    <RemainBadge deadline={inq.quoteDeadline} now={now} />
+                  </>
+                )
+              )}
+            </h3>
             {showInternal && <span className="text-[11px] text-amber-600">내부 보기: {rate.mode === 'commission' ? '단가·커미션' : 'net·마진'} 표시 중</span>}
           </div>
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">

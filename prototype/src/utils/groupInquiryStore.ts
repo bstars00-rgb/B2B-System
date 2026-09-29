@@ -9,7 +9,7 @@ const INQ_KEY = 'omh_group_inquiries';
 const RATES_KEY = 'omh_group_country_rates';
 const SEQ_KEY = 'omh_group_seq';
 const SEED_VERSION_KEY = 'omh_group_seed_version';
-const SEED_VERSION = '3'; // v3: 폼 보강 + 국가별 요금(net/커미션) + 부대서비스·홀드·GoldenKey
+const SEED_VERSION = '4'; // v4: 회신 기한(quoteDeadline, 상대값) 추가
 
 export function loadInquiries(): GroupInquiry[] {
   try {
