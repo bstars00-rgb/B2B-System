@@ -199,10 +199,19 @@ export default function HotelRoomListPage({ group, conditions, onBack, onSelectR
             Rooms <b className="text-rose-500">*</b>
           </span>
           <select value={roomCfg.length} onChange={(e) => setRooms(Number(e.target.value))} className={barSelect}>
-            {[1, 2, 3, 4, 5].map((n) => (
+            {[1, 2, 3, 4].map((n) => (
               <option key={n} value={n}>{n}</option>
             ))}
           </select>
+          <a
+            href="./?view=group-inquiry"
+            target="_blank"
+            rel="noreferrer"
+            className="rounded border border-brand-300 bg-brand-50 px-2 py-1 text-[11px] font-semibold text-brand-700 hover:bg-brand-100"
+            title="동일 호텔 5실 이상은 그룹 예약 — 단체 문의(역경매)로 접수합니다"
+          >
+            5실 이상? 단체 문의 →
+          </a>
           {roomCfg.map((r, i) => (
             <span key={i} className="flex items-center gap-1.5">
               <span className="text-slate-600">Room {i + 1}</span>

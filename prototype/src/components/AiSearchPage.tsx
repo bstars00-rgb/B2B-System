@@ -16,6 +16,8 @@ import PlaybookPage from './PlaybookPage';
 import PortalSidebar, { type PortalView } from './PortalSidebar';
 import StaffPage from './StaffPage';
 import { loadBookings, saveBookings, subscribeBookings } from '../utils/bookingStore';
+import { applyBusToBookings } from '../utils/groupInquiryStore';
+import { readBus, subscribeBus, sweepUnpaid, upsertDeal } from '../utils/groupBus';
 import { loadPortalLang, savePortalLang, PORTAL_LANGS, type PortalLang } from '../utils/portalLang';
 import { applyDark, loadDark, saveDark } from '../utils/theme';
 
@@ -28,6 +30,16 @@ import { applyDark, loadDark, saveDark } from '../utils/theme';
  */
 
 /** 탭 스트립 라벨 (실제 포털: 방문한 메뉴가 탭으로 열림) */
+/** ?view=group-inquiry 등으로 열면 해당 화면으로 시작 (룸리스트 새 탭 → 단체 문의 연결용) */
+const INITIAL_VIEW: PortalView = (() => {
+  try {
+    const v = new URLSearchParams(window.location.search).get('view');
+    return v === 'group-inquiry' || v === 'create-booking' ? v : 'bookings';
+  } catch {
+    return 'bookings';
+  }
+})();
+
 const TAB_LABELS: Record<PortalView, string> = {
   dashboard: 'Dashboard',
   bookings: 'Bookings',
@@ -150,9 +162,9 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
   }, []);
 
   /** 현재 화면 */
-  const [view, setView] = useState<PortalView>('bookings');
+  const [view, setView] = useState<PortalView>(INITIAL_VIEW);
   /** 열려 있는 탭들 (실제 포털처럼 방문한 메뉴가 탭으로 추가·✕로 닫힘) */
-  const [openTabs, setOpenTabs] = useState<PortalView[]>(['bookings']);
+  const [openTabs, setOpenTabs] = useState<PortalView[]>(INITIAL_VIEW === 'bookings' ? ['bookings'] : ['bookings', INITIAL_VIEW]);
 
   /** 대시보드 베스트셀러 랭킹 → Create Booking 인계 (목적지·호텔 프리필) */
   const [bookingPrefill, setBookingPrefill] = useState<BookingPrefill | null>(null);
@@ -188,6 +200,20 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
   const [detailBooking, setDetailBooking] = useState<Booking | null>(null);
   useEffect(() => saveBookings(bookings), [bookings]);
   useEffect(() => subscribeBookings(setBookings), []);
+  // 단체 역경매 버스 → 예약 반영 (호텔 컨펌·결제·취소·결제 마감 자동취소). 어느 화면에 있든 동작
+  useEffect(() => {
+    const sync = () => {
+      sweepUnpaid();
+      setBookings((prev) => applyBusToBookings(prev, readBus()));
+    };
+    sync();
+    const unsub = subscribeBus(sync);
+    const t = setInterval(sync, 30000);
+    return () => {
+      unsub();
+      clearInterval(t);
+    };
+  }, []);
 
   /** OP 포인트 적립 내역의 예약 코드 클릭 → Bookings로 이동 + 해당 예약 상세 열기 */
   const openBookingByCode = useCallback(
@@ -200,9 +226,11 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
     [bookings, navigate],
   );
 
-  /** 예약 취소 — 상태 변경 + 취소 일시 기록 */
+  /** 예약 취소 — 상태 변경 + 취소 일시 기록. 단체 예약이면 버스에도 기록(문의·콘솔에 반영) */
   const cancelBooking = useCallback((ellisCode: string) => {
     const cancelledAt = new Date().toISOString();
+    const target = bookings.find((b) => b.ellis_code === ellisCode);
+    if (target?.group_ref) upsertDeal(target.group_ref, { cancelledAt, cancelReason: 'seller_cancelled' });
     setBookings((prev) =>
       prev.map((b) =>
         b.ellis_code === ellisCode ? { ...b, status: 'Cancelled', cancel_date: cancelledAt } : b,
@@ -283,13 +311,10 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
         ) : view === 'notice' ? (
           <BoardPage kind="notice" portalLang={portalLang} />
         ) : view === 'create-booking' ? (
-          <CreateBookingPage prefill={bookingPrefill} />
+          <CreateBookingPage prefill={bookingPrefill} onGroupInquiry={() => navigate('group-inquiry')} />
         ) : view === 'group-inquiry' ? (
           <GroupInquiryPage
             onCreateBooking={(b) => setBookings((prev) => [b, ...prev])}
-            onUpdateBookingStatus={(ref, status) =>
-              setBookings((prev) => prev.map((x) => (x.group_ref === ref ? { ...x, status } : x)))
-            }
             onOpenBookings={() => navigate('bookings')}
           />
         ) : view === 'mvillage' ? (

@@ -52,7 +52,10 @@ export interface BookingPrefill {
   nonce: number;
 }
 
-export default function CreateBookingPage({ prefill }: { prefill?: BookingPrefill | null }) {
+/** 즉시 예약 최대 객실 수 — 5실 이상은 그룹 예약 → 단체 문의로 라우팅 (현업 확정 2026-10-01) */
+const MAX_INSTANT_ROOMS = 4;
+
+export default function CreateBookingPage({ prefill, onGroupInquiry }: { prefill?: BookingPrefill | null; onGroupInquiry?: () => void }) {
   // ── 검색 폼 상태 (실사이트: 첫 진입 시 Check In/Out 빈 상태) ──
   const [destQuery, setDestQuery] = useState('');
   const [entry, setEntry] = useState<AutocompleteEntry | null>(null);
@@ -371,10 +374,20 @@ export default function CreateBookingPage({ prefill }: { prefill?: BookingPrefil
               Rooms <b className="text-rose-500">*</b>
             </label>
             <select value={roomsCount} onChange={(e) => setRooms(Number(e.target.value))} className={selectCls}>
-              {[1, 2, 3, 4, 5].map((n) => (
+              {Array.from({ length: MAX_INSTANT_ROOMS }, (_, i) => i + 1).map((n) => (
                 <option key={n} value={n}>{n}</option>
               ))}
             </select>
+            {onGroupInquiry && (
+              <button
+                type="button"
+                onClick={onGroupInquiry}
+                className="rounded border border-brand-300 bg-brand-50 px-2 py-1 text-[11px] font-semibold text-brand-700 hover:bg-brand-100"
+                title="동일 호텔 5실 이상은 그룹 예약 — 단체 문의(역경매)로 접수합니다"
+              >
+                5실 이상? 단체 문의 →
+              </button>
+            )}
             {roomCfg.map((r, i) => (
               <span key={i} className="flex items-center gap-1.5">
                 <span className="text-xs text-slate-600">Room {i + 1}</span>

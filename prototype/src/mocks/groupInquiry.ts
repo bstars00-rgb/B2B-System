@@ -11,7 +11,17 @@ import { allHotels, cityEnOf } from './hotelDb';
  * ※ 폐기 = 이 파일 + utils/groupInquiryStore.ts + components/GroupInquiryPage.tsx + 사이드바 한 줄 삭제.
  */
 
-export type InquiryStatus = 'Submitted' | 'Sourcing' | 'Quoted' | 'Requested' | 'Confirmed' | 'Cancelled';
+/**
+ * 문의 상태 (2026-10-01 정렬):
+ * Submitted 접수 → Sourcing 견적 수집중(RFP 배포) → Quoted 견적 도착 → Requested 선택·리퀘스트 예약(호텔 응답 대기)
+ * → Accepted 호텔 수락·결제 대기(계약 동의 + N시간 내 결제) → Confirmed 결제 완료·확정.
+ * Cancelled(사유: 호텔 거절 / 미결제 자동취소 / 고객사 취소) · Expired(회신 기한 경과·견적 없음 — 표시용 파생).
+ * ※ 기획서의 Selected는 선택 즉시 리퀘스트 예약이 생성되므로 Requested에 통합, Declined(호텔 거절)는 '문의 취소' 규칙에 따라 Cancelled(사유)로 표기.
+ */
+export type InquiryStatus = 'Submitted' | 'Sourcing' | 'Quoted' | 'Requested' | 'Accepted' | 'Confirmed' | 'Cancelled' | 'Expired';
+
+/** 그룹 예약 기준 — 동일 호텔 5실 이상 (현업 확정 2026-10-01). 즉시 예약은 4실까지. */
+export const MIN_GROUP_ROOMS = 5;
 
 export interface RoomReq {
   roomType: string;
@@ -46,17 +56,33 @@ export interface HotelQuote {
   hotelName: string;
   star?: number;
   location: string;
+  /** 요청 지역 ↔ 호텔 거리(km) — 지역 타깃팅 B(도시 일치 + 거리 표시) */
+  distanceKm?: number;
+  /** 앵커(경기장 등)까지 차량 분 — 앵커가 있을 때만 */
   distanceMin?: number;
   /** 호텔 회수 금액 — net국가=net(원가) / 커미션국가=단가(gross). 내부. */
   amount: number;
   currency: string;
   condition: string;
-  cancellation: string;
-  /** 무료취소 마감(있으면) — 이후 취소 시 수수료 발생 구간 */
-  freeCancelUntil?: string;
+  /** 가용 확보 메모 (호텔 입력) */
+  availability?: string;
+  /**
+   * 취소 마감(YYYY-MM-DD, 그날 23:59까지) — **호텔이 오퍼 때 지정**(현업 확정 2026-10-01).
+   * 마감 전 = 예약 전체 무료취소(전액 환불) · 마감 후 = **취소 불가 · 환불 불가**. 없으면 처음부터 취소·환불 불가.
+   */
+  cancelDeadline?: string;
+  /** 호텔 컨펌 후 결제 마감(시간, 호텔 설정 · 기본 3h) — 미결제 시 자동취소 */
+  paymentDeadlineHours: number;
   validUntil: string;
-  status: 'listed' | 'selected' | 'declined';
+  /** console = 호텔이 벤더 콘솔에서 직접 제출 / channel = 이메일·SCM 중개 회수(시뮬레이트) */
+  source: 'console' | 'channel';
+  note?: string;
+  status: 'listed' | 'selected' | 'not_selected';
 }
+
+/** 취소 조건 표시 — 마감일까지 무료취소, 이후 취소·환불 불가 */
+export const cancelLabel = (deadline?: string) =>
+  deadline ? `${deadline.slice(0, 10)} 23:59까지 무료취소 · 이후 취소·환불 불가` : '취소·환불 불가 (마감 없음)';
 
 export interface GroupInquiry {
   id: string;
@@ -105,6 +131,15 @@ export interface GroupInquiry {
   quoteDeadline?: string;
   quotes: HotelQuote[];
   selectedQuoteId?: string;
+  /** 고객사(셀러) 표시명 — 콘솔 RFP의 고객사 칸 */
+  sellerName?: string;
+  /** 호텔 수락 시각 · 결제 마감(ISO) · 계약(단체 예약 확인서) 동의 · 결제 · 취소 */
+  acceptedAt?: string;
+  paymentDueAt?: string;
+  contractAcceptedAt?: string;
+  paidAt?: string;
+  cancelledAt?: string;
+  cancelReason?: 'hotel_rejected' | 'unpaid_timeout' | 'seller_cancelled';
 }
 
 /**
@@ -136,6 +171,13 @@ export function rateFor(country: string, rates: Record<string, CountryRate>): Co
 
 const roundTo = (n: number, unit: number) => Math.round(n / unit) * unit;
 
+/**
+ * 고객가 반올림 단위(통화별) — 초기값. KRW 100 · JPY 10 · VND 1,000 · TWD/THB 10 · 그 외 1.
+ * (이전엔 모든 통화 100 단위 → SGD 등에서 과대 반올림. 정책 확정 시 ELLIS 설정으로 이관)
+ */
+export const ROUND_UNIT: Record<string, number> = { KRW: 100, JPY: 10, VND: 1000, TWD: 10, THB: 10 };
+export const roundUnitOf = (currency?: string) => (currency && ROUND_UNIT[currency]) || 1;
+
 export interface PricedQuote {
   sell: number; // 고객가
   margin: number; // 우리 마진 (마크업 또는 커미션)
@@ -143,17 +185,21 @@ export interface PricedQuote {
   marginLabel: string; // '마크업 12%' | '커미션 10%'
 }
 
-/** 호텔 회수 금액 + 국가 요금 구조 → 고객가·마진 산출. */
-export function priceQuote(amount: number, rate: CountryRate): PricedQuote {
+/**
+ * 호텔 회수 금액 + 국가 요금 구조 → 고객가·마진 산출.
+ * - 커미션 국가: 고객가 = 단가 **그대로**(반올림 없음), 마진 = 단가 × 커미션%
+ * - net 국가: 고객가 = net × (1 + 마크업%) 를 **통화별 단위**로 반올림, 마진 = 고객가 − net
+ */
+export function priceQuote(amount: number, rate: CountryRate, currency?: string): PricedQuote {
   if (rate.mode === 'commission') {
     return {
-      sell: roundTo(amount, 100),
-      margin: roundTo((amount * rate.value) / 100, 100),
+      sell: amount,
+      margin: Math.round((amount * rate.value) / 100),
       basisLabel: '단가',
       marginLabel: `커미션 ${rate.value}%`,
     };
   }
-  const sell = roundTo(amount * (1 + rate.value / 100), 100);
+  const sell = roundTo(amount * (1 + rate.value / 100), roundUnitOf(currency));
   return { sell, margin: sell - amount, basisLabel: 'net', marginLabel: `마크업 ${rate.value}%` };
 }
 
@@ -234,33 +280,33 @@ export function generateQuotes(inq: GroupInquiry, rates: Record<string, CountryR
   const picked = cands.slice(0, 5);
   const factors = [0.88, 0.96, 1.03, 1.1, 0.92];
   const dists = [9, 15, 22, 27, 12];
-  const cxl = [
-    { txt: '무료취소 · 체크인 14일 전까지', days: 14 },
-    { txt: '체크인 7일 전부터 1박 부과', days: 7 },
-    { txt: '비환불(그룹 특가)', days: -1 },
-    { txt: '무료취소 · 체크인 10일 전까지', days: 10 },
-    { txt: '체크인 3일 전부터 전액', days: 3 },
-  ];
+  const kms = [3, 6, 11, 14, 5];
+  /** 호텔이 지정한 취소 마감 — 체크인 N일 전(−1 = 마감 없음 · 처음부터 취소·환불 불가) */
+  const cxlDays = [14, 7, -1, 10, 3];
+  const payHours = [3, 6, 3, 12, 3];
   const budget = budgetTotalOf(inq) ?? 600000;
   const rate = rateFor(inq.country, rates);
-  const base = inq.submittedAt ?? inq.createdAt;
+  // 견적 유효기한은 회수 시점 기준(+5일) — 오래된 문의라도 방금 받은 견적은 유효
+  const base = new Date().toISOString();
   return picked.map((h, i) => {
     const targetSell = budget * factors[i % factors.length];
     const amount = rate.mode === 'commission' ? roundTo(targetSell, 100) : roundTo(targetSell / (1 + rate.value / 100), 100);
-    const c = cxl[i % cxl.length];
+    const days = cxlDays[i % cxlDays.length];
     return {
       id: `Q-${inq.id}-${i + 1}`,
       hotelId: h.id,
       hotelName: h.name,
       star: h.star,
       location: cityEnOf(h.city.destination),
+      distanceKm: kms[i % kms.length],
       distanceMin: inq.anchorName ? dists[i % dists.length] : undefined,
       amount,
       currency: inq.currency,
       condition: `${roomsSummary(inq.rooms)} · ${inq.mealPlan} · ${inq.nights}박`,
-      cancellation: c.txt,
-      freeCancelUntil: c.days > 0 ? new Date(new Date(inq.checkIn).getTime() - c.days * 86400000).toISOString().slice(0, 10) : undefined,
-      validUntil: addDays(base, 5),
+      cancelDeadline: days > 0 ? new Date(new Date(inq.checkIn).getTime() - days * 86400000).toISOString().slice(0, 10) : undefined,
+      paymentDeadlineHours: payHours[i % payHours.length],
+      validUntil: addDays(base, 5).slice(0, 10),
+      source: 'channel' as const,
       status: 'listed' as const,
     };
   });
@@ -299,11 +345,12 @@ export const SEED_INQUIRIES: GroupInquiry[] = [
     createdAt: '2026-09-21T02:10:00.000Z',
     submittedAt: '2026-09-21T02:10:00.000Z',
     quoteDeadline: inHours(29), // 회신 기한 — 견적 4건 도착, 마감까지 약 1일 5시간
+    sellerName: 'ATTIC TOURS (KR)',
     quotes: [
-      { id: 'Q-ibaraki-1', hotelId: 'HTL-IBR-01', hotelName: 'Route Inn Koga Ekimae', star: 3, location: 'Koga, Ibaraki', distanceMin: 12, amount: 590000, currency: 'JPY', condition: 'Twin ×5, Single ×5 · Room Only · 7박', cancellation: '무료취소 · 체크인 14일 전까지', freeCancelUntil: '2026-11-09', validUntil: '2026-09-26', status: 'listed' },
-      { id: 'Q-ibaraki-2', hotelId: 'HTL-IBR-02', hotelName: 'Hotel Sunroute Sakai', star: 3, location: 'Sakai, Ibaraki', distanceMin: 9, amount: 618000, currency: 'JPY', condition: 'Twin ×5, Single ×5 · Room Only · 7박', cancellation: '체크인 7일 전부터 1박 부과', freeCancelUntil: '2026-11-16', validUntil: '2026-09-26', status: 'listed' },
-      { id: 'Q-ibaraki-3', hotelId: 'HTL-IBR-03', hotelName: 'Toyoko Inn Koga-eki Kita-guchi', star: 3, location: 'Koga, Ibaraki', distanceMin: 18, amount: 648000, currency: 'JPY', condition: 'Twin ×5, Single ×5 · Room Only · 7박', cancellation: '비환불(그룹 특가)', validUntil: '2026-09-26', status: 'listed' },
-      { id: 'Q-ibaraki-4', hotelId: 'HTL-IBR-04', hotelName: 'Business Hotel Sashima', star: 3, location: 'Sashima, Ibaraki', distanceMin: 25, amount: 560000, currency: 'JPY', condition: 'Twin ×5, Single ×5 · Room Only · 7박', cancellation: '무료취소 · 체크인 10일 전까지', freeCancelUntil: '2026-11-13', validUntil: '2026-09-26', status: 'listed' },
+      { id: 'Q-ibaraki-1', hotelId: 'HTL-IBR-01', hotelName: 'Route Inn Koga Ekimae', star: 3, location: 'Koga, Ibaraki', distanceKm: 9, distanceMin: 12, amount: 590000, currency: 'JPY', condition: 'Twin ×5, Single ×5 · Room Only · 7박', cancelDeadline: '2026-11-09', paymentDeadlineHours: 3, validUntil: '2026-10-26', source: 'channel', status: 'listed' },
+      { id: 'Q-ibaraki-2', hotelId: 'HTL-IBR-02', hotelName: 'Hotel Sunroute Sakai', star: 3, location: 'Sakai, Ibaraki', distanceKm: 4, distanceMin: 9, amount: 618000, currency: 'JPY', condition: 'Twin ×5, Single ×5 · Room Only · 7박', cancelDeadline: '2026-11-16', paymentDeadlineHours: 6, validUntil: '2026-10-26', source: 'channel', status: 'listed' },
+      { id: 'Q-ibaraki-3', hotelId: 'HTL-IBR-03', hotelName: 'Toyoko Inn Koga-eki Kita-guchi', star: 3, location: 'Koga, Ibaraki', distanceKm: 13, distanceMin: 18, amount: 648000, currency: 'JPY', condition: 'Twin ×5, Single ×5 · Room Only · 7박', paymentDeadlineHours: 3, validUntil: '2026-10-26', source: 'channel', note: '그룹 특가 — 취소 마감 없음', status: 'listed' },
+      { id: 'Q-ibaraki-4', hotelId: 'HTL-IBR-04', hotelName: 'Business Hotel Sashima', star: 3, location: 'Sashima, Ibaraki', distanceKm: 19, distanceMin: 25, amount: 560000, currency: 'JPY', condition: 'Twin ×5, Single ×5 · Room Only · 7박', cancelDeadline: '2026-11-13', paymentDeadlineHours: 12, validUntil: '2026-10-26', source: 'channel', status: 'listed' },
     ],
   },
   {
@@ -337,6 +384,7 @@ export const SEED_INQUIRIES: GroupInquiry[] = [
     createdAt: '2026-09-21T05:30:00.000Z',
     submittedAt: '2026-09-21T05:30:00.000Z',
     quoteDeadline: inHours(68), // 회신 기한 — 약 2일 20시간 남음
+    sellerName: 'ATTIC TOURS (KR)',
     quotes: [],
   },
 ];

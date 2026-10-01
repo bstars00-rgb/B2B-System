@@ -316,6 +316,11 @@ export default function BookingsPage({ bookings, onOpenDetail }: Props) {
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">
                       {b.payment_status}
+                      {b.group_payment_due && b.status === 'Requested' && (
+                        <span className="ml-1 rounded bg-amber-100 px-1 py-px text-[9px] font-bold text-amber-700" title="호텔 수락 — 이 시각까지 결제하지 않으면 자동취소">
+                          결제 마감 {new Date(b.group_payment_due).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })}
+                        </span>
+                      )}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-slate-700">{b.hotel_name}</td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">

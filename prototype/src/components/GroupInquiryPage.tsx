@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import EnhBadge from './EnhBadge';
 import type { Booking } from '../types';
-import { allHotels } from '../mocks/hotelDb';
+import { allHotels, cityEnOf } from '../mocks/hotelDb';
 import {
   ANCILLARY_LABEL,
   budgetTotalOf,
+  cancelLabel,
+  MIN_GROUP_ROOMS,
   EMPTY_ANCILLARY,
   fmtDateTime,
   fmtMoney,
@@ -26,7 +28,8 @@ import {
   type InquiryStatus,
   type RoomReq,
 } from '../mocks/groupInquiry';
-import { loadInquiries, loadRates, nextInquiryRef, saveInquiries, saveRates } from '../utils/groupInquiryStore';
+import { applyBus, loadInquiries, loadRates, nextInquiryRef, saveInquiries, saveRates, SELLER_NAME, toBusInquiry } from '../utils/groupInquiryStore';
+import { CANCEL_REASON_LABEL, cancelClosed, publishInquiry, readBus, subscribeBus, sweepUnpaid, upsertDeal } from '../utils/groupBus';
 
 /**
  * 단체 문의 · 역경매(RFP) 소싱 — 접수 → 기존 계약 호텔 역경매 견적 회수 →
@@ -36,19 +39,23 @@ import { loadInquiries, loadRates, nextInquiryRef, saveInquiries, saveRates } fr
 
 const STATUS_LABEL: Record<InquiryStatus, string> = {
   Submitted: '접수',
-  Sourcing: '견적 요청중',
+  Sourcing: '견적 수집중',
   Quoted: '견적 도착',
-  Requested: '리퀘스트 예약',
-  Confirmed: '확정',
+  Requested: '리퀘스트 예약 · 호텔 응답 대기',
+  Accepted: '호텔 수락 · 결제 대기',
+  Confirmed: '확정 · 결제 완료',
   Cancelled: '취소',
+  Expired: '마감 · 견적 없음',
 };
 const STATUS_STYLE: Record<InquiryStatus, string> = {
   Submitted: 'bg-slate-100 text-slate-600',
   Sourcing: 'bg-amber-100 text-amber-700',
   Quoted: 'bg-brand-100 text-brand-700',
   Requested: 'bg-blue-100 text-blue-700',
+  Accepted: 'bg-amber-100 text-amber-800',
   Confirmed: 'bg-emerald-100 text-emerald-700',
   Cancelled: 'bg-slate-200 text-slate-400 line-through',
+  Expired: 'bg-slate-200 text-slate-500',
 };
 
 const MEAL_PLANS = ['Room Only', 'Breakfast', 'Half Board', 'Full Board'];
@@ -93,13 +100,16 @@ const toLocalInput = (d: Date) => {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 };
 
+/** 표시용 유효 상태 — 회신 기한이 지났는데 견적이 하나도 없으면 '마감(견적 없음)' */
+const effStatus = (i: GroupInquiry, now: number): InquiryStatus =>
+  (i.status === 'Submitted' || i.status === 'Sourcing') && i.quotes.length === 0 && remainingInfo(i.quoteDeadline, now)?.expired ? 'Expired' : i.status;
+
 export default function GroupInquiryPage({
   onCreateBooking,
-  onUpdateBookingStatus,
   onOpenBookings,
 }: {
   onCreateBooking?: (b: Booking) => void;
-  onUpdateBookingStatus?: (ref: string, status: Booking['status']) => void;
+  /** 예약 상태(호텔 컨펌·결제·취소)는 버스(groupBus) → AiSearchPage 동기화로 반영 */
   onOpenBookings?: () => void;
 } = {}) {
   const [inquiries, setInquiries] = useState<GroupInquiry[]>(loadInquiries);
@@ -110,6 +120,8 @@ export default function GroupInquiryPage({
   const [showInternal, setShowInternal] = useState(false);
   const [showEllis, setShowEllis] = useState(false);
   const [confirmQuote, setConfirmQuote] = useState<HotelQuote | null>(null);
+  /** 단체 예약 확인서(계약 조건) — 결제 전 동의 */
+  const [contractOpen, setContractOpen] = useState(false);
 
   useEffect(() => saveInquiries(inquiries), [inquiries]);
   useEffect(() => saveRates(rates), [rates]);
@@ -118,6 +130,21 @@ export default function GroupInquiryPage({
     const t = setTimeout(() => setToast(null), 3800);
     return () => clearTimeout(t);
   }, [toast]);
+
+  // 벤더 콘솔 실연동 — 호텔 견적·컨펌/거절·결제·취소를 버스에서 받아 반영(+ 결제 마감 경과 자동취소)
+  useEffect(() => {
+    const sync = () => {
+      sweepUnpaid();
+      setInquiries((prev) => applyBus(prev, readBus()));
+    };
+    sync();
+    const unsub = subscribeBus(sync);
+    const t = setInterval(sync, 30000);
+    return () => {
+      unsub();
+      clearInterval(t);
+    };
+  }, []);
 
   const active = inquiries.find((i) => i.id === activeId) ?? null;
 
@@ -136,20 +163,22 @@ export default function GroupInquiryPage({
     setInquiries((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
   }
 
+  /** 이메일·SCM 중개 채널 견적 회수(시뮬레이트) — 콘솔 직접 제출 견적은 유지하고 합친다 */
   function sourceQuotes(inq: GroupInquiry) {
-    const quotes = generateQuotes(inq, rates);
-    patchInquiry(inq.id, { status: 'Quoted', quotes });
-    setToast(`기존 계약 호텔 ${quotes.length}곳 견적을 회수했습니다 — 국가 요금 구조로 고객가 산출 후 리스트업.`);
+    const channel = generateQuotes(inq, rates);
+    patchInquiry(inq.id, { status: 'Quoted', quotes: [...inq.quotes.filter((q) => q.source === 'console'), ...channel] });
+    setToast(`이메일·SCM 중개로 기존 계약 호텔 ${channel.length}곳 견적을 회수했습니다 — 국가 요금 구조로 고객가 산출 후 리스트업.`);
   }
 
   function placeRequest(inq: GroupInquiry, q: HotelQuote) {
     patchInquiry(inq.id, {
       status: 'Requested',
       selectedQuoteId: q.id,
-      quotes: inq.quotes.map((x) => ({ ...x, status: x.id === q.id ? 'selected' : 'declined' })),
+      quotes: inq.quotes.map((x) => ({ ...x, status: x.id === q.id ? 'selected' : 'not_selected' })),
     });
-    // 낙찰 → Marketplace Bookings에 리퀘스트 예약 생성 (고객가·호텔 컨펌 대기)
-    const pr = priceQuote(q.amount, rateFor(inq.country, rates));
+    // 낙찰 → 버스 기록(콘솔 호텔이 컨펌/거절) + Marketplace Bookings에 리퀘스트 예약 생성
+    upsertDeal(inq.ref, { quoteId: q.id, awardedAt: new Date().toISOString(), paymentDeadlineHours: q.paymentDeadlineHours });
+    const pr = priceQuote(q.amount, rateFor(inq.country, rates), q.currency);
     const booking: Booking = {
       ellis_code: inq.ref,
       seller_code: inq.ref,
@@ -168,13 +197,39 @@ export default function GroupInquiryPage({
       travelers: inq.guests,
       currency: q.currency,
       sum_amt: pr.sell,
-      client_cancel_dl: q.freeCancelUntil ?? null,
+      // 취소 마감(호텔 지정) — 그날 23:59까지 무료취소, 이후 취소·환불 불가. 없으면 null(취소 불가)
+      client_cancel_dl: q.cancelDeadline ? `${q.cancelDeadline.slice(0, 10)}T23:59:00` : null,
       cancel_date: null,
       group_ref: inq.ref,
     };
     onCreateBooking?.(booking);
     setConfirmQuote(null);
-    setToast(`${q.hotelName} 리퀘스트 예약이 생성되었습니다 (${inq.ref}) — Bookings에서 확인 · 호텔 컨펌 대기.`);
+    setToast(
+      q.source === 'console'
+        ? `${q.hotelName} 리퀘스트 예약이 생성되었습니다 (${inq.ref}) — 호텔이 벤더 콘솔에서 컨펌하면 결제 단계로 넘어갑니다.`
+        : `${q.hotelName} 리퀘스트 예약이 생성되었습니다 (${inq.ref}) — Bookings에서 확인 · 호텔 컨펌 대기.`,
+    );
+  }
+
+  /** 이메일·SCM 중개 호텔의 응답 시뮬레이트 (콘솔 호텔은 콘솔에서 직접 처리) */
+  function simulateHotel(inq: GroupInquiry, decision: 'confirmed' | 'rejected') {
+    const at = new Date().toISOString();
+    upsertDeal(inq.ref, decision === 'confirmed' ? { hotelDecision: 'confirmed', decidedAt: at } : { hotelDecision: 'rejected', decidedAt: at, cancelledAt: at, cancelReason: 'hotel_rejected' });
+    setToast(decision === 'confirmed' ? '호텔이 리퀘스트 예약을 수락했습니다 — 계약 조건 동의 후 결제 마감 전에 결제하세요. (시뮬레이트)' : '호텔이 리퀘스트 예약을 거절했습니다 — 문의가 취소됩니다. (시뮬레이트)');
+  }
+
+  /** 계약 조건(단체 예약 확인서) 동의 + 결제 — UI 시연(실결제 없음) */
+  function payWithContract(inq: GroupInquiry) {
+    const at = new Date().toISOString();
+    upsertDeal(inq.ref, { contractAcceptedAt: at, paidAt: at });
+    setContractOpen(false);
+    setToast('결제가 완료되었습니다 — 단체 예약이 확정되었습니다. (시연 · 실결제 없음)');
+  }
+
+  /** 고객사 취소 — 취소 마감 전에만(예약 전체 · 결제했으면 전액 환불) */
+  function sellerCancel(inq: GroupInquiry) {
+    upsertDeal(inq.ref, { cancelledAt: new Date().toISOString(), cancelReason: 'seller_cancelled' });
+    setToast(inq.paidAt ? '예약을 취소했습니다 — 취소 마감 전이라 전액 환불됩니다.' : '리퀘스트 예약을 취소했습니다.');
   }
 
   return (
@@ -184,10 +239,10 @@ export default function GroupInquiryPage({
           <div>
             <h1 className="flex items-center gap-2 text-lg font-bold text-slate-800">
               단체 문의 · 역경매 소싱
-              <EnhBadge note="단체 문의 → 기존 계약 호텔 역경매 → 국가별 요금(net/커미션) 고객가 → 리스트업 → 리퀘스트 예약 (신규 기획)" />
+              <EnhBadge note="단체 문의(5실↑) → 기존 계약 호텔 역경매(벤더 콘솔 실연동) → 국가별 요금 고객가 → 전부 리스트업 → 리퀘스트 예약 → 호텔 수락 → 계약 동의·결제 (신규 기획)" />
             </h1>
             <p className="mt-0.5 text-[12px] text-slate-500">
-              고객사 단체 문의를 접수해 기존 계약 호텔에 역경매로 뿌리고, 회수 견적을 국가별 요금 구조로 산출해 리스트업합니다.
+              <b>5실 이상</b> 단체는 문의로 접수합니다. 기존 계약 호텔에 역경매로 뿌리고, 호텔이 낸 견적을 <b>전부</b> 리스트업합니다 — 선택은 고객사가 합니다.
             </p>
           </div>
           {mode === 'list' && (
@@ -232,11 +287,14 @@ export default function GroupInquiryPage({
             tree={tree}
             rates={rates}
             onCancel={() => setMode('list')}
-            onSubmit={(inq) => {
+            onSubmit={(draft) => {
+              // 접수(메일) → 즉시 RFP 배포: 벤더 콘솔(도시 일치 호텔)로 발송 = 견적 수집중
+              const inq: GroupInquiry = { ...draft, status: 'Sourcing', sellerName: SELLER_NAME };
+              publishInquiry(toBusInquiry(inq, rates, activeAncillary(inq.ancillary)));
               setInquiries((prev) => [inq, ...prev]);
               setActiveId(inq.id);
               setMode('detail');
-              setToast('문의가 접수되었습니다 — 담당 메일함으로 접수 알림이 발송되었습니다. (프로토타입)');
+              setToast('문의가 접수되었습니다 — 접수 메일 발송 · 같은 도시의 계약 호텔(벤더 콘솔)에 RFP가 배포되었습니다.');
             }}
           />
         )}
@@ -249,18 +307,16 @@ export default function GroupInquiryPage({
             onSource={() => sourceQuotes(active)}
             onSelectQuote={(q) => setConfirmQuote(q)}
             onOpenBookings={onOpenBookings}
-            onConfirmHotel={() => {
-              patchInquiry(active.id, { status: 'Confirmed' });
-              onUpdateBookingStatus?.(active.ref, 'Confirmed');
-              setToast('호텔이 리퀘스트 예약을 수락했습니다 — 예약 확정. (시뮬레이트)');
-            }}
+            onSimulateHotel={(d) => simulateHotel(active, d)}
+            onOpenContract={() => setContractOpen(true)}
+            onSellerCancel={() => sellerCancel(active)}
           />
         )}
       </div>
 
       {confirmQuote && active && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 px-4">
-          <div className="w-[460px] overflow-hidden rounded-lg bg-white shadow-2xl">
+          <div className="w-[480px] overflow-hidden rounded-lg bg-white shadow-2xl">
             <div className="border-b border-slate-200 bg-slate-50 px-5 py-3 text-sm font-bold text-slate-800">리퀘스트 예약 진행</div>
             <div className="px-5 py-5 text-[13px] text-slate-700">
               <p className="mb-3">
@@ -269,19 +325,24 @@ export default function GroupInquiryPage({
               <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2 text-[12px]">
                 <div className="flex justify-between">
                   <span className="text-slate-500">고객가</span>
-                  <b className="text-brand-600">{fmtMoney(priceQuote(confirmQuote.amount, rateFor(active.country, rates)).sell, confirmQuote.currency)}</b>
+                  <b className="text-brand-600">{fmtMoney(priceQuote(confirmQuote.amount, rateFor(active.country, rates), confirmQuote.currency).sell, confirmQuote.currency)}</b>
                 </div>
-                <div className="mt-1 flex justify-between">
-                  <span className="text-slate-500">조건</span>
-                  <span>{confirmQuote.condition}</span>
+                <div className="mt-1 flex justify-between gap-3">
+                  <span className="shrink-0 text-slate-500">조건</span>
+                  <span className="text-right">{confirmQuote.condition}</span>
                 </div>
-                <div className="mt-1 flex justify-between">
-                  <span className="text-slate-500">취소규정</span>
-                  <span>{confirmQuote.cancellation}</span>
+                <div className="mt-1 flex justify-between gap-3">
+                  <span className="shrink-0 text-slate-500">취소</span>
+                  <span className="text-right">{cancelLabel(confirmQuote.cancelDeadline)}</span>
+                </div>
+                <div className="mt-1 flex justify-between gap-3">
+                  <span className="shrink-0 text-slate-500">결제</span>
+                  <span className="text-right">호텔 수락 후 {confirmQuote.paymentDeadlineHours}시간 이내 (미결제 시 자동취소)</span>
                 </div>
               </div>
-              <p className="mt-3 text-[11px] text-amber-600">
-                ※ 리퀘스트 예약은 <b>호텔 확정 응답 전까지 확정이 아닙니다.</b> 취소는 예약 전체 단위이며, <b>수수료 구간 취소 시 취소 수수료가 발생</b>합니다(호텔 취소규정 기준).
+              <p className="mt-3 text-[11px] leading-relaxed text-amber-600">
+                ※ 리퀘스트 예약은 <b>호텔 수락 + 결제 완료 전까지 확정이 아닙니다.</b> 취소는 예약 전체 단위이며,{' '}
+                <b>취소 마감 전엔 전액 환불 · 마감 후엔 취소·환불 불가</b>입니다(호텔이 견적 때 지정).
               </p>
             </div>
             <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3">
@@ -294,6 +355,15 @@ export default function GroupInquiryPage({
             </div>
           </div>
         </div>
+      )}
+
+      {contractOpen && active && (
+        <GroupContractModal
+          inq={active}
+          rates={rates}
+          onClose={() => setContractOpen(false)}
+          onPay={active.status === 'Accepted' ? () => payWithContract(active) : undefined}
+        />
       )}
 
       {toast && (
@@ -374,7 +444,7 @@ function ListView({
                   {i.quoteDeadline ? (
                     <>
                       <div className="text-[12px]">{fmtDateTime(i.quoteDeadline)}</div>
-                      {['Submitted', 'Sourcing', 'Quoted'].includes(i.status) ? (
+                      {['Submitted', 'Sourcing', 'Quoted'].includes(effStatus(i, now)) ? (
                         <RemainBadge deadline={i.quoteDeadline} now={now} />
                       ) : (
                         <span className="text-[11px] text-slate-400">회신 종료</span>
@@ -386,7 +456,7 @@ function ListView({
                 </td>
                 <td className="px-4 py-3 text-center text-slate-600">{i.quotes.length || '—'}</td>
                 <td className="px-4 py-3 text-center">
-                  <span className={`rounded px-2 py-0.5 text-[11px] font-semibold ${STATUS_STYLE[i.status]}`}>{STATUS_LABEL[i.status]}</span>
+                  <span className={`whitespace-nowrap rounded px-2 py-0.5 text-[11px] font-semibold ${STATUS_STYLE[effStatus(i, now)]}`}>{STATUS_LABEL[effStatus(i, now)]}</span>
                 </td>
               </tr>
             ))}
@@ -499,7 +569,7 @@ function NewInquiryForm({
   const [anchorRadiusMin, setAnchorRadiusMin] = useState<number>(30);
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
-  const [rooms, setRooms] = useState<RoomReq[]>([{ roomType: 'Twin', count: 1 }]);
+  const [rooms, setRooms] = useState<RoomReq[]>([{ roomType: 'Twin', count: MIN_GROUP_ROOMS }]);
   const [mealPlan, setMealPlan] = useState('Room Only');
   const [guests, setGuests] = useState<number>(2);
   const [nationality, setNationality] = useState('');
@@ -547,8 +617,10 @@ function NewInquiryForm({
       ? budgetByDate.reduce((s, d) => s + (Number(d.perRoomNight) || 0), 0) * roomsTotal(rooms)
       : budgetPerNight === '' ? 0 : Number(budgetPerNight) * roomsTotal(rooms) * (n || 0);
 
+  const underGroup = roomsTotal(rooms) < MIN_GROUP_ROOMS; // 그룹 예약 = 5실 이상 (4실 이하는 즉시 예약)
   const valid =
-    region && checkIn && checkOut && n > 0 && roomsTotal(rooms) > 0 && guests > 0 && comparisonAck && goldenKey.trim() && !deadlineTooSoon && !deadlineAfterCheckIn;
+    region && checkIn && checkOut && n > 0 && !underGroup && guests > 0 && nationality.trim() && groupType.trim() && budgetTotalCalc > 0 &&
+    comparisonAck && goldenKey.trim() && !deadlineTooSoon && !deadlineAfterCheckIn;
 
   function changeCountry(c: string) {
     setCountry(c);
@@ -702,7 +774,9 @@ function NewInquiryForm({
           </div>
           <div className="mt-2 flex items-center gap-3">
             <button type="button" onClick={() => setRooms((prev) => [...prev, { roomType: 'Single', count: 1 }])} className="text-[12px] font-semibold text-brand-600 hover:underline">＋ 룸타입 추가</button>
-            <span className="text-[12px] text-slate-400">합계 {roomsTotal(rooms)}실</span>
+            <span className={`text-[12px] ${underGroup ? 'font-semibold text-rose-600' : 'text-slate-400'}`}>
+              합계 {roomsTotal(rooms)}실{underGroup ? ` — 단체(그룹) 예약은 ${MIN_GROUP_ROOMS}실 이상입니다. ${MIN_GROUP_ROOMS - 1}실 이하는 Create Booking에서 즉시 예약하세요.` : ` · 그룹 기준 ${MIN_GROUP_ROOMS}실 이상 충족`}
+            </span>
           </div>
         </div>
           </div>{/* /좌측 */}
@@ -721,7 +795,7 @@ function NewInquiryForm({
             <input type="number" min={1} value={guests} onChange={(e) => setGuests(Math.max(1, Number(e.target.value) || 1))} className={fieldCls} />
           </div>
           <div>
-            <span className={labelCls}>국적 <span className="font-normal text-slate-400">(선택)</span></span>
+            <span className={labelCls}>국적 <span className="text-brand-500">*</span></span>
             <input value={nationality} onChange={(e) => setNationality(e.target.value)} placeholder="예: 중국" className={fieldCls} />
           </div>
         </div>
@@ -729,7 +803,7 @@ function NewInquiryForm({
         {/* 단체 성격 · 담당 범위 */}
         <div className="mb-4 grid grid-cols-3 gap-3">
           <div>
-            <span className={labelCls}>단체 성격 <span className="font-normal text-slate-400">(선택)</span></span>
+            <span className={labelCls}>단체 성격 <span className="text-brand-500">*</span></span>
             <input value={groupType} onChange={(e) => setGroupType(e.target.value)} placeholder="예: 스포츠팀 · 기업연수 · 인센티브 · MICE" className={fieldCls} />
           </div>
           <div className="col-span-2">
@@ -759,7 +833,7 @@ function NewInquiryForm({
         {/* 예산 (1실·1박 기준 · 날짜별 옵션) */}
         <div className="mb-4">
           <div className="mb-1 flex items-center justify-between">
-            <span className="text-[12px] font-semibold text-slate-600">예산 <span className="font-normal text-slate-400">(1실·1박 기준 · {currency})</span></span>
+            <span className="text-[12px] font-semibold text-slate-600">예산 <span className="text-brand-500">*</span> <span className="font-normal text-slate-400">(1실·1박 기준 · {currency})</span></span>
             <div className="flex gap-1 text-[11px]">
               <button type="button" onClick={() => setBudgetMode('flat')} className={`rounded px-2 py-0.5 ${budgetMode === 'flat' ? 'bg-brand-500 text-white' : 'bg-slate-100 text-slate-500'}`}>균일</button>
               <button type="button" onClick={() => setBudgetMode('byDate')} className={`rounded px-2 py-0.5 ${budgetMode === 'byDate' ? 'bg-brand-500 text-white' : 'bg-slate-100 text-slate-500'}`}>날짜별</button>
@@ -847,7 +921,7 @@ function NewInquiryForm({
         </label>
 
         <div className="mt-4 flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
-          {!valid && <span className="mr-auto text-[12px] text-amber-600">목적지·기간·룸·인원·Golden Key·회신 기한·비교견적 동의를 확인하세요.</span>}
+          {!valid && <span className="mr-auto text-[12px] text-amber-600">목적지·기간·룸({MIN_GROUP_ROOMS}실 이상)·인원·국적·단체 성격·예산·Golden Key·회신 기한·비교견적 동의를 확인하세요.</span>}
           <button type="button" onClick={onCancel} className="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">취소</button>
           <button type="button" onClick={submit} disabled={!valid} className="rounded bg-brand-500 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40">문의 제출 (메일 접수)</button>
         </div>
@@ -857,29 +931,37 @@ function NewInquiryForm({
 }
 
 // ─────────────────────────── 상세 ───────────────────────────
+const todayStr = () => new Date().toISOString().slice(0, 10);
+
 function DetailView({
   inq,
   rates,
   showInternal,
   onSource,
   onSelectQuote,
-  onConfirmHotel,
   onOpenBookings,
+  onSimulateHotel,
+  onOpenContract,
+  onSellerCancel,
 }: {
   inq: GroupInquiry;
   rates: Record<string, CountryRate>;
   showInternal: boolean;
   onSource: () => void;
   onSelectQuote: (q: HotelQuote) => void;
-  onConfirmHotel: () => void;
   onOpenBookings?: () => void;
+  onSimulateHotel: (decision: 'confirmed' | 'rejected') => void;
+  onOpenContract: () => void;
+  onSellerCancel: () => void;
 }) {
   const rate = rateFor(inq.country, rates);
   const now = useNow();
   const remain = remainingInfo(inq.quoteDeadline, now);
+  const eff = effStatus(inq, now);
   const collecting = ['Submitted', 'Sourcing', 'Quoted'].includes(inq.status); // 호텔 회신 수집 중
   const selected = inq.quotes.find((q) => q.id === inq.selectedQuoteId) ?? null;
   const extras = activeAncillary(inq.ancillary);
+  const hasChannel = inq.quotes.some((q) => q.source === 'channel');
   const info = (label: string, value: ReactNode) => (
     <div>
       <div className="text-[11px] text-slate-400">{label}</div>
@@ -893,7 +975,7 @@ function DetailView({
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className="font-mono text-sm text-slate-700">{inq.ref}</span>
-            <span className={`rounded px-2 py-0.5 text-[11px] font-semibold ${STATUS_STYLE[inq.status]}`}>{STATUS_LABEL[inq.status]}</span>
+            <span className={`rounded px-2 py-0.5 text-[11px] font-semibold ${STATUS_STYLE[eff]}`}>{STATUS_LABEL[eff]}</span>
             {inq.holdRequired && <span className="rounded bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700">객실 홀드 요청</span>}
           </div>
           {inq.quoteDeadline && collecting && (
@@ -920,10 +1002,15 @@ function DetailView({
         </div>
       </div>
 
-      {(inq.status === 'Submitted' || inq.status === 'Sourcing') && (
+      {(inq.status === 'Submitted' || inq.status === 'Sourcing') && inq.quotes.length === 0 && (
         <div className="mt-5 rounded-lg border border-dashed border-brand-300 bg-brand-50/50 p-6 text-center">
-          <p className="text-[13px] text-slate-600">문의가 접수되었습니다. <b>기존 계약 호텔</b>에 <b>역경매(RFP)</b>로 뿌려 견적을 회수합니다.</p>
-          <p className="mt-1 text-[11px] text-slate-400">대상은 지역·앵커 거리 기준의 기존 계약 호텔군(신규 소싱은 재고 부족 시에만). {rateBasisNote(rate)} (아래는 프로토타입 시뮬레이트)</p>
+          <p className="text-[13px] text-slate-600">
+            <b>{cityEnOf(inq.region)}</b>의 <b>기존 계약 호텔</b>에 <b>역경매(RFP)</b>가 배포되었습니다. 호텔이 <b>벤더 콘솔</b>에서 견적을 내면 여기에 <b>자동으로</b> 표시됩니다(실연동).
+          </p>
+          <p className="mt-1 text-[11px] text-slate-400">
+            콘솔을 쓰지 않는 호텔(VN 등)은 이메일·SCM 중개로 회수합니다. {rateBasisNote(rate)}{' '}
+            <a href="/Console/" target="_blank" rel="noreferrer" className="text-brand-600 underline">벤더 콘솔 열기 ↗</a> <span className="text-slate-300">(라이브 · 같은 브라우저)</span>
+          </p>
           {inq.quoteDeadline && (
             <p className="mt-3 flex items-center justify-center gap-2 text-[12px] text-slate-600">
               호텔 회신 기한 <b>{fmtDateTime(inq.quoteDeadline)}</b> <RemainBadge deadline={inq.quoteDeadline} now={now} />
@@ -932,44 +1019,57 @@ function DetailView({
           {remain?.expired ? (
             <p className="mt-4 text-[13px] font-semibold text-slate-500">회신 기한이 지나 더 이상 견적을 받지 않습니다 — 받은 견적이 없습니다.</p>
           ) : (
-            <button type="button" onClick={onSource} className="mt-4 rounded bg-brand-500 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-600">역경매 견적 회수 (시뮬레이트)</button>
+            <button type="button" onClick={onSource} className="mt-4 rounded bg-brand-500 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-600">이메일·SCM 중개 견적 회수 (시뮬레이트)</button>
           )}
         </div>
       )}
 
-      {inq.quotes.length > 0 && inq.status !== 'Submitted' && inq.status !== 'Sourcing' && (
+      {inq.quotes.length > 0 && (
         <div className="mt-5">
-          <div className="mb-2 flex items-center justify-between">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <h3 className="flex flex-wrap items-center gap-2 text-sm font-bold text-slate-700">
-              회수 견적 {inq.quotes.length}건
+              회수 견적 {inq.quotes.length}건 <span className="text-[12px] font-normal text-slate-400">— 받은 견적은 전부 표시 · 선택은 고객사</span>
               {inq.status === 'Quoted' && inq.quoteDeadline && (
                 remain?.expired ? (
-                  <span className="text-[12px] font-normal text-slate-400">— 회신 마감 · 받은 견적 중에서 선택하세요</span>
+                  <span className="text-[12px] font-normal text-slate-400">· 회신 마감 · 받은 견적 중에서 선택하세요</span>
                 ) : (
                   <>
-                    <span className="text-[12px] font-normal text-slate-400">— 회신 마감까지 추가 견적이 도착할 수 있습니다</span>
+                    <span className="text-[12px] font-normal text-slate-400">· 회신 마감까지 추가 견적이 도착할 수 있습니다</span>
                     <RemainBadge deadline={inq.quoteDeadline} now={now} />
                   </>
                 )
               )}
             </h3>
-            {showInternal && <span className="text-[11px] text-amber-600">내부 보기: {rate.mode === 'commission' ? '단가·커미션' : 'net·마진'} 표시 중</span>}
+            <div className="flex items-center gap-3">
+              {inq.status === 'Quoted' && !hasChannel && !remain?.expired && (
+                <button type="button" onClick={onSource} className="text-[12px] font-semibold text-brand-600 hover:underline">＋ 이메일·SCM 중개 견적 회수 (시뮬레이트)</button>
+              )}
+              {showInternal && <span className="text-[11px] text-amber-600">내부 보기: {rate.mode === 'commission' ? '단가·커미션' : 'net·마진'} 표시 중</span>}
+            </div>
           </div>
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             {inq.quotes.map((q) => {
-              const pr = priceQuote(q.amount, rate);
+              const pr = priceQuote(q.amount, rate, q.currency);
               const overBudget = inq.budgetTotal ? pr.sell > inq.budgetTotal : false;
               const isSelected = q.id === inq.selectedQuoteId;
               const dimmed = inq.status !== 'Quoted' && !isSelected;
+              const lapsed = q.validUntil < todayStr();
               return (
                 <div key={q.id} className={`rounded-lg border bg-white p-4 ${isSelected ? 'border-brand-500 ring-1 ring-brand-300' : 'border-slate-200'} ${dimmed ? 'opacity-50' : ''}`}>
                   <div className="flex items-start justify-between">
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="text-[14px] font-bold text-slate-800">{q.hotelName}</span>
                         {q.star && <span className="text-[11px] text-amber-500">{'★'.repeat(Math.round(q.star))}</span>}
+                        <span className={`rounded px-1.5 py-px text-[10px] font-semibold ${q.source === 'console' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                          {q.source === 'console' ? '벤더 콘솔 직접 제출' : '이메일·SCM 중개'}
+                        </span>
                       </div>
-                      <div className="mt-0.5 text-[12px] text-slate-500">📍 {q.location}{q.distanceMin != null && <span> · 차량 {q.distanceMin}분</span>}</div>
+                      <div className="mt-0.5 text-[12px] text-slate-500">
+                        📍 {q.location}
+                        {q.distanceKm != null && <span> · 요청 지역에서 약 {q.distanceKm}km</span>}
+                        {q.distanceMin != null && <span> · 앵커까지 차량 {q.distanceMin}분</span>}
+                      </div>
                     </div>
                     <div className="text-right">
                       <div className={`text-lg font-extrabold ${overBudget ? 'text-slate-700' : 'text-brand-600'}`}>{fmtMoney(pr.sell, q.currency)}</div>
@@ -981,16 +1081,21 @@ function DetailView({
                       )}
                     </div>
                   </div>
-                  <div className="mt-2 border-t border-slate-100 pt-2 text-[12px] text-slate-600">
-                    <div>{q.condition}</div>
-                    <div className="mt-0.5 text-slate-500">취소: {q.cancellation}{q.freeCancelUntil ? ` (무료취소 ~${q.freeCancelUntil})` : ''}</div>
+                  <div className="mt-2 space-y-0.5 border-t border-slate-100 pt-2 text-[12px] text-slate-600">
+                    <div>{q.condition}{q.availability ? <span className="text-slate-400"> · {q.availability}</span> : null}</div>
+                    <div className={q.cancelDeadline ? 'text-slate-500' : 'font-semibold text-rose-600'}>취소: {cancelLabel(q.cancelDeadline)}</div>
+                    <div className="text-slate-500">결제: 호텔 수락 후 {q.paymentDeadlineHours}시간 이내 (미결제 시 자동취소) · 견적 유효 ~{q.validUntil}</div>
+                    {q.note && <div className="text-slate-400">메모: {q.note}</div>}
                     {showInternal && (
                       <div className="mt-1 rounded bg-slate-50 px-2 py-1 text-[11px] text-slate-500">내부: {pr.basisLabel} {fmtMoney(q.amount, q.currency)} · 마진 {fmtMoney(pr.margin, q.currency)} ({pr.marginLabel})</div>
                     )}
                   </div>
-                  {inq.status === 'Quoted' && (
-                    <button type="button" onClick={() => onSelectQuote(q)} className="mt-3 w-full rounded bg-brand-500 py-1.5 text-[13px] font-semibold text-white hover:bg-brand-600">이 견적으로 예약 →</button>
-                  )}
+                  {inq.status === 'Quoted' &&
+                    (lapsed ? (
+                      <div className="mt-3 rounded bg-slate-100 py-1.5 text-center text-[12px] text-slate-400">견적 유효기간 경과 — 선택 불가</div>
+                    ) : (
+                      <button type="button" onClick={() => onSelectQuote(q)} className="mt-3 w-full rounded bg-brand-500 py-1.5 text-[13px] font-semibold text-white hover:bg-brand-600">이 견적으로 예약 →</button>
+                    ))}
                   {isSelected && <div className="mt-3 rounded bg-brand-50 py-1.5 text-center text-[12px] font-semibold text-brand-600">선택됨</div>}
                 </div>
               );
@@ -999,41 +1104,163 @@ function DetailView({
         </div>
       )}
 
-      {selected && (inq.status === 'Requested' || inq.status === 'Confirmed') && (() => {
-        const pr = priceQuote(selected.amount, rate);
+      {selected && ['Requested', 'Accepted', 'Confirmed', 'Cancelled'].includes(inq.status) && (() => {
+        const pr = priceQuote(selected.amount, rate, selected.currency);
         const hotelReceive = pr.sell - pr.margin;
-        const requested = inq.status === 'Requested';
+        const tone =
+          inq.status === 'Requested' ? 'border-blue-200 bg-blue-50'
+            : inq.status === 'Accepted' ? 'border-amber-200 bg-amber-50'
+              : inq.status === 'Confirmed' ? 'border-emerald-200 bg-emerald-50'
+                : 'border-slate-200 bg-slate-50';
+        const payRemain = inq.paymentDueAt ? remainingInfo(inq.paymentDueAt, now) : null;
+        const cancelLocked = cancelClosed(selected.cancelDeadline, now);
         return (
-          <div className={`mt-5 rounded-lg border p-5 ${requested ? 'border-blue-200 bg-blue-50' : 'border-emerald-200 bg-emerald-50'}`}>
+          <div className={`mt-5 rounded-lg border p-5 ${tone}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-[13px] text-slate-700">
-                {requested ? (
-                  <><b>{selected.hotelName}</b> 리퀘스트 예약 생성됨 (<span className="font-mono">{inq.ref}</span>) — 호텔 컨펌 대기</>
-                ) : (
-                  <>✅ <b>{selected.hotelName}</b> 예약 확정 — 계약서·단체 F/U 진행</>
+              <div className="text-[13px] text-slate-700">
+                {inq.status === 'Requested' && (
+                  <><b>{selected.hotelName}</b> 리퀘스트 예약 생성됨 (<span className="font-mono">{inq.ref}</span>) — <b>호텔 응답 대기</b>
+                    {selected.source === 'console' && <span className="ml-1 text-[11px] text-slate-500">· 호텔이 벤더 콘솔에서 컨펌/거절하면 자동 반영</span>}</>
                 )}
-              </p>
-              <div className="flex gap-2">
-                {onOpenBookings && (
+                {inq.status === 'Accepted' && (
+                  <span className="flex flex-wrap items-center gap-2">
+                    🏨 <b>{selected.hotelName}</b> 수락 — <b>계약 조건 동의 후 결제</b>하면 확정됩니다. 결제 마감 <b>{fmtDateTime(inq.paymentDueAt)}</b>
+                    {payRemain && <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${REMAIN_STYLE[payRemain.tone]}`}>⏱ {payRemain.expired ? '마감' : payRemain.label}</span>}
+                  </span>
+                )}
+                {inq.status === 'Confirmed' && (
+                  <>✅ <b>{selected.hotelName}</b> 결제 완료 · 예약 확정 <span className="text-[11px] text-slate-500">({fmtDateTime(inq.paidAt)} · 확인서 동의 {fmtDateTime(inq.contractAcceptedAt)})</span></>
+                )}
+                {inq.status === 'Cancelled' && (
+                  <>✖ 문의 취소 — <b>{inq.cancelReason ? CANCEL_REASON_LABEL[inq.cancelReason] : '취소'}</b>{inq.cancelledAt ? <span className="text-[11px] text-slate-500"> ({fmtDateTime(inq.cancelledAt)})</span> : null}</>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {onOpenBookings && inq.status !== 'Cancelled' && (
                   <button type="button" onClick={onOpenBookings} className="rounded border border-slate-300 bg-white px-3 py-1.5 text-[12px] font-semibold text-slate-600 hover:bg-slate-50">Bookings에서 보기 →</button>
                 )}
-                {requested && (
-                  <button type="button" onClick={onConfirmHotel} className="rounded border border-blue-300 bg-white px-3 py-1.5 text-[12px] font-semibold text-blue-600 hover:bg-blue-100">호텔 수락 (시뮬레이트)</button>
+                {inq.status === 'Requested' && selected.source === 'channel' && (
+                  <>
+                    <button type="button" onClick={() => onSimulateHotel('rejected')} className="rounded border border-rose-300 bg-white px-3 py-1.5 text-[12px] font-semibold text-rose-600 hover:bg-rose-50">호텔 거절 (시뮬레이트)</button>
+                    <button type="button" onClick={() => onSimulateHotel('confirmed')} className="rounded border border-blue-300 bg-white px-3 py-1.5 text-[12px] font-semibold text-blue-600 hover:bg-blue-100">호텔 수락 (시뮬레이트)</button>
+                  </>
+                )}
+                {inq.status === 'Accepted' && (
+                  <button type="button" onClick={onOpenContract} className="rounded bg-brand-500 px-4 py-1.5 text-[12px] font-semibold text-white hover:bg-brand-600">계약 조건 확인 · 결제 →</button>
+                )}
+                {inq.status === 'Confirmed' && (
+                  <button type="button" onClick={onOpenContract} className="rounded border border-emerald-300 bg-white px-3 py-1.5 text-[12px] font-semibold text-emerald-700 hover:bg-emerald-100">단체 예약 확인서 보기</button>
+                )}
+                {(inq.status === 'Requested' || inq.status === 'Accepted') && (
+                  <button type="button" onClick={onSellerCancel} className="rounded border border-slate-300 bg-white px-3 py-1.5 text-[12px] text-slate-500 hover:text-rose-600">리퀘스트 취소</button>
+                )}
+                {inq.status === 'Confirmed' && (
+                  <button
+                    type="button"
+                    disabled={cancelLocked}
+                    onClick={onSellerCancel}
+                    title={cancelLocked ? '취소 마감이 지나 취소·환불할 수 없습니다' : '취소 마감 전 — 예약 전체 취소 시 전액 환불'}
+                    className="rounded border border-slate-300 bg-white px-3 py-1.5 text-[12px] text-slate-500 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-slate-500"
+                  >
+                    {cancelLocked ? (selected.cancelDeadline ? '취소 불가 (마감 경과)' : '취소 불가 (환불 불가 조건)') : '예약 취소 (전액 환불)'}
+                  </button>
                 )}
               </div>
             </div>
-            {/* 정산(MOR) — OMH가 대신 수금·지불 */}
-            <div className="mt-3 grid grid-cols-2 gap-3 rounded border border-slate-200 bg-white/70 p-3 text-[12px] md:grid-cols-3">
-              <div><div className="text-[10px] text-slate-400">고객 결제 (→OMH)</div><div className="font-bold text-slate-800">{fmtMoney(pr.sell, selected.currency)}</div></div>
-              <div><div className="text-[10px] text-slate-400">호텔 지불 (OMH→)</div><div className="text-slate-700">{fmtMoney(hotelReceive, selected.currency)}</div></div>
-              {showInternal && (
-                <div><div className="text-[10px] text-slate-400">우리 마진 ({pr.marginLabel})</div><div className="font-semibold text-brand-600">{fmtMoney(pr.margin, selected.currency)}</div></div>
-              )}
-            </div>
-            <p className="mt-1 text-[10px] text-slate-400">OMH가 대신 수금·지불(MOR) — 고객사가 OMH에 결제, OMH가 호텔에 정산. 취소 시 정책 수수료는 고객 청구 후 호텔 전달.</p>
+            <p className={`mt-2 text-[12px] ${selected.cancelDeadline && !cancelLocked ? 'text-slate-600' : 'font-semibold text-rose-600'}`}>
+              취소 규정: {cancelLabel(selected.cancelDeadline)}{selected.cancelDeadline && cancelLocked ? ' — 현재 취소 마감 경과' : ''}
+            </p>
+            {inq.status !== 'Cancelled' && (
+              <>
+                {/* 정산(MOR) — OMH가 대신 수금·지불 */}
+                <div className="mt-3 grid grid-cols-2 gap-3 rounded border border-slate-200 bg-white/70 p-3 text-[12px] md:grid-cols-3">
+                  <div><div className="text-[10px] text-slate-400">고객 결제 (→OMH)</div><div className="font-bold text-slate-800">{fmtMoney(pr.sell, selected.currency)}</div></div>
+                  <div><div className="text-[10px] text-slate-400">호텔 지불 (OMH→)</div><div className="text-slate-700">{fmtMoney(hotelReceive, selected.currency)}</div></div>
+                  {showInternal && (
+                    <div><div className="text-[10px] text-slate-400">우리 마진 ({pr.marginLabel})</div><div className="font-semibold text-brand-600">{fmtMoney(pr.margin, selected.currency)}</div></div>
+                  )}
+                </div>
+                <p className="mt-1 text-[10px] text-slate-400">OMH가 대신 수금·지불(MOR) — 고객사가 OMH에 결제, OMH가 호텔에 정산. 취소 마감 전 취소는 전액 환불, 마감 후엔 취소·환불 불가.</p>
+              </>
+            )}
           </div>
         );
       })()}
+    </div>
+  );
+}
+
+// ─────────────────────────── 단체 예약 확인서 (계약 조건) ───────────────────────────
+/**
+ * DOTBIZ 단체 예약 확인서 — 근거: Contract Minder의 DotBiz 선불 예약 계약서(Prepaid Hotel Booking Agreement)
+ * + 단체 예약 부속약관(Group Booking Terms, 2026-10-01 초안). 결제 전 동의 필수. 결제는 UI 시연(실결제 없음).
+ */
+function GroupContractModal({ inq, rates, onClose, onPay }: { inq: GroupInquiry; rates: Record<string, CountryRate>; onClose: () => void; onPay?: () => void }) {
+  const [agree, setAgree] = useState(false);
+  const q = inq.quotes.find((x) => x.id === inq.selectedQuoteId);
+  if (!q) return null;
+  const pr = priceQuote(q.amount, rateFor(inq.country, rates), q.currency);
+  const extras = activeAncillary(inq.ancillary);
+  const row = (k: string, v: ReactNode) => (
+    <tr className="border-b border-slate-100 last:border-0">
+      <th className="w-36 bg-slate-50 px-3 py-1.5 text-left align-top text-[11px] font-semibold text-slate-500">{k}</th>
+      <td className="px-3 py-1.5 text-[12px] text-slate-700">{v}</td>
+    </tr>
+  );
+  return (
+    <div className="fixed inset-0 z-[75] flex items-center justify-center bg-slate-900/50 px-4" onClick={onClose}>
+      <div className="flex max-h-[90vh] w-[720px] max-w-full flex-col overflow-hidden rounded-lg bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3">
+          <div>
+            <div className="text-sm font-bold text-slate-800">단체 예약 확인서 · Group Booking Confirmation</div>
+            <div className="text-[11px] text-slate-500">No. <span className="font-mono">{inq.ref}</span> · DOTBIZ 선불 예약 계약서 + 단체 예약 부속약관의 일부</div>
+          </div>
+          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-700" aria-label="닫기">✕</button>
+        </div>
+        <div className="overflow-y-auto px-5 py-4">
+          <table className="w-full overflow-hidden rounded border border-slate-200">
+            <tbody>
+              {row('당사자', <>Ohmyhotel Global Pte. Ltd. (Singapore) ↔ <b>{inq.sellerName ?? SELLER_NAME}</b> (DOTBIZ 고객사)</>)}
+              {row('호텔', `${q.hotelName} · ${q.location}`)}
+              {row('기간', `${fmtDate(inq.checkIn)} ~ ${fmtDate(inq.checkOut)} (${inq.nights}박)`)}
+              {row('객실 · 식사', `${roomsSummary(inq.rooms)} (${roomsTotal(inq.rooms)}실) · ${inq.mealPlan}`)}
+              {row('인원', `${inq.guests}명${inq.nationality ? ` · ${inq.nationality}` : ''}`)}
+              {row('총액', <><b className="text-brand-600">{fmtMoney(pr.sell, q.currency)}</b> <span className="text-slate-400">(카드 처리 수수료 포함 · 현지세·시티택스 등 현장 지불 항목 제외)</span></>)}
+              {row('결제', <>호텔 수락 후 <b>{q.paymentDeadlineHours}시간</b> 이내 전액 결제 — 마감 <b>{fmtDateTime(inq.paymentDueAt)}</b>. 미결제 시 <b>자동취소</b>(위약금 없음)</>)}
+              {row('취소', q.cancelDeadline
+                ? <><b>{q.cancelDeadline.slice(0, 10)} 23:59</b>까지 예약 <b>전체</b> 취소 시 전액 환불(원결제 카드, 승인 후 10영업일 이내). <b className="text-rose-600">마감 이후에는 취소·변경·노쇼 모두 취소 불가 · 환불 불가.</b></>
+                : <b className="text-rose-600">취소 마감 없음 — 결제 시점부터 취소 불가 · 환불 불가.</b>)}
+              {row('부분 취소 · 변경', '객실 수 감소 등 부분 취소 불가(예약 전체 단위). 날짜·객실 수·룸타입 변경은 새 요청으로 호텔 수락 필요')}
+              {row('포함 사항', `확인서에 적힌 객실·식사만 포함${extras.length ? ` · 부대 서비스(${extras.join(', ')})는 호텔 견적 메모에 명시된 범위만` : ''}`)}
+              {row('명단(Rooming list)', <span className="text-amber-600">체크인 [●]일 전까지 제출 — 기한 확정 예정</span>)}
+              {row('대금 · 정산', 'OMH가 Merchant of Record로 수금하고 호텔에 정산. 차지백 전 OMH에 서면 통지(선불 계약서 제7조)')}
+              {row('문제 예약', '오버부킹 등은 선불 계약서 제10조(대체 숙소·첫날 객실요금 100% 한도 보상) 적용')}
+              {row('준거법 · 분쟁', '싱가포르법 · SIAC 중재(선불 계약서 제18조)')}
+            </tbody>
+          </table>
+          <p className="mt-3 text-[11px] leading-relaxed text-slate-400">
+            우선순위: 개별 예약의 요금·취소·환불 조건은 본 확인서가 우선하고, 그 외 사항은 DOTBIZ 선불 예약 계약서(Prepaid Hotel Booking Agreement)와 단체 예약 부속약관(Group Booking Terms)을 따릅니다.
+          </p>
+          {onPay && (
+            <label className="mt-3 flex cursor-pointer items-start gap-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-slate-700">
+              <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-0.5" />
+              <span>위 단체 예약 조건(<b>취소 마감 이후 취소·환불 불가</b>, 결제 마감 경과 시 자동취소 포함)을 확인했으며 동의합니다.</span>
+            </label>
+          )}
+          {!onPay && inq.contractAcceptedAt && (
+            <p className="mt-3 rounded bg-emerald-50 px-3 py-2 text-[12px] text-emerald-700">✓ {fmtDateTime(inq.contractAcceptedAt)} 동의 · {fmtDateTime(inq.paidAt)} 결제 완료</p>
+          )}
+        </div>
+        <div className="flex items-center justify-end gap-2 border-t border-slate-100 px-5 py-3">
+          {onPay && <span className="mr-auto text-[11px] text-slate-400">시연 화면 — 실제 카드 입력·결제는 없습니다.</span>}
+          <button type="button" onClick={onClose} className="rounded border border-slate-300 px-4 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">닫기</button>
+          {onPay && (
+            <button type="button" disabled={!agree} onClick={onPay} className="rounded bg-brand-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40">
+              동의하고 결제 ({fmtMoney(pr.sell, q.currency)})
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

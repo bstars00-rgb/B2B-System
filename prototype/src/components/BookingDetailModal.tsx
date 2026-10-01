@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import type { Booking, TravelerDetail } from '../types';
 import InvoiceModal from './InvoiceModal';
 import PaymentGatewayModal from './PaymentGatewayModal';
+import { cancelClosed } from '../utils/groupBus';
 
 interface Props {
   booking: Booking | null;
@@ -74,6 +75,13 @@ export default function BookingDetailModal({ booking, onClose, onCancelBooking }
   if (!booking) return null;
 
   const cancelled = booking.status === 'Cancelled';
+  /**
+   * 단체 예약(group_ref) 취소 규칙 — 호텔이 오퍼 때 지정한 취소 마감까지만 예약 전체 취소(전액 환불),
+   * 마감 이후엔 취소 불가·환불 불가. 결제 전(리퀘스트·결제 대기)은 비용 없이 취소 가능.
+   */
+  const isGroup = !!booking.group_ref;
+  const groupDl = booking.client_cancel_dl ? booking.client_cancel_dl.slice(0, 10) : null;
+  const groupLocked = isGroup && booking.status === 'Confirmed' && cancelClosed(groupDl);
 
   return (
     <div
@@ -166,11 +174,12 @@ export default function BookingDetailModal({ booking, onClose, onCancelBooking }
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
-                  disabled={cancelled}
+                  disabled={cancelled || groupLocked}
                   onClick={() => setConfirmingCancel(true)}
+                  title={groupLocked ? '단체 예약 — 취소 마감이 지나 취소·환불할 수 없습니다' : undefined}
                   className="rounded border border-slate-300 bg-white px-3 py-1 text-xs text-slate-600 hover:border-rose-300 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Cancel
+                  {groupLocked ? '취소 불가' : 'Cancel'}
                 </button>
                 <button
                   type="button"
@@ -198,8 +207,11 @@ export default function BookingDetailModal({ booking, onClose, onCancelBooking }
             {confirmingCancel && !cancelled && (
               <div className="flex items-center justify-between gap-3 border-b border-rose-200 bg-rose-50 px-4 py-2.5 text-[12px] text-rose-700">
                 <span>
-                  이 예약을 취소하시겠습니까? 취소 마감({booking.client_cancel_dl ? '무료취소 가능' : '환불불가 요금'})
-                  정책에 따라 위약금이 발생할 수 있습니다.
+                  {isGroup
+                    ? booking.status === 'Confirmed'
+                      ? `단체 예약 전체를 취소합니다 — 취소 마감(${groupDl} 23:59) 전이라 전액 환불됩니다.`
+                      : '단체 리퀘스트 예약을 취소합니다 — 결제 전이라 비용이 발생하지 않습니다.'
+                    : `이 예약을 취소하시겠습니까? 취소 마감(${booking.client_cancel_dl ? '무료취소 가능' : '환불불가 요금'}) 정책에 따라 위약금이 발생할 수 있습니다.`}
                 </span>
                 <span className="flex shrink-0 gap-1.5">
                   <button
@@ -243,7 +255,13 @@ export default function BookingDetailModal({ booking, onClose, onCancelBooking }
             <Row
               label="Client Cancellation D/L"
               value={
-                booking.client_cancel_dl ? (
+                isGroup ? (
+                  groupDl ? (
+                    <span className="text-rose-600">{groupDl} 23:59 — 이전 전액 환불 · 이후 취소 불가·환불 불가 (단체 · 호텔 지정)</span>
+                  ) : (
+                    <span className="font-semibold text-rose-600">취소 불가 · 환불 불가 (단체 · 취소 마감 없음)</span>
+                  )
+                ) : booking.client_cancel_dl ? (
                   <span className="text-rose-600">{booking.client_cancel_dl.slice(0, 16).replace('T', ' ')} Free cancellation available</span>
                 ) : (
                   <span className="font-semibold text-rose-600">Non-refundable</span>
@@ -352,8 +370,10 @@ export default function BookingDetailModal({ booking, onClose, onCancelBooking }
               <h4 className="text-[13px] font-bold text-slate-800">Billing &amp; Payment</h4>
               <button
                 type="button"
+                disabled={isGroup}
                 onClick={() => setShowPayment(true)}
-                className="rounded border border-slate-300 bg-white px-3 py-1 text-xs text-slate-600 hover:border-brand-400 hover:text-brand-600"
+                title={isGroup ? '단체 예약 결제는 단체 문의 화면에서 계약 조건(단체 예약 확인서) 동의 후 진행합니다' : undefined}
+                className="rounded border border-slate-300 bg-white px-3 py-1 text-xs text-slate-600 hover:border-brand-400 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Credit card
               </button>
