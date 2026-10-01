@@ -270,8 +270,9 @@ export function generateQuotes(inq: GroupInquiry, rates: Record<string, CountryR
   const all = allHotels();
   let cands = [] as ReturnType<typeof allHotels>;
   if (inq.hotelId) {
+    // 호텔을 특정한 문의는 그 호텔에만 배포
     const self = all.find((h) => h.id === inq.hotelId);
-    if (self) cands = [self, ...all.filter((h) => h.city.destination === self.city.destination && h.id !== self.id)];
+    if (self) cands = [self];
   }
   if (cands.length === 0) cands = all.filter((h) => h.city.destination === inq.region || h.city.nameEn === inq.region);
   if (cands.length === 0) cands = all.filter((h) => h.city.country === inq.country);
