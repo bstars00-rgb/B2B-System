@@ -34,7 +34,7 @@ export const SEED_PROMOS: PointPromo[] = [
     roomType: 'all',
     ratePlan: 'all',
     start: '2026-05-01',
-    end: '2026-09-30',
+    end: '2026-12-31',
     multiplier: 2.0, // 2X 리워드
     active: true,
   },

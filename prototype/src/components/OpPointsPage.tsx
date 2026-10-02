@@ -3,7 +3,7 @@ import type { Booking } from '../types';
 import EnhBadge from './EnhBadge';
 import { todayIso } from '../utils/dashboardStats';
 import {
-  OP_POINT_POLICY, DEFAULT_POINT_POLICY, DEFAULT_TIERS, FX_TO_KRW, TIER_MIN_DIVISOR_MONTHS, TIER_WINDOW_MONTHS, computeAccruals, monthlyAvgKRW, summarize,
+  OP_POINT_POLICY, DEFAULT_POINT_POLICY, DEFAULT_TIERS, FX_TO_KRW, TIER_MIN_DIVISOR_MONTHS, TIER_WINDOW_MONTHS, computeAccruals, computePending, monthlyAvgKRW, summarize,
   tierBoostPct, tierFor, faceToPoints, pointsToUsd, unitKRWOf, toKRW, type Accrual, type PointPolicy, type Tier,
 } from '../utils/opPoints';
 import { SEED_PROMOS, type PointPromo } from '../mocks/opPointsPromos';
@@ -193,9 +193,18 @@ export default function OpPointsPage({
     [apiConnected, myBookings, today, promos, unitKRW, tiers, companyBookings],
   );
   const summary = useMemo(() => summarize(accruals, today), [accruals, today]);
+  /** 적립 예정 — 투숙 완료 · 지불 대기(후불 업체). 지불 완료 시 적립 */
+  const pending = useMemo(
+    () => (apiConnected ? [] : computePending(myBookings, today, promos, unitKRW, tiers, companyBookings)),
+    [apiConnected, myBookings, today, promos, unitKRW, tiers, companyBookings],
+  );
   // 처리 중(보류)·발송·반송은 차감 — 반송은 카드가 이미 발급돼 재발송 대상. 실패(주문 미생성)만 복원되어 잔액에 포함
   const redeemedPts = r1(redeemed.filter((x) => x.status !== 'failed').reduce((s, x) => s + x.points, 0));
-  const balance = r1(summary.earned - redeemedPts);
+  /** 포인트 유효기간 1년 — 적립일(지불 완료일, 없으면 체크아웃) 기준 12개월 지나면 소멸(사용 가능에서 차감) */
+  const accruedOn = (a: Accrual) => a.paidAt ?? a.stayCompleted;
+  const cut12 = useMemo(() => { const d = new Date(`${today}T00:00:00Z`); d.setUTCMonth(d.getUTCMonth() - OP_POINT_POLICY.expiryMonths); return d.toISOString().slice(0, 10); }, [today]);
+  const expiredPts = r1(accruals.filter((a) => accruedOn(a) < cut12).reduce((s, a) => s + a.points, 0));
+  const balance = r1(Math.max(0, summary.earned - redeemedPts - expiredPts));
   const redeemedThisYear = r1(redeemed.filter((x) => x.status !== 'failed' && x.at.slice(0, 4) === today.slice(0, 4)).reduce((s, x) => s + x.points, 0));
 
   /** 현재 월 평균 예약액(최근 12개월 · 체크아웃 완료) → 현재 등급 */
@@ -204,7 +213,10 @@ export default function OpPointsPage({
   const boostPct = tierBoostPct(tierStatus.tier, tiers);
 
   // 진행 중인 배수 캠페인 (2X 이상) — 고객 카드용
-  const campaigns = useMemo(() => promos.filter((p) => p.active && p.multiplier >= 2).sort((a, b) => b.multiplier - a.multiplier), [promos]);
+  const campaigns = useMemo(
+    () => promos.filter((p) => p.active && p.multiplier >= 2 && p.start <= today && today <= p.end).sort((a, b) => b.multiplier - a.multiplier),
+    [promos, today],
+  );
   const bookTarget = (p: PointPromo): BookHotelTarget => ({ code: hotelCodeOf(p.hotelId), destination: cityOfHotel(p.hotelId)?.destination ?? '', hotelName: p.hotelName });
 
   const expiryCut = useMemo(() => {
@@ -212,7 +224,7 @@ export default function OpPointsPage({
     d.setUTCMonth(d.getUTCMonth() - 11);
     return d.toISOString().slice(0, 10);
   }, [today]);
-  const expiringPoints = r1(accruals.filter((a) => a.stayCompleted < expiryCut).reduce((s, a) => s + a.points, 0));
+  const expiringPoints = r1(accruals.filter((a) => accruedOn(a) < expiryCut && accruedOn(a) >= cut12).reduce((s, a) => s + a.points, 0));
 
   // 적립 내역 기간 필터 (최근 N개월 / 전체)
   const [period, setPeriod] = useState<'3m' | '6m' | '1y' | 'all'>('6m');
@@ -224,6 +236,14 @@ export default function OpPointsPage({
     const cut = d.toISOString().slice(0, 10);
     return accruals.filter((a) => a.stayCompleted >= cut);
   }, [accruals, period, today]);
+  /** 적립 예정도 같은 기간 필터 */
+  const shownPending = useMemo(() => {
+    if (period === 'all') return pending;
+    const d = new Date(`${today}T00:00:00Z`);
+    d.setUTCMonth(d.getUTCMonth() - (period === '3m' ? 3 : period === '6m' ? 6 : 12));
+    const cut = d.toISOString().slice(0, 10);
+    return pending.filter((a) => a.stayCompleted >= cut);
+  }, [pending, period, today]);
 
   // ── 감사(Audit) 집계 — 발급(주문 생성) 건 기준. 유효기간 180일, 미사용분 환급 없이 소멸 ──
   const issued = redemptions.filter((x) => x.orderNo);
@@ -429,7 +449,7 @@ export default function OpPointsPage({
           <Card className="min-w-0">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <p className="text-[13px] font-bold text-slate-800">
-                적립 내역 <span className="text-[11px] font-normal text-slate-400">(표시 {shownAccruals.length}건 / 전체 {accruals.length}건 · 투숙+지불 완료 자동 적립)</span>
+                적립 내역 <span className="text-[11px] font-normal text-slate-400">(표시 {shownAccruals.length}건 / 전체 {accruals.length}건{shownPending.length > 0 ? ` · 적립 예정 ${shownPending.length}건(지불 대기)` : ''} · 투숙+지불 완료 자동 적립)</span>
               </p>
               <div className="flex items-center gap-2">
                 <select
@@ -457,7 +477,20 @@ export default function OpPointsPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {shownAccruals.length === 0 && <tr><td colSpan={4} className="px-4 py-10 text-center text-[11px] text-slate-400">{accruals.length === 0 ? '아직 적립 내역이 없습니다.' : '선택한 기간에 해당하는 적립 내역이 없습니다.'}</td></tr>}
+                  {shownPending.map((a: Accrual) => (
+                    <tr key={`p-${a.ellisCode}`} className="border-b border-slate-100 bg-amber-50/40">
+                      <td className="px-4 py-2.5 text-slate-500">{a.stayCompleted}</td>
+                      <td className="px-4 py-2.5">
+                        <button type="button" onClick={() => onOpenBooking(a.ellisCode)} className="font-mono text-[11px] text-slate-500 underline underline-offset-2 hover:text-brand-700" title="이 예약을 Bookings에서 보기">{a.ellisCode}</button>
+                      </td>
+                      <td className="px-4 py-2.5 text-slate-500">{a.hotelName}{a.promoLabel && <PromoBadge label={a.promoLabel} />}</td>
+                      <td className="px-4 py-2.5 text-right">
+                        <span className="font-semibold text-slate-400">+{pt(a.points)}</span>
+                        <span className="ml-1 rounded-sm bg-amber-100 px-1 py-px text-[9px] font-bold text-amber-700" title="투숙 완료 · 지불 대기 — 지불 완료 시 적립">적립 예정</span>
+                      </td>
+                    </tr>
+                  ))}
+                  {shownAccruals.length === 0 && shownPending.length === 0 && <tr><td colSpan={4} className="px-4 py-10 text-center text-[11px] text-slate-400">{accruals.length === 0 ? '아직 적립 내역이 없습니다.' : '선택한 기간에 해당하는 적립 내역이 없습니다.'}</td></tr>}
                   {shownAccruals.map((a: Accrual) => (
                     <tr key={a.ellisCode} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70">
                       <td className="px-4 py-2.5 text-slate-600">{a.stayCompleted}</td>
@@ -545,7 +578,7 @@ export default function OpPointsPage({
         </div>
 
         <p className="text-[10px] leading-relaxed text-slate-400">
-          예약이 <b>투숙 완료 + 지불 완료</b>되면 <b>자동 적립</b>(취소·노쇼·환불 제외). 등급(월 평균 예약액 기준)이 오를수록 더 많이 적립되고(체크아웃 시점 등급 적용), 프로모션 호텔은 추가 적립(배수 배지). 포인트는 <b>OP 계정별 분리</b>({account.name} 예약 {myBookings.length}건 중 {summary.eligibleCount}건 적립)·<b>유효기간 1년(회계년도 기준)</b>. 교환은 상단 <b>💎 포인트 교환</b>에서 금액만 고르면 <b>Giftronaut 초이스 카드</b> 링크가 이메일로 발송되고(USD Balance 차감), 브랜드는 링크에서 직접 고릅니다. 교환은 세션 내 표시(새로고침 시 초기화). <b>1P 가치·최소 교환은 ELLIS 정책값</b>(아래 ELLIS 패널에서 변경 · 이력 기록). 기프트카드 <b>유효기간 180일 · 미사용 소멸(환불 없음)</b>. 적립률 <b>1%</b>(확정). 등급 적립률 Bronze 1% · Silver 1.2% · Gold 1.3% · Diamond 1.5%(확정) — 등급 기준 금액은 ELLIS 설정. 그 외: 세무.
+          예약이 <b>투숙 완료 + 지불 완료</b>되면 <b>자동 적립</b>(취소·노쇼·환불 제외). 등급(월 평균 예약액 기준)이 오를수록 더 많이 적립되고(체크아웃 시점 등급 적용), 프로모션 호텔은 추가 적립(배수 배지). 포인트는 <b>OP 계정별 분리</b>({account.name} 예약 {myBookings.length}건 중 {summary.eligibleCount}건 적립)·<b>유효기간 1년(회계년도 기준)</b>. 교환은 상단 <b>💎 포인트 교환</b>에서 금액만 고르면 <b>Giftronaut 초이스 카드</b> 링크가 이메일로 발송되고(USD Balance 차감), 브랜드는 링크에서 직접 고릅니다. 교환은 세션 내 표시(새로고침 시 초기화). <b>1P 가치·최소 교환은 ELLIS 정책값</b>(아래 ELLIS 패널에서 변경 · 이력 기록). 기프트카드 <b>유효기간 180일 · 미사용 소멸(환불 없음)</b>. 적립률 <b>1%</b>(확정). 등급이 오르면 Silver +20% · Gold +30% · Diamond +50% 더 적립됩니다. 포인트는 적립 후 1년이 지나면 소멸됩니다.
         </p>
 
         {/* ELLIS 내부 프로모 관리 (고객 비노출) */}
