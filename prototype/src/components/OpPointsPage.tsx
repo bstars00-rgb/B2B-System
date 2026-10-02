@@ -35,7 +35,8 @@ export interface BookHotelTarget { code: string; destination: string; hotelName:
  * 적립 요율·계산식 비노출(배수 배지·상대 부스트만). 계정별 분리. 유효기간 1년.
  * 결정(2026-09-29): 1P 가치·최소 교환 = **ELLIS 정책값**(지금 고정 안 함) · 기프트카드 **180일, 미사용 소멸(환급 없음) + 내부 Audit** ·
  *   Balance 충전 = **해외송금만**, 잔액은 ELLIS에서 `GET /balance`로 확인(고객 비노출, 별도 알림 없음).
- * 카드 타입 = 초이스 카드 하나(2026-10-02) → '국가 노출' 문제도 해소(브랜드·통화는 수령자가 선택). ⚠ 미확정: 적립률.
+ * 카드 타입 = 초이스 카드 하나(2026-10-02) → '국가 노출' 문제도 해소(브랜드·통화는 수령자가 선택). 적립률 = 1% 확정(2026-10-02).
+ * 초이스 카드 금액 범위(min~max)·주문 한도는 API 연동 시 확인 → 금액 칸(CHOICE_VALUES_USD) 조정.
  *
  * ※ 폐기: opPoints.ts + 이 파일 + opPointsPromos.ts + opAccounts.ts + giftCatalog.ts + 사이드바 메뉴 한 줄 삭제.
  */
@@ -500,7 +501,7 @@ export default function OpPointsPage({
         </div>
 
         <p className="text-[10px] leading-relaxed text-slate-400">
-          예약이 <b>투숙 완료 + 지불 완료</b>되면 <b>자동 적립</b>(취소·노쇼·환불 제외). 등급이 오를수록 더 많이 적립되고, 프로모션 호텔은 추가 적립(배수 배지). 포인트는 <b>OP 계정별 분리</b>({account.name} 예약 {myBookings.length}건 중 {summary.eligibleCount}건 적립)·<b>유효기간 1년(회계년도 기준)</b>. 교환은 상단 <b>💎 포인트 교환</b>에서 금액만 고르면 <b>Giftronaut 초이스 카드</b> 링크가 이메일로 발송되고(USD Balance 차감), 브랜드는 링크에서 직접 고릅니다. 교환은 세션 내 표시(새로고침 시 초기화). <b>1P 가치·최소 교환은 ELLIS 정책값</b>(아래 ELLIS 패널에서 변경 · 이력 기록). 기프트카드 <b>유효기간 180일 · 미사용 소멸(환불 없음)</b>. <b>미확정</b>: 적립률. 그 외 정책: 등급 임계값/부스트·세무.
+          예약이 <b>투숙 완료 + 지불 완료</b>되면 <b>자동 적립</b>(취소·노쇼·환불 제외). 등급이 오를수록 더 많이 적립되고, 프로모션 호텔은 추가 적립(배수 배지). 포인트는 <b>OP 계정별 분리</b>({account.name} 예약 {myBookings.length}건 중 {summary.eligibleCount}건 적립)·<b>유효기간 1년(회계년도 기준)</b>. 교환은 상단 <b>💎 포인트 교환</b>에서 금액만 고르면 <b>Giftronaut 초이스 카드</b> 링크가 이메일로 발송되고(USD Balance 차감), 브랜드는 링크에서 직접 고릅니다. 교환은 세션 내 표시(새로고침 시 초기화). <b>1P 가치·최소 교환은 ELLIS 정책값</b>(아래 ELLIS 패널에서 변경 · 이력 기록). 기프트카드 <b>유효기간 180일 · 미사용 소멸(환불 없음)</b>. 적립률 <b>1%</b>(확정). 그 외 정책: 등급 임계값/부스트·세무.
         </p>
 
         {/* ELLIS 내부 프로모 관리 (고객 비노출) */}
@@ -717,7 +718,7 @@ export default function OpPointsPage({
                 <div className="mt-3 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-600">
                   <b className="text-slate-800">교환 상품: Giftronaut 초이스 카드</b> (<code>POST /orders/choice-cards</code> · USD 정수 액면) — 금액 {CHOICE_VALUES_USD.map((v) => `US$${v}`).join(' · ')}.
                   수령자가 이메일 링크에서 <b>거주 국가 브랜드·통화를 직접 선택</b>(225개국)하므로 국가별 상품 진열·관리가 필요 없습니다.
-                  <span className="text-amber-600"> 계정별 초이스 카드 금액 범위(min~max)·국가별 선택 가능 브랜드는 Giftronaut 확인 필요.</span>
+                  <span className="text-slate-500"> 계정별 초이스 카드 금액 범위(min~max)·국가별 선택 가능 브랜드는 <b>API 연동 시 확인</b> → 금액 칸 조정.</span>
                 </div>
               </div>
 

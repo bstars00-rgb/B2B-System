@@ -47,7 +47,7 @@ export function toKRW(amount: number, currency: string): number {
  * 기본 요율·포인트 단위는 화면에 드러내지 않는다. ELLIS 내부 뷰에서만 확인.
  */
 export const OP_POINT_POLICY = {
-  /** 기본 적립 요율 (%) — 내부값. 고객에겐 배수(배지)로만 표현. */
+  /** 기본 적립 요율 (%) — **1% 확정**(2026-10-02). 내부값 — 고객에겐 배수(배지)·포인트로만 표현. */
   baseRatePct: 1,
   /** 유효기간(개월) — 1년. 현업 2026-09: 회계년도 마감과 연동(정책 확정 대상). */
   expiryMonths: 12,
