@@ -16,6 +16,16 @@
 
 export type GiftCountry = 'KR' | 'CN' | 'VN' | 'SG' | 'IN';
 
+/**
+ * **교환 상품 = Giftronaut 초이스 카드(선택형) 하나** — 2026-10-02 결정(HBX 방식 · 심플하게).
+ * HBX(Bedsonline)는 Redeem → 금액만 선택 → 이메일로 Tango 선택형 링크 발송. 우리도 같은 구조:
+ * 포인트 교환 → 금액(USD) 선택 → `POST /orders/choice-cards` → 이메일 링크에서 **수령자가 거주 국가 브랜드를 직접 선택**.
+ * → 국가별 브랜드 진열(아래 GIFT_CATALOG)은 고객 화면에서 제외(참고 데이터로만 보존).
+ */
+export const CHOICE_CARD = { id: 'choice-global-usd', name: '기프트카드 (초이스 카드)', brand: 'Giftronaut', currency: 'USD' } as const;
+/** 교환 금액(USD, 정수) — Giftronaut 계정의 초이스 카드 금액 범위(min~max) 안에서 운영 · 범위 확인 필요 */
+export const CHOICE_VALUES_USD = [10, 20, 50, 100];
+
 export interface GiftCountryInfo {
   code: GiftCountry;
   /** Giftronaut `countryCode` (ISO-3166-1 alpha-3) */
@@ -118,12 +128,21 @@ export interface GiftRedemption {
   usd: number;
   at: string;
   status: RedeemStatus;
+  /** 액면 통화 — 초이스 카드는 USD. 없으면 국가 통화(구 브랜드 카드) */
+  currency?: string;
   /** 내부 사유(API 코드 등) — **ELLIS 전용**, 고객 화면엔 일반 문구만 */
   failReason?: string;
   resent?: number;
   /** 감사(Audit) 이력 — 추가만(append-only). 요청·주문 생성·발송·반송·재발송(이메일 변경 전→후)·실패 */
   events: { at: string; text: string }[];
 }
+
+/** 교환 건 상품명 */
+export const redeemName = (r: Pick<GiftRedemption, 'productId'>) =>
+  r.productId === CHOICE_CARD.id ? CHOICE_CARD.name : GIFT_CATALOG.find((p) => p.id === r.productId)?.name ?? r.productId;
+/** 교환 건 액면 표기 (초이스 카드 = US$) */
+export const redeemFace = (r: Pick<GiftRedemption, 'face' | 'country' | 'currency'>) =>
+  r.currency === 'USD' ? `US$${r.face.toLocaleString()}` : fmtFace(r.face, r.country);
 
 /** Balance(USD 선충전) 시연 초기 잔액 — Production 가정. (Sandbox는 가상 $10,000, $1,000 미만 시 자동 보충) */
 export const SEED_DEPOSIT_USD = 2000;
@@ -139,17 +158,17 @@ export const expiryOf = (sentOn: string, days: number): string => shift(sentOn, 
  */
 export function seedRedemptions(today: string): GiftRedemption[] {
   const rec = (
-    n: number, accountId: string, productId: string, face: number, daysAgo: number, points: number, usd: number,
+    n: number, accountId: string, face: number, daysAgo: number, points: number,
     extra: Partial<GiftRedemption> = {}, events?: { at: string; text: string }[],
   ): GiftRedemption => {
     const at = shift(today, -daysAgo);
     const orderNo = `OT${at.replace(/-/g, '')}${String(100000 + n * 7919).slice(-6)}`;
     return {
-      id: `seed-${n}`, orderNo, idempotencyKey: `omh-rdm-seed-${n}`, accountId, email: accountId, productId, country: 'KR',
-      face, points, usd, at, status: 'sent',
+      id: `seed-${n}`, orderNo, idempotencyKey: `omh-rdm-seed-${n}`, accountId, email: accountId, productId: CHOICE_CARD.id, country: 'KR',
+      face, currency: 'USD', points, usd: face, at, status: 'sent',
       events: events ?? [
         { at: `${at} 10:0${n}`, text: `교환 요청 · ${points} P 보류` },
-        { at: `${at} 10:0${n}`, text: `주문 생성 ${orderNo} · Balance −USD ${usd.toFixed(2)}` },
+        { at: `${at} 10:0${n}`, text: `주문 생성 ${orderNo} · Balance −USD ${face.toFixed(2)}` },
         { at: `${at} 10:1${n}`, text: '발송 완료 (order.delivery_complete)' },
       ],
       ...extra,
@@ -157,15 +176,15 @@ export function seedRedemptions(today: string): GiftRedemption[] {
   };
   const b = shift(today, -45);
   return [
-    rec(1, 'osaka.desk@attic-tours.com', 'kr-cu', 20000, 200, 20, 13.51),
-    rec(2, 'fit.team@attic-tours.com', 'kr-oliveyoung', 30000, 172, 30, 20.27),
-    rec(3, 'osaka.desk@attic-tours.com', 'kr-baemin', 20000, 45, 20, 13.51, { email: 'osaka.kansai@attic-tours.com', resent: 1 }, [
-      { at: `${b} 14:02`, text: '교환 요청 · 20 P 보류' },
-      { at: `${b} 14:02`, text: '주문 생성 · Balance −USD 13.51' },
+    rec(1, 'osaka.desk@attic-tours.com', 10, 200, 14.8),
+    rec(2, 'fit.team@attic-tours.com', 20, 172, 29.6),
+    rec(3, 'osaka.desk@attic-tours.com', 10, 45, 14.8, { email: 'osaka.kansai@attic-tours.com', resent: 1 }, [
+      { at: `${b} 14:02`, text: '교환 요청 · 14.8 P 보류' },
+      { at: `${b} 14:02`, text: '주문 생성 · Balance −USD 10.00' },
       { at: `${b} 14:09`, text: '이메일 반송 (order.bounced)' },
       { at: `${b} 16:30`, text: '재발송 osaka.desk@attic-tours.com → osaka.kansai@attic-tours.com' },
       { at: `${b} 16:31`, text: '발송 완료 (order.delivery_complete)' },
     ]),
-    rec(4, 'fit.team@attic-tours.com', 'kr-gs25', 20000, 12, 20, 13.51),
+    rec(4, 'fit.team@attic-tours.com', 10, 12, 14.8),
   ];
 }
