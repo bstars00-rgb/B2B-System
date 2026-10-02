@@ -126,7 +126,7 @@ export default function StaffPage({ bookings = [] }: { bookings?: Booking[] }) {
                 <th className="px-3 py-2.5 font-semibold">Mobile Phone No.</th>
                 <th className="px-3 py-2.5 font-semibold">Email Address</th>
                 <th className="px-3 py-2.5 font-semibold">Super User</th>
-                {viewerIsSuper && <th className="px-3 py-2.5 font-semibold" title="12개월 적립 합계 · 읽기 전용">OP Points 총적립</th>}
+                {viewerIsSuper && <th className="px-3 py-2.5 font-semibold" title="적립 합계(소멸분 포함) · 읽기 전용">OP Points 총적립</th>}
                 {viewerIsSuper && <th className="px-3 py-2.5 font-semibold" title="교환·소멸 차감 후 · 읽기 전용">사용 가능</th>}
               </tr>
             </thead>
