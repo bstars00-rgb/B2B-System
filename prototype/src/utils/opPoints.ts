@@ -243,10 +243,12 @@ export function summarize(accruals: Accrual[], today: string): OpPointSummary {
 
 /**
  * 등급제 (HBX 벤치마크 · 현업 2026-08 도입 → **2026-10-02 확정**).
- * - 등급 = **월 평균 예약액**(KRW, 체크아웃 완료·취소 제외)으로 결정. 최근 12개월 합계 ÷ 활동 개월 수(최소 3 · 최대 12).
+ * - 등급 = **월 평균 예약액**(KRW, 체크아웃 완료·취소 제외). **매월 1일 산정** — 직전 6개월 합계 ÷ 첫 예약 이후 경과 개월 수(최소 3 · 최대 6).
  * - **등급별 적립률**(예약금액 대비): Bronze 1.0% · Silver 1.2% · Gold 1.3% · Diamond 1.5%. 지정 호텔 프로모 배수는 그 위에 곱한다.
  * - **적용 시점 = 체크아웃 후** — 각 예약은 체크아웃 시점의 등급 적립률로 적립.
- * - 등급 기준(월 평균 금액)은 ELLIS 정책값. 기본값은 현업 예시(1천만/2천만/3천만) — 실데이터 보정 후 확정.
+ * - 등급 기준(월 평균 금액)은 ELLIS 정책값. 기본값 = **Silver 300만 · Gold 1,500만 · Diamond 3,000만**(2026-10-02, ELLIS 실데이터 보정:
+ *   마켓 셀러 18곳 · 12개월 — 월 3.7M 이하 15곳 / 13~26M 3곳의 양봉 분포라 현업 예시 Silver 1,000만은 4~5위 셀러(월 ~200만)에게 닿지 않음.
+ *   리워드 비용 ≈ TTV 1.25% = 마켓 마진(12.8%)의 약 10%). 셀러 표본이 작아 2027-02 최적화 때 재보정.
  * 고객 화면엔 절대 요율 대신 상대 부스트(+20%·+30%·+50%)만 노출.
  */
 export interface Tier {
@@ -261,13 +263,17 @@ export interface Tier {
 
 export const DEFAULT_TIERS: Tier[] = [
   { name: 'Bronze', minMonthlyKRW: 0, ratePct: 1.0, color: '#b45309' },
-  { name: 'Silver', minMonthlyKRW: 10_000_000, ratePct: 1.2, color: '#64748b' },
-  { name: 'Gold', minMonthlyKRW: 20_000_000, ratePct: 1.3, color: '#ca8a04' },
+  { name: 'Silver', minMonthlyKRW: 3_000_000, ratePct: 1.2, color: '#64748b' },
+  { name: 'Gold', minMonthlyKRW: 15_000_000, ratePct: 1.3, color: '#ca8a04' },
   { name: 'Diamond', minMonthlyKRW: 30_000_000, ratePct: 1.5, color: '#0891b2' },
 ];
 
-/** 등급 산정 기간(개월) · 최소 나눗수(신규 OP의 한 달 대형 예약으로 바로 최상위가 되는 것 방지) */
-export const TIER_WINDOW_MONTHS = 12;
+/**
+ * 등급 산정 기간(개월) · 최소 나눗수.
+ * 6개월: 마켓 월 TTV 변동(약 8배)에 3개월은 등급이 너무 자주 바뀌고(10회), 12개월은 신규가 등급을 받기까지 너무 김 → 6개월(4회).
+ * 최소 3: 신규 OP가 한 달 대형 예약 한 건으로 바로 최상위가 되는 것 방지. 나눗수는 '활동한 달'이 아닌 '첫 예약 이후 달력 월'(띄엄띄엄 예약 시 부풀림 방지).
+ */
+export const TIER_WINDOW_MONTHS = 6;
 export const TIER_MIN_DIVISOR_MONTHS = 3;
 
 const monthsBack = (iso: string, n: number) => {
@@ -276,17 +282,22 @@ const monthsBack = (iso: string, n: number) => {
   return d.toISOString().slice(0, 10);
 };
 
+/** asOf가 속한 달의 1일 (YYYY-MM-01) — 등급은 매월 1일 기준으로 산정 */
+export const monthStartOf = (asOf: string) => `${asOf.slice(0, 7)}-01`;
+
 /**
- * 월 평균 예약액(KRW) — asOf 이전 12개월 동안 체크아웃한(취소 제외) 예약 합계 ÷ 활동 개월 수.
- * 활동 개월 수 = 첫 체크아웃부터 asOf까지(개월, 올림) · 최소 3 · 최대 12.
+ * 월 평균 예약액(KRW) — **asOf가 속한 달 1일 기준**, 직전 6개월(그 달 제외) 체크아웃(취소 제외) 합계 ÷ 나눗수.
+ * 나눗수 = 첫 예약(체크아웃) 이후 경과 달력 월 · 최소 3 · 최대 6.
  */
 export function monthlyAvgKRW(bookings: Booking[], asOf: string): number {
-  const from = monthsBack(asOf, TIER_WINDOW_MONTHS);
-  const q = bookings.filter((b) => b.status !== 'Cancelled' && b.check_out < asOf.slice(0, 10) && b.check_out >= from);
+  const end = monthStartOf(asOf);
+  const from = monthsBack(end, TIER_WINDOW_MONTHS);
+  const past = bookings.filter((b) => b.status !== 'Cancelled' && b.check_out < end);
+  const q = past.filter((b) => b.check_out >= from);
   if (q.length === 0) return 0;
   const total = q.reduce((s, b) => s + toKRW(b.sum_amt, b.currency), 0);
-  const first = q.reduce((m, b) => (b.check_out < m ? b.check_out : m), q[0].check_out);
-  const days = (new Date(`${asOf.slice(0, 10)}T00:00:00Z`).getTime() - new Date(`${first}T00:00:00Z`).getTime()) / 86400000;
+  const first = past.reduce((m, b) => (b.check_out < m ? b.check_out : m), past[0].check_out);
+  const days = (new Date(`${end}T00:00:00Z`).getTime() - new Date(`${first}T00:00:00Z`).getTime()) / 86400000;
   const months = Math.min(TIER_WINDOW_MONTHS, Math.max(TIER_MIN_DIVISOR_MONTHS, Math.ceil(days / 30.44)));
   return Math.round(total / months);
 }
