@@ -181,10 +181,10 @@ function isPaid(b: Booking): boolean {
   return b.payment_status === 'Fully Paid';
 }
 
-function toAccrual(b: Booking, promos: PointPromo[], today: string, unitKRW: number, tiers: Tier[], all: Booking[]): Accrual {
+function toAccrual(b: Booking, promos: PointPromo[], today: string, unitKRW: number, tiers: Tier[], companyBookings: Booking[]): Accrual {
   const { multiplier, label } = promoFor(b, promos);
-  // 체크아웃 시점의 등급(그 시점까지 최근 12개월 월 평균 예약액)으로 적립률 결정
-  const tier = tierFor(monthlyAvgKRW(all, b.check_out), tiers).tier;
+  // 체크아웃한 달의 등급(회사 합산 월 평균 예약액, 매월 1일 산정)으로 적립률 결정
+  const tier = tierFor(monthlyAvgKRW(companyBookings, b.check_out), tiers).tier;
   return {
     ellisCode: b.ellis_code,
     hotelName: b.hotel_name,
@@ -205,22 +205,23 @@ function toAccrual(b: Booking, promos: PointPromo[], today: string, unitKRW: num
  * 확정 적립 — **투숙 완료 + 지불 완료(Fully Paid)** 건만. 투숙 완료일 내림차순. 한도 없음.
  * (현업 2026-07-29: 체크아웃 기준이라도 지불 완료된 건만 적립.)
  */
-export function computeAccruals(bookings: Booking[], today: string, promos: PointPromo[], unitKRW = DEFAULT_UNIT_KRW, tiers: Tier[] = DEFAULT_TIERS): Accrual[] {
+/** @param companyBookings 등급 산정용 회사(거래처) 전체 예약 — 생략 시 bookings */
+export function computeAccruals(bookings: Booking[], today: string, promos: PointPromo[], unitKRW = DEFAULT_UNIT_KRW, tiers: Tier[] = DEFAULT_TIERS, companyBookings: Booking[] = bookings): Accrual[] {
   return bookings
     .filter((b) => isStayed(b, today) && isPaid(b))
     .sort((a, b) => b.check_out.localeCompare(a.check_out))
-    .map((b) => toAccrual(b, promos, today, unitKRW, tiers, bookings));
+    .map((b) => toAccrual(b, promos, today, unitKRW, tiers, companyBookings));
 }
 
 /**
  * 적립 예정(지불 대기) — 투숙은 완료됐으나 아직 지불 미완결(후불 업체 등)인 건.
  * 지불이 완료되면 적립된다. 투숙 완료일 내림차순.
  */
-export function computePending(bookings: Booking[], today: string, promos: PointPromo[], unitKRW = DEFAULT_UNIT_KRW, tiers: Tier[] = DEFAULT_TIERS): Accrual[] {
+export function computePending(bookings: Booking[], today: string, promos: PointPromo[], unitKRW = DEFAULT_UNIT_KRW, tiers: Tier[] = DEFAULT_TIERS, companyBookings: Booking[] = bookings): Accrual[] {
   return bookings
     .filter((b) => isStayed(b, today) && !isPaid(b))
     .sort((a, b) => b.check_out.localeCompare(a.check_out))
-    .map((b) => toAccrual(b, promos, today, unitKRW, tiers, bookings));
+    .map((b) => toAccrual(b, promos, today, unitKRW, tiers, companyBookings));
 }
 
 export interface OpPointSummary {
@@ -243,7 +244,8 @@ export function summarize(accruals: Accrual[], today: string): OpPointSummary {
 
 /**
  * 등급제 (HBX 벤치마크 · 현업 2026-08 도입 → **2026-10-02 확정**).
- * - 등급 = **월 평균 예약액**(KRW, 체크아웃 완료·취소 제외). **매월 1일 산정** — 직전 6개월 합계 ÷ 첫 예약 이후 경과 개월 수(최소 3 · 최대 6).
+ * - 등급 = **회사(거래처) 합산** 월 평균 예약액(2026-10-02 결정 — 같은 회사 OP는 같은 등급, 포인트는 OP별 적립).
+ *   **API 연동 거래처(포털 계정 포함)는 적립 대상 아님**(2026-10-02). 산정 = KRW, 체크아웃 완료·취소 제외, **매월 1일** — 직전 6개월 합계 ÷ 첫 예약 이후 경과 개월 수(최소 3 · 최대 6).
  * - **등급별 적립률**(예약금액 대비): Bronze 1.0% · Silver 1.2% · Gold 1.3% · Diamond 1.5%. 지정 호텔 프로모 배수는 그 위에 곱한다.
  * - **적용 시점 = 체크아웃 후** — 각 예약은 체크아웃 시점의 등급 적립률로 적립.
  * - 등급 기준(월 평균 금액)은 ELLIS 정책값. 기본값 = **Silver 300만 · Gold 1,500만 · Diamond 3,000만**(2026-10-02, ELLIS 실데이터 보정:

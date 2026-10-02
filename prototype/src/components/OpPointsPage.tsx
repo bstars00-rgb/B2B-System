@@ -87,9 +87,9 @@ const SIM_LABEL: Record<SimOutcome, string> = {
  */
 const GUIDE_ITEMS: { key: string; icon: string; title: string; desc: string; body: string }[] = [
   { key: 'earn', icon: '✨', title: '적립 방법', desc: '포인트는 어떻게 쌓이나요?',
-    body: '마켓플레이스에서 예약하고 투숙을 마친 뒤 지불이 완료되면 자동으로 적립됩니다(별도 가입 없음). 적립률은 체크아웃 시점의 등급을 따릅니다. 취소·노쇼·환불은 제외되며, 선불 업체는 체크아웃 시점에, 후불 업체는 지불 완료 시점에 적립됩니다.' },
+    body: '마켓플레이스에서 예약하고 투숙을 마친 뒤 지불이 완료되면 자동으로 적립됩니다(별도 가입 없음). API로 연동된 거래처(포털 계정 포함)는 적립 대상이 아닙니다. 적립률은 체크아웃 시점의 등급을 따릅니다. 취소·노쇼·환불은 제외되며, 선불 업체는 체크아웃 시점에, 후불 업체는 지불 완료 시점에 적립됩니다.' },
   { key: 'tiers', icon: '🏆', title: '등급', desc: '등급 혜택 알아보기',
-    body: '등급은 매월 1일, 직전 6개월의 월 평균 예약액(체크아웃 완료 기준)으로 정해집니다 — 기본 Bronze, 월 평균 300만 원 이상 Silver(+20% 적립), 1,500만 원 이상 Gold(+30%), 3,000만 원 이상 Diamond(+50%). 각 예약은 체크아웃한 달의 등급으로 적립됩니다. 처음 이용하신 분은 최소 3개월로 나눠 계산합니다.' },
+    body: '등급은 매월 1일, 소속 회사(거래처) 전체의 직전 6개월 월 평균 예약액(체크아웃 완료 기준)으로 정해집니다 — 같은 회사 담당자는 같은 등급이고, 포인트는 각자 본인 예약으로 적립됩니다. 기본 Bronze, 월 평균 300만 원 이상 Silver(+20% 적립), 1,500만 원 이상 Gold(+30%), 3,000만 원 이상 Diamond(+50%). 각 예약은 체크아웃한 달의 등급으로 적립됩니다. 처음 이용하신 분은 최소 3개월로 나눠 계산합니다.' },
   { key: 'campaign', icon: '🎁', title: '리워드 X2 캠페인', desc: '추가 적립 받는 법',
     body: '지정된 프로모션 호텔에서 예약하면 리워드가 2배(2X) 등으로 추가 적립됩니다. 호텔별·룸타입별·레이트플랜별·기간(예약일)별로 운영되며, 목록·검색에 "200% 적립" 같은 배수 배지로 표시됩니다. 요율·계산식은 내부에서 관리되어 고객에겐 배지로만 노출됩니다.' },
   { key: 'points', icon: '⭐', title: '포인트 · 유효기간', desc: '포인트는 어떻게 구분되나요?',
@@ -182,7 +182,16 @@ export default function OpPointsPage({
     setToast('등급 정책을 적용했습니다 (변경 이력 기록)');
   };
 
-  const accruals = useMemo(() => computeAccruals(myBookings, today, promos, unitKRW, tiers), [myBookings, today, promos, unitKRW, tiers]);
+  /**
+   * 적립 대상 — API 연동 거래처(포털 계정 포함)는 제외(2026-10-02). 시연: ELLIS에서 'API 연동 거래처로 가정' 토글.
+   * 등급 = 회사 합산(이 거래처 전체 예약), 포인트 = 로그인 OP 본인 예약만.
+   */
+  const [apiConnected, setApiConnected] = useState(false);
+  const companyBookings = bookings; // 프로토타입의 예약 목록 = 로그인 거래처(ATTIC TOURS) 전체
+  const accruals = useMemo(
+    () => (apiConnected ? [] : computeAccruals(myBookings, today, promos, unitKRW, tiers, companyBookings)),
+    [apiConnected, myBookings, today, promos, unitKRW, tiers, companyBookings],
+  );
   const summary = useMemo(() => summarize(accruals, today), [accruals, today]);
   // 처리 중(보류)·발송·반송은 차감 — 반송은 카드가 이미 발급돼 재발송 대상. 실패(주문 미생성)만 복원되어 잔액에 포함
   const redeemedPts = r1(redeemed.filter((x) => x.status !== 'failed').reduce((s, x) => s + x.points, 0));
@@ -190,7 +199,7 @@ export default function OpPointsPage({
   const redeemedThisYear = r1(redeemed.filter((x) => x.status !== 'failed' && x.at.slice(0, 4) === today.slice(0, 4)).reduce((s, x) => s + x.points, 0));
 
   /** 현재 월 평균 예약액(최근 12개월 · 체크아웃 완료) → 현재 등급 */
-  const monthlyAvg = useMemo(() => monthlyAvgKRW(myBookings, today), [myBookings, today]);
+  const monthlyAvg = useMemo(() => monthlyAvgKRW(companyBookings, today), [companyBookings, today]);
   const tierStatus = useMemo(() => tierFor(monthlyAvg, tiers), [monthlyAvg, tiers]);
   const boostPct = tierBoostPct(tierStatus.tier, tiers);
 
@@ -335,7 +344,7 @@ export default function OpPointsPage({
                 <span className="text-slate-500">
                   {tierStatus.next ? <>다음 등급 <b style={{ color: tierStatus.next.color }}>{tierStatus.next.name}</b>까지 월 평균 <b className="text-brand-600">{won(tierStatus.toNext)}</b> 더</> : <b className="text-slate-700">최고 등급 달성 🎉</b>}
                 </span>
-                <span className="text-slate-400">월 평균 예약 {won(monthlyAvg)} <span className="text-slate-300">(직전 {TIER_WINDOW_MONTHS}개월 · 매월 1일 산정)</span></span>
+                <span className="text-slate-400">{account.company} 월 평균 예약 {won(monthlyAvg)} <span className="text-slate-300">(회사 합산 · 직전 {TIER_WINDOW_MONTHS}개월 · 매월 1일 산정)</span></span>
               </div>
               <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
                 <div className="h-full rounded-full transition-all" style={{ width: `${Math.round(tierStatus.progress * 100)}%`, background: tierStatus.tier.color }} />
@@ -405,6 +414,12 @@ export default function OpPointsPage({
                 </button>
               ))}
             </div>
+          </div>
+        )}
+
+        {apiConnected && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] text-amber-800">
+            {account.company}는 <b>API 연동 거래처</b>라 오피포인트 적립 대상이 아닙니다(포털 계정 포함). 문의는 담당 영업으로 연락해 주세요.
           </div>
         )}
 
@@ -637,7 +652,7 @@ export default function OpPointsPage({
                   <span className="text-[12px] font-bold text-slate-800">등급 정책</span>
                   <span className="rounded-sm bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-600">ELLIS 설정값</span>
                   <span className="text-[10px] text-slate-400">
-                    매월 1일 산정 · 월 평균 예약액 = 직전 {TIER_WINDOW_MONTHS}개월 체크아웃 완료(취소 제외) 합계 ÷ 첫 예약 이후 경과 월(최소 {TIER_MIN_DIVISOR_MONTHS} · 최대 {TIER_WINDOW_MONTHS}) · 각 예약은 <b>체크아웃한 달의 등급</b> 적립률 × 프로모 배수
+                    <b>회사 합산</b> · 매월 1일 산정 · 월 평균 예약액 = 직전 {TIER_WINDOW_MONTHS}개월 체크아웃 완료(취소 제외) 합계 ÷ 첫 예약 이후 경과 월(최소 {TIER_MIN_DIVISOR_MONTHS} · 최대 {TIER_WINDOW_MONTHS}) · 각 예약은 <b>체크아웃한 달의 등급</b> 적립률 × 프로모 배수
                   </span>
                 </div>
                 <div className="mt-2 overflow-x-auto rounded border border-slate-200">
@@ -685,7 +700,11 @@ export default function OpPointsPage({
                   <button type="button" onClick={() => setTierDraft(tiers)} disabled={!tierDraftChanged}
                     className="rounded border border-slate-300 bg-white px-3 py-1 text-[11px] text-slate-600 hover:bg-slate-50 disabled:opacity-40">되돌리기</button>
                   {!tierDraftValid && <span className="text-[10px] text-rose-600">기준은 위 등급보다 커야 하고 적립률은 0보다 커야 합니다.</span>}
-                  <span className="text-[10px] text-slate-400">현재 이 계정: 월 평균 {won(monthlyAvg)} → <b style={{ color: tierStatus.tier.color }}>{tierStatus.tier.name}</b> · 기준값 = ELLIS 실데이터 보정(마켓 셀러 18곳·12개월) — 2027-02 재보정 · 변경 이력은 위 포인트 정책 이력에 기록</span>
+                  <label className="flex cursor-pointer items-center gap-1 text-[10px] text-slate-600">
+                    <input type="checkbox" checked={apiConnected} onChange={(e) => setApiConnected(e.target.checked)} className="accent-brand-500" />
+                    이 거래처를 API 연동사로 가정(적립 제외 시연)
+                  </label>
+                  <span className="text-[10px] text-slate-400">현재 {account.company}: 회사 월 평균 {won(monthlyAvg)} → <b style={{ color: tierStatus.tier.color }}>{tierStatus.tier.name}</b> · 기준값 = ELLIS 실데이터 보정(마켓 셀러 18곳·12개월) — 2027-02 재보정 · 변경 이력은 위 포인트 정책 이력에 기록</span>
                 </div>
               </div>
 
