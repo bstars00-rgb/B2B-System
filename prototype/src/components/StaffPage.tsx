@@ -1,4 +1,10 @@
 ﻿import { useMemo, useState } from 'react';
+import type { Booking } from '../types';
+import { OP_ACCOUNTS } from '../mocks/opAccounts';
+import { SEED_PROMOS } from '../mocks/opPointsPromos';
+import { DEFAULT_POINT_POLICY, DEFAULT_TIERS, unitKRWOf } from '../utils/opPoints';
+import { companyLedgers, useRedemptions } from '../utils/opPointsStore';
+import { todayIso } from '../utils/dashboardStats';
 
 export interface Staff {
   name: string;
@@ -16,12 +22,31 @@ export interface Staff {
 const input =
   'w-full rounded border border-slate-300 px-2.5 py-1.5 text-[13px] placeholder:italic placeholder:text-slate-400 focus:border-brand-400 focus:outline-none';
 
+/** 로그인 거래처(ATTIC TOURS)의 OP 계정 = 시드 직원 목록. 첫 계정(로그인 사용자)이 Super User */
+const SEED_STAFF: Staff[] = OP_ACCOUNTS.map((a, i) => ({
+  name: a.name, id: a.id, department: a.dept, position: i === 0 ? 'Manager' : 'Staff',
+  officePhone: '0200000000', mobileCc: '82', mobile: '1000000000', email: a.id, language: 'Korean', superUser: i === 0,
+}));
+const pt = (n: number) => `${n.toLocaleString('ko-KR', { maximumFractionDigits: 1 })} P`;
+
 /**
  * 실제 포털 Member list > Staff list 클론.
  * 검색 바(ID·Staff·Super User) + New → User Info 모달(직원 등록) + 목록 그리드.
+ * 오피포인트(Phase 2 Q&A No.6): 로그인 사용자가 Super User면 직원별 **총적립 · 사용 가능** 포인트를 **읽기 전용**으로 표시
+ * (포인트는 각 OP 소유 — 대표가 대신 교환·이전하지 않음). 숫자는 OP Points 화면과 같은 원장(utils/opPointsStore).
  */
-export default function StaffPage() {
-  const [staff, setStaff] = useState<Staff[]>([]);
+export default function StaffPage({ bookings = [] }: { bookings?: Booking[] }) {
+  const [staff, setStaff] = useState<Staff[]>(SEED_STAFF);
+  const viewerIsSuper = SEED_STAFF[0].superUser; // 프로토타입 로그인 사용자 = 첫 계정
+  const today = todayIso();
+  const [redemptions] = useRedemptions(today);
+  const points = useMemo(() => {
+    const m = new Map<string, { earned: number; balance: number }>();
+    for (const { account, ledger } of companyLedgers(bookings, redemptions, today, SEED_PROMOS, unitKRWOf(DEFAULT_POINT_POLICY), DEFAULT_TIERS)) {
+      m.set(account.id, { earned: ledger.earned, balance: ledger.balance });
+    }
+    return m;
+  }, [bookings, redemptions, today]);
   const [fId, setFId] = useState('');
   const [fName, setFName] = useState('');
   const [fSuper, setFSuper] = useState('All');
@@ -101,12 +126,14 @@ export default function StaffPage() {
                 <th className="px-3 py-2.5 font-semibold">Mobile Phone No.</th>
                 <th className="px-3 py-2.5 font-semibold">Email Address</th>
                 <th className="px-3 py-2.5 font-semibold">Super User</th>
+                {viewerIsSuper && <th className="px-3 py-2.5 font-semibold" title="12개월 적립 합계 · 읽기 전용">OP Points 총적립</th>}
+                {viewerIsSuper && <th className="px-3 py-2.5 font-semibold" title="교환·소멸 차감 후 · 읽기 전용">사용 가능</th>}
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-3 py-14 text-center text-slate-400">
+                  <td colSpan={viewerIsSuper ? 8 : 6} className="px-3 py-14 text-center text-slate-400">
                     No records available.
                   </td>
                 </tr>
@@ -119,6 +146,8 @@ export default function StaffPage() {
                     <td className="px-3 py-3 text-center text-slate-600">{s.mobileCc} {s.mobile}</td>
                     <td className="px-3 py-3 text-center text-slate-600">{s.email}</td>
                     <td className="px-3 py-3 text-center text-slate-600">{s.superUser ? 'Yes' : 'No'}</td>
+                    {viewerIsSuper && <td className="px-3 py-3 text-right text-slate-600">{pt(points.get(s.id)?.earned ?? 0)}</td>}
+                    {viewerIsSuper && <td className="px-3 py-3 text-right font-semibold text-brand-600">{pt(points.get(s.id)?.balance ?? 0)}</td>}
                   </tr>
                 ))
               )}
@@ -137,6 +166,11 @@ export default function StaffPage() {
           </div>
           <span>{rows.length === 0 ? '0 - 0 of 0 items' : `1 - ${rows.length} of ${rows.length} items`}</span>
         </div>
+        {viewerIsSuper && (
+          <p className="mt-2 text-[10px] text-slate-400">
+            OP Points — Super User 전용 · <b>읽기 전용</b>. 포인트는 각 직원(OP) 소유이며 대신 교환·이전할 수 없습니다. 교환은 각자 OP Points 화면에서.
+          </p>
+        )}
       </div>
 
       {modalOpen && <UserInfoModal onClose={() => setModalOpen(false)} onSave={(s) => { setStaff((p) => [s, ...p]); setModalOpen(false); }} />}

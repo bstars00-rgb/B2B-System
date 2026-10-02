@@ -305,7 +305,7 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
         {view === 'dashboard' ? (
           <DashboardPage bookings={bookings} onBookHotel={bookHotelFromRanking} dark={dark} />
         ) : view === 'staff' ? (
-          <StaffPage />
+          <StaffPage bookings={bookings} />
         ) : view === 'faq' ? (
           <BoardPage kind="faq" portalLang={portalLang} />
         ) : view === 'notice' ? (

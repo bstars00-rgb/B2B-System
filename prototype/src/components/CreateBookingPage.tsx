@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { HotelEarnBadge } from './EarnBadge';
 import type { HotelGroup, SearchConditions } from '../types';
 import {
   buildCityResults,
@@ -579,6 +580,7 @@ export default function CreateBookingPage({ prefill, onGroupInquiry }: { prefill
                           </span>
                         )}
                         <span>[Hotel Code : {hotelCodeOf(g.hotel_id)}]</span>
+                        <HotelEarnBadge hotelId={g.hotel_id} />
                         <span className="font-medium text-amber-500">{g.star_rating} Star</span>
                       </p>
                       <h4 className="truncate text-sm font-bold text-slate-900">{g.hotel_name}</h4>

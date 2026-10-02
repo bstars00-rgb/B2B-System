@@ -113,27 +113,38 @@ export function faceToUsd(face: number, currency: string): number {
  * 기간은 **예약일(booking_date)** 기준(프로모 기간에 예약하면 배수 락인).
  * 중복 시 가장 높은 배수 적용. 없으면 1(기본).
  */
-export function promoFor(b: Booking, promos: PointPromo[]): { multiplier: number; label: string | null } {
-  const bookedOn = b.booking_date.slice(0, 10);
+export function promoFor(b: Booking, promos: PointPromo[]): { multiplier: number; label: string | null; promoId: string | null } {
+  return promoForStay(b.hotel_id, b.room_type || '', b.booking_date.slice(0, 10), promos);
+}
+
+/**
+ * 호텔 · 룸 텍스트(룸타입·레이트플랜) · 예약일 → 적용 배수. 룸리스트·Create Booking 배지에도 사용(Phase 2 Q&A No.4).
+ * roomText가 '*'면 룸타입/레이트플랜 조건을 무시하고 호텔 단위 최대 배수(호텔 카드용).
+ */
+export function promoForStay(hotelId: string, roomText: string, bookedOn: string, promos: PointPromo[]): { multiplier: number; label: string | null; promoId: string | null } {
   let best = 1;
   let label: string | null = null;
-  const room = (b.room_type || '').toLowerCase();
+  let promoId: string | null = null;
+  const room = roomText.toLowerCase();
+  const anyRoom = roomText === '*';
   for (const p of promos) {
-    if (!p.active || p.hotelId !== b.hotel_id) continue;
+    if (!p.active || p.hotelId !== hotelId) continue;
     if (bookedOn < p.start || bookedOn > p.end) continue;
-    // 룸타입 / 레이트플랜 지정 시 예약의 room_type(부분일치)으로 판정. 'all'=전체.
-    if (p.roomType !== 'all' && !p.roomType.some((rt) => room.includes(rt.toLowerCase()))) continue;
-    if (p.ratePlan !== 'all' && !p.ratePlan.some((rp) => room.includes(rp.toLowerCase()))) continue;
+    // 룸타입 / 레이트플랜 지정 시 room 텍스트(부분일치)로 판정. 'all'=전체.
+    if (!anyRoom && p.roomType !== 'all' && !p.roomType.some((rt) => room.includes(rt.toLowerCase()))) continue;
+    if (!anyRoom && p.ratePlan !== 'all' && !p.ratePlan.some((rp) => room.includes(rp.toLowerCase()))) continue;
     if (p.multiplier > best) {
       best = p.multiplier;
       label = `${Math.round(p.multiplier * 100)}%`;
+      promoId = p.id;
     }
   }
-  return { multiplier: best, label };
+  return { multiplier: best, label, promoId };
 }
 
 export interface Accrual {
   ellisCode: string;
+  hotelId: string;
   hotelName: string;
   stayCompleted: string;
   /** 결재 완료일 — Fully Paid만 값, 지불 대기(미완결)는 null. Booking에 없어 파생(아래). */
@@ -144,6 +155,8 @@ export interface Accrual {
   /** 배수(1=기본). 고객 뷰에선 배지("150%")로만, 요율은 숨김 */
   multiplier: number;
   promoLabel: string | null;
+  /** 적용된 배수 프로모 id (프로모 비용 리포트용) */
+  promoId: string | null;
   /** 체크아웃 시점 등급 · 그 등급 적립률(%) — 적용 시점 = 체크아웃 후(2026-10-02) */
   tierName: string;
   tierRatePct: number;
@@ -182,11 +195,12 @@ function isPaid(b: Booking): boolean {
 }
 
 function toAccrual(b: Booking, promos: PointPromo[], today: string, unitKRW: number, tiers: Tier[], companyBookings: Booking[]): Accrual {
-  const { multiplier, label } = promoFor(b, promos);
+  const { multiplier, label, promoId } = promoFor(b, promos);
   // 체크아웃한 달의 등급(회사 합산 월 평균 예약액, 매월 1일 산정)으로 적립률 결정
   const tier = tierFor(monthlyAvgKRW(companyBookings, b.check_out), tiers).tier;
   return {
     ellisCode: b.ellis_code,
+    hotelId: b.hotel_id,
     hotelName: b.hotel_name,
     stayCompleted: b.check_out,
     paidAt: paidDate(b, today),
@@ -195,6 +209,7 @@ function toAccrual(b: Booking, promos: PointPromo[], today: string, unitKRW: num
     paymentStatus: b.payment_status,
     multiplier,
     promoLabel: label,
+    promoId,
     tierName: tier.name,
     tierRatePct: tier.ratePct,
     points: pointsFor(b.sum_amt, b.currency, multiplier, unitKRW, tier.ratePct),

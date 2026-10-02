@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { RoomEarnBadge } from './EarnBadge';
 import type { HotelGroup, RateResult, SearchConditions } from '../types';
 import { buildCityResults, hotelContentOf } from '../mocks/hotelDb';
 import { nextSearchId } from '../mocks';
@@ -273,7 +274,10 @@ export default function HotelRoomListPage({ group, conditions, onBack, onSelectR
               return (
                 <tr key={r.rate_plan_id} className="border-b border-slate-100 last:border-b-0">
                   <td className="px-4 py-3">
-                    <p className="text-[13px] font-bold text-slate-900">{r.room_type_name}</p>
+                    <p className="flex flex-wrap items-center gap-1.5 text-[13px] font-bold text-slate-900">
+                      {r.room_type_name}
+                      <RoomEarnBadge hotelId={group.hotel_id} roomText={`${r.room_type_name} ${r.rate_plan_name} ${r.rate_plan_id}`} />
+                    </p>
                     <p className="text-[11px] text-slate-400">
                       {r.rate_plan_name} [Plan Code : {r.rate_plan_id}] / Origin Plan Code : {r.rate_plan_id}
                     </p>

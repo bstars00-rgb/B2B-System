@@ -9,6 +9,8 @@ import {
 import { SEED_PROMOS, type PointPromo } from '../mocks/opPointsPromos';
 import { OP_ACCOUNTS, opAccountIdFor } from '../mocks/opAccounts';
 import { hotelCodeOf, cityOfHotel } from '../mocks/hotelDb';
+import { useRedemptions } from '../utils/opPointsStore';
+import { EllisReports, SellerReports } from './OpPointsReports';
 import {
   CHOICE_CARD,
   CHOICE_VALUES_USD,
@@ -17,7 +19,6 @@ import {
   expiryOf,
   redeemFace,
   redeemName,
-  seedRedemptions,
   type GiftRedemption,
   type RedeemStatus,
 } from '../mocks/giftCatalog';
@@ -151,7 +152,8 @@ export default function OpPointsPage({
 
   // ── 포인트 교환 (HBX 방식 · 초이스 카드) + Giftronaut Gift API(시연) ──
   // 전 계정 주문 로그(ELLIS · 감사) — 고객 화면은 본인 것만. 과거 사례(다른 OP 계정) 시드 포함
-  const [redemptions, setRedemptions] = useState<GiftRedemption[]>(() => seedRedemptions(todayIso()));
+  // 교환 기록은 공용 저장소(utils/opPointsStore) — Staff list·리포트와 같은 숫자
+  const [redemptions, setRedemptions] = useRedemptions(today);
   const [deposit, setDeposit] = useState(SEED_DEPOSIT_USD);
   const [simNext, setSimNext] = useState<SimOutcome>('ok');
   /** 반송 건 재발송 — 이메일 확인·수정(`updatedEmail`) */
@@ -558,6 +560,14 @@ export default function OpPointsPage({
           </div>
         </div>
 
+        {/* 포인트 리포트 — Phase 2 Q&A No.7 (셀러: 명세 · 회사 OP별 현황(Super User) · 소멸 예정) */}
+        {!apiConnected && (
+          <SellerReports
+            accountId={accountId} companyName={account.company} isSuperUser={accountId === OP_ACCOUNTS[0].id}
+            companyBookings={companyBookings} redemptions={redemptions} today={today} promos={promos} unitKRW={unitKRW} tiers={tiers}
+          />
+        )}
+
         {/* 리워드 가이드 */}
         <div>
           <p className="mb-2 text-[15px] font-bold text-slate-800">리워드 가이드</p>
@@ -578,17 +588,21 @@ export default function OpPointsPage({
         </div>
 
         <p className="text-[10px] leading-relaxed text-slate-400">
-          예약이 <b>투숙 완료 + 지불 완료</b>되면 <b>자동 적립</b>(취소·노쇼·환불 제외). 등급(월 평균 예약액 기준)이 오를수록 더 많이 적립되고(체크아웃 시점 등급 적용), 프로모션 호텔은 추가 적립(배수 배지). 포인트는 <b>OP 계정별 분리</b>({account.name} 예약 {myBookings.length}건 중 {summary.eligibleCount}건 적립)·<b>유효기간 1년(회계년도 기준)</b>. 교환은 상단 <b>💎 포인트 교환</b>에서 금액만 고르면 <b>Giftronaut 초이스 카드</b> 링크가 이메일로 발송되고(USD Balance 차감), 브랜드는 링크에서 직접 고릅니다. 교환은 세션 내 표시(새로고침 시 초기화). <b>1P 가치·최소 교환은 ELLIS 정책값</b>(아래 ELLIS 패널에서 변경 · 이력 기록). 기프트카드 <b>유효기간 180일 · 미사용 소멸(환불 없음)</b>. 적립률 <b>1%</b>(확정). 등급이 오르면 Silver +20% · Gold +30% · Diamond +50% 더 적립됩니다. 포인트는 적립 후 1년이 지나면 소멸됩니다.
+          예약이 <b>투숙 완료 + 지불 완료</b>되면 <b>자동 적립</b>(취소·노쇼·환불 제외). 등급(월 평균 예약액 기준)이 오를수록 더 많이 적립되고(체크아웃 시점 등급 적용), 프로모션 호텔은 추가 적립(배수 배지). 포인트는 <b>OP 계정별 분리</b>({account.name} 예약 {myBookings.length}건 중 {summary.eligibleCount}건 적립)·<b>유효기간 1년(회계년도 기준)</b>. 교환은 상단 <b>💎 포인트 교환</b>에서 금액만 고르면 <b>Giftronaut 초이스 카드</b> 링크가 이메일로 발송되고(USD Balance 차감), 브랜드는 링크에서 직접 고릅니다. 교환 기록은 이 브라우저에 저장(시연). <b>1P 가치·최소 교환은 ELLIS 정책값</b>(아래 ELLIS 패널에서 변경 · 이력 기록). 기프트카드 <b>유효기간 180일 · 미사용 소멸(환불 없음)</b>. 적립률 <b>1%</b>(확정). 등급이 오르면 Silver +20% · Gold +30% · Diamond +50% 더 적립됩니다. 포인트는 적립 후 1년이 지나면 소멸됩니다.
         </p>
 
         {/* ELLIS 내부 프로모 관리 (고객 비노출) */}
         <div className="rounded-lg border border-dashed border-slate-300 bg-slate-100/60 p-3">
           <button type="button" onClick={() => setShowEllis((v) => !v)} className="flex w-full items-center justify-between text-left">
-            <span className="text-[12px] font-bold text-slate-700">🔧 ELLIS 내부 — 포인트 정책 · Gift API · 감사 · 프로모 관리 <span className="font-normal text-slate-400">(고객 비노출 · 시연)</span></span>
+            <span className="text-[12px] font-bold text-slate-700">🔧 ELLIS 내부 — 운영 리포트 · 포인트 정책 · Gift API · 감사 · 프로모 관리 <span className="font-normal text-slate-400">(고객 비노출 · 시연)</span></span>
             <span className="text-[10px] text-slate-400">{showEllis ? '접기 ▲' : '펼치기 ▼'}</span>
           </button>
           {showEllis && (
             <div className="mt-3">
+              {/* 운영 리포트 — Phase 2 Q&A No.7 (프로모 비용 · 포인트 부채 · 교환·정산 · 기간별 발행 · 호텔·캠페인 성과) */}
+              <EllisReports
+                companyBookings={apiConnected ? [] : companyBookings} redemptions={redemptions} today={today} promos={promos} unitKRW={unitKRW} tiers={tiers} deposit={deposit}
+              />
               {/* 포인트 정책 (ELLIS 설정) — 1P 가치·최소 교환은 지금 고정하지 않고 ELLIS에서 결정 (2026-09-29) */}
               <div className="mb-4 rounded border border-slate-200 bg-white p-3">
                 <div className="flex flex-wrap items-center gap-2">
