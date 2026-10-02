@@ -3,8 +3,8 @@ import type { Booking } from '../types';
 import EnhBadge from './EnhBadge';
 import { todayIso } from '../utils/dashboardStats';
 import {
-  OP_POINT_POLICY, DEFAULT_POINT_POLICY, FX_TO_KRW, computeAccruals, summarize, tierFor, TIERS, faceToPoints, pointsToUsd, unitKRWOf, toKRW,
-  type Accrual, type PointPolicy,
+  OP_POINT_POLICY, DEFAULT_POINT_POLICY, DEFAULT_TIERS, FX_TO_KRW, TIER_MIN_DIVISOR_MONTHS, TIER_WINDOW_MONTHS, computeAccruals, monthlyAvgKRW, summarize,
+  tierBoostPct, tierFor, faceToPoints, pointsToUsd, unitKRWOf, toKRW, type Accrual, type PointPolicy, type Tier,
 } from '../utils/opPoints';
 import { SEED_PROMOS, type PointPromo } from '../mocks/opPointsPromos';
 import { OP_ACCOUNTS, opAccountIdFor } from '../mocks/opAccounts';
@@ -43,6 +43,8 @@ export interface BookHotelTarget { code: string; destination: string; hotelName:
 
 const pt = (n: number) => `${n.toLocaleString('ko-KR', { maximumFractionDigits: 1 })} P`;
 const r1 = (n: number) => Math.round(n * 10) / 10;
+/** 원화 금액 — 1만 원 이상은 'N만 원'(예: 1,000만 원) · 등급 기준 표시용 */
+const won = (n: number) => (n >= 10000 ? `${Math.round(n / 10000).toLocaleString('ko-KR')}만 원` : `${Math.round(n).toLocaleString('ko-KR')}원`);
 /** 콤마 구분 문자열 ↔ 리스트('all'=전체). ELLIS 룸타입·레이트플랜 편집용. */
 const listStr = (v: string[] | 'all') => (v === 'all' ? 'all' : v.join(', '));
 const parseList = (s: string): string[] | 'all' => {
@@ -85,9 +87,9 @@ const SIM_LABEL: Record<SimOutcome, string> = {
  */
 const GUIDE_ITEMS: { key: string; icon: string; title: string; desc: string; body: string }[] = [
   { key: 'earn', icon: '✨', title: '적립 방법', desc: '포인트는 어떻게 쌓이나요?',
-    body: '마켓플레이스에서 예약하고 투숙을 마친 뒤 지불이 완료되면 자동으로 적립됩니다(별도 가입 없음). 취소·노쇼·환불은 제외되며, 선불 업체는 체크아웃 시점에, 후불 업체는 지불 완료 시점에 적립됩니다.' },
+    body: '마켓플레이스에서 예약하고 투숙을 마친 뒤 지불이 완료되면 자동으로 적립됩니다(별도 가입 없음). 적립률은 체크아웃 시점의 등급을 따릅니다. 취소·노쇼·환불은 제외되며, 선불 업체는 체크아웃 시점에, 후불 업체는 지불 완료 시점에 적립됩니다.' },
   { key: 'tiers', icon: '🏆', title: '등급', desc: '등급 혜택 알아보기',
-    body: '최근 12개월 적립 포인트로 Bronze · Silver · Gold · Diamond 등급이 결정되며 연간 재산정됩니다. 등급이 오를수록 적립 부스트가 커져, 예약을 많이 할수록 더 많이 적립됩니다.' },
+    body: '등급은 월 평균 예약액(최근 12개월, 체크아웃 완료 기준)으로 정해집니다 — 기본 Bronze, 월 평균 1천만 원 이상 Silver(+20% 적립), 2천만 원 이상 Gold(+30%), 3천만 원 이상 Diamond(+50%). 각 예약은 체크아웃 시점의 등급으로 적립됩니다. 처음 이용하신 분은 최소 3개월로 나눠 계산합니다.' },
   { key: 'campaign', icon: '🎁', title: '리워드 X2 캠페인', desc: '추가 적립 받는 법',
     body: '지정된 프로모션 호텔에서 예약하면 리워드가 2배(2X) 등으로 추가 적립됩니다. 호텔별·룸타입별·레이트플랜별·기간(예약일)별로 운영되며, 목록·검색에 "200% 적립" 같은 배수 배지로 표시됩니다. 요율·계산식은 내부에서 관리되어 고객에겐 배지로만 노출됩니다.' },
   { key: 'points', icon: '⭐', title: '포인트 · 유효기간', desc: '포인트는 어떻게 구분되나요?',
@@ -160,15 +162,37 @@ export default function OpPointsPage({
   const addEvent = (recId: string, text: string, patch: Partial<GiftRedemption> = {}) =>
     setRedemptions((prev) => prev.map((x) => (x.id === recId ? { ...x, ...patch, events: [...x.events, { at: stamp(), text }] } : x)));
 
-  const accruals = useMemo(() => computeAccruals(myBookings, today, promos, unitKRW), [myBookings, today, promos, unitKRW]);
+  // ── 등급 정책 (2026-10-02 확정: 등급별 적립률 · 월 평균 예약액 기준 · 체크아웃 시점 적용) — ELLIS에서 기준·적립률 설정 ──
+  const [tiers, setTiers] = useState<Tier[]>(DEFAULT_TIERS);
+  const [tierDraft, setTierDraft] = useState<Tier[]>(DEFAULT_TIERS);
+  const tierDraftValid = tierDraft.every((t, i) => t.ratePct > 0 && (i === 0 ? t.minMonthlyKRW === 0 : t.minMonthlyKRW > tierDraft[i - 1].minMonthlyKRW));
+  const tierDraftChanged = JSON.stringify(tierDraft) !== JSON.stringify(tiers);
+  const applyTiers = () => {
+    if (!tierDraftValid || !tierDraftChanged) return;
+    const at = stamp();
+    const logs = tierDraft.flatMap((t, i) => {
+      const o = tiers[i];
+      const out: { at: string; item: string; from: string; to: string }[] = [];
+      if (o.minMonthlyKRW !== t.minMonthlyKRW) out.push({ at, item: `${t.name} 기준(월 평균)`, from: won(o.minMonthlyKRW), to: won(t.minMonthlyKRW) });
+      if (o.ratePct !== t.ratePct) out.push({ at, item: `${t.name} 적립률`, from: `${o.ratePct}%`, to: `${t.ratePct}%` });
+      return out;
+    });
+    setPolicyLog((prev) => [...logs, ...prev]);
+    setTiers(tierDraft);
+    setToast('등급 정책을 적용했습니다 (변경 이력 기록)');
+  };
+
+  const accruals = useMemo(() => computeAccruals(myBookings, today, promos, unitKRW, tiers), [myBookings, today, promos, unitKRW, tiers]);
   const summary = useMemo(() => summarize(accruals, today), [accruals, today]);
   // 처리 중(보류)·발송·반송은 차감 — 반송은 카드가 이미 발급돼 재발송 대상. 실패(주문 미생성)만 복원되어 잔액에 포함
   const redeemedPts = r1(redeemed.filter((x) => x.status !== 'failed').reduce((s, x) => s + x.points, 0));
   const balance = r1(summary.earned - redeemedPts);
   const redeemedThisYear = r1(redeemed.filter((x) => x.status !== 'failed' && x.at.slice(0, 4) === today.slice(0, 4)).reduce((s, x) => s + x.points, 0));
 
-  const tierStatus = useMemo(() => tierFor(summary.earned), [summary.earned]);
-  const boostPct = Math.round((tierStatus.tier.boost - 1) * 100);
+  /** 현재 월 평균 예약액(최근 12개월 · 체크아웃 완료) → 현재 등급 */
+  const monthlyAvg = useMemo(() => monthlyAvgKRW(myBookings, today), [myBookings, today]);
+  const tierStatus = useMemo(() => tierFor(monthlyAvg, tiers), [monthlyAvg, tiers]);
+  const boostPct = tierBoostPct(tierStatus.tier, tiers);
 
   // 진행 중인 배수 캠페인 (2X 이상) — 고객 카드용
   const campaigns = useMemo(() => promos.filter((p) => p.active && p.multiplier >= 2).sort((a, b) => b.multiplier - a.multiplier), [promos]);
@@ -309,16 +333,18 @@ export default function OpPointsPage({
             <div className="min-w-0 flex-1 xl:px-4">
               <div className="mb-1 flex items-center justify-between text-[11px]">
                 <span className="text-slate-500">
-                  {tierStatus.next ? <>다음 등급 <b style={{ color: tierStatus.next.color }}>{tierStatus.next.name}</b>까지 <b className="text-brand-600">{pt(tierStatus.toNext)}</b></> : <b className="text-slate-700">최고 등급 달성 🎉</b>}
+                  {tierStatus.next ? <>다음 등급 <b style={{ color: tierStatus.next.color }}>{tierStatus.next.name}</b>까지 월 평균 <b className="text-brand-600">{won(tierStatus.toNext)}</b> 더</> : <b className="text-slate-700">최고 등급 달성 🎉</b>}
                 </span>
-                <span className="text-slate-400">12개월 총적립 {pt(summary.earned)}</span>
+                <span className="text-slate-400">월 평균 예약 {won(monthlyAvg)} <span className="text-slate-300">(최근 {TIER_WINDOW_MONTHS}개월)</span></span>
               </div>
               <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
                 <div className="h-full rounded-full transition-all" style={{ width: `${Math.round(tierStatus.progress * 100)}%`, background: tierStatus.tier.color }} />
               </div>
               <div className="mt-1 flex justify-between">
-                {TIERS.map((t, i) => (
-                  <span key={t.name} className={`text-[10px] font-semibold ${i === tierStatus.index ? '' : 'text-slate-300'}`} style={i === tierStatus.index ? { color: t.color } : undefined}>{t.name}</span>
+                {tiers.map((t, i) => (
+                  <span key={t.name} className={`text-[10px] font-semibold ${i === tierStatus.index ? '' : 'text-slate-300'}`} style={i === tierStatus.index ? { color: t.color } : undefined}>
+                    {t.name}{i > 0 && <span className="font-normal"> {won(t.minMonthlyKRW)}↑ · +{tierBoostPct(t, tiers)}%</span>}
+                  </span>
                 ))}
               </div>
             </div>
@@ -424,7 +450,10 @@ export default function OpPointsPage({
                         <button type="button" onClick={() => onOpenBooking(a.ellisCode)} className="font-mono text-[11px] text-brand-600 underline underline-offset-2 hover:text-brand-700" title="이 예약을 Bookings에서 보기">{a.ellisCode}</button>
                       </td>
                       <td className="px-4 py-2.5 text-slate-700">{a.hotelName}{a.promoLabel && <PromoBadge label={a.promoLabel} />}</td>
-                      <td className="px-4 py-2.5 text-right font-bold text-brand-600">+{pt(a.points)}</td>
+                      <td className="px-4 py-2.5 text-right font-bold text-brand-600">
+                        +{pt(a.points)}
+                        <span className="ml-1 rounded-sm px-1 py-px text-[9px] font-bold text-white" style={{ background: tiers.find((t) => t.name === a.tierName)?.color ?? '#94a3b8' }} title="체크아웃 시점 등급">{a.tierName}</span>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -501,7 +530,7 @@ export default function OpPointsPage({
         </div>
 
         <p className="text-[10px] leading-relaxed text-slate-400">
-          예약이 <b>투숙 완료 + 지불 완료</b>되면 <b>자동 적립</b>(취소·노쇼·환불 제외). 등급이 오를수록 더 많이 적립되고, 프로모션 호텔은 추가 적립(배수 배지). 포인트는 <b>OP 계정별 분리</b>({account.name} 예약 {myBookings.length}건 중 {summary.eligibleCount}건 적립)·<b>유효기간 1년(회계년도 기준)</b>. 교환은 상단 <b>💎 포인트 교환</b>에서 금액만 고르면 <b>Giftronaut 초이스 카드</b> 링크가 이메일로 발송되고(USD Balance 차감), 브랜드는 링크에서 직접 고릅니다. 교환은 세션 내 표시(새로고침 시 초기화). <b>1P 가치·최소 교환은 ELLIS 정책값</b>(아래 ELLIS 패널에서 변경 · 이력 기록). 기프트카드 <b>유효기간 180일 · 미사용 소멸(환불 없음)</b>. 적립률 <b>1%</b>(확정). 그 외 정책: 등급 임계값/부스트·세무.
+          예약이 <b>투숙 완료 + 지불 완료</b>되면 <b>자동 적립</b>(취소·노쇼·환불 제외). 등급(월 평균 예약액 기준)이 오를수록 더 많이 적립되고(체크아웃 시점 등급 적용), 프로모션 호텔은 추가 적립(배수 배지). 포인트는 <b>OP 계정별 분리</b>({account.name} 예약 {myBookings.length}건 중 {summary.eligibleCount}건 적립)·<b>유효기간 1년(회계년도 기준)</b>. 교환은 상단 <b>💎 포인트 교환</b>에서 금액만 고르면 <b>Giftronaut 초이스 카드</b> 링크가 이메일로 발송되고(USD Balance 차감), 브랜드는 링크에서 직접 고릅니다. 교환은 세션 내 표시(새로고침 시 초기화). <b>1P 가치·최소 교환은 ELLIS 정책값</b>(아래 ELLIS 패널에서 변경 · 이력 기록). 기프트카드 <b>유효기간 180일 · 미사용 소멸(환불 없음)</b>. 적립률 <b>1%</b>(확정). 등급 적립률 Bronze 1% · Silver 1.2% · Gold 1.3% · Diamond 1.5%(확정) — 등급 기준 금액은 ELLIS 설정. 그 외: 세무.
         </p>
 
         {/* ELLIS 내부 프로모 관리 (고객 비노출) */}
@@ -599,6 +628,64 @@ export default function OpPointsPage({
                     </span>
                   )}
                   <span className="mt-1 block text-slate-400">실서비스: 변경 적용일 이후 적립·교환부터 반영 — 기존 잔액 환산 규칙은 정책 변경 시 함께 정한다. 이미 교환된 건의 포인트·USD는 당시 값으로 저장(불변).</span>
+                </div>
+              </div>
+
+              {/* 등급 정책 (ELLIS 설정) — 등급별 적립률 · 월 평균 예약액 기준 · 체크아웃 시점 적용 (2026-10-02 확정) */}
+              <div className="mb-4 rounded border border-slate-200 bg-white p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[12px] font-bold text-slate-800">등급 정책</span>
+                  <span className="rounded-sm bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-600">ELLIS 설정값</span>
+                  <span className="text-[10px] text-slate-400">
+                    월 평균 예약액 = 최근 {TIER_WINDOW_MONTHS}개월 체크아웃 완료(취소 제외) 합계 ÷ 활동 개월 수(최소 {TIER_MIN_DIVISOR_MONTHS}) · 각 예약은 <b>체크아웃 시점 등급</b> 적립률 × 프로모 배수
+                  </span>
+                </div>
+                <div className="mt-2 overflow-x-auto rounded border border-slate-200">
+                  <table className="w-full min-w-[620px] text-[11px]">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
+                        <th className="px-3 py-1.5 text-left font-semibold">등급</th>
+                        <th className="px-3 py-1.5 text-left font-semibold">기준 — 월 평균 예약액(₩) 이상</th>
+                        <th className="px-3 py-1.5 text-left font-semibold">적립률(%)</th>
+                        <th className="px-3 py-1.5 text-left font-semibold">고객 표시</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tierDraft.map((t, i) => (
+                        <tr key={t.name} className="border-b border-slate-100 last:border-0">
+                          <td className="px-3 py-1.5 font-bold" style={{ color: t.color }}>{t.name}</td>
+                          <td className="px-3 py-1.5">
+                            {i === 0 ? <span className="text-slate-400">0 (기본)</span> : (
+                              <input
+                                type="number" min={0} step={1000000} value={t.minMonthlyKRW}
+                                onChange={(e) => setTierDraft((prev) => prev.map((x, j) => (j === i ? { ...x, minMonthlyKRW: Number(e.target.value) || 0 } : x)))}
+                                className="w-36 rounded border border-slate-300 px-1.5 py-0.5 text-right text-[11px] focus:border-brand-400 focus:outline-none"
+                                title={`${t.name} 기준 월 평균 예약액`}
+                              />
+                            )}
+                            {i > 0 && <span className="ml-1.5 text-slate-400">{won(t.minMonthlyKRW)}</span>}
+                          </td>
+                          <td className="px-3 py-1.5">
+                            <input
+                              type="number" min={0} step={0.1} value={t.ratePct}
+                              onChange={(e) => setTierDraft((prev) => prev.map((x, j) => (j === i ? { ...x, ratePct: Number(e.target.value) || 0 } : x)))}
+                              className="w-20 rounded border border-slate-300 px-1.5 py-0.5 text-right text-[11px] focus:border-brand-400 focus:outline-none"
+                              title={`${t.name} 적립률`}
+                            /> %
+                          </td>
+                          <td className="px-3 py-1.5 text-slate-500">{i === 0 ? '기본' : `+${tierBoostPct(t, tierDraft)}% 적립`}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <button type="button" onClick={applyTiers} disabled={!tierDraftValid || !tierDraftChanged}
+                    className="rounded bg-brand-500 px-3 py-1 text-[11px] font-semibold text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40">등급 정책 적용</button>
+                  <button type="button" onClick={() => setTierDraft(tiers)} disabled={!tierDraftChanged}
+                    className="rounded border border-slate-300 bg-white px-3 py-1 text-[11px] text-slate-600 hover:bg-slate-50 disabled:opacity-40">되돌리기</button>
+                  {!tierDraftValid && <span className="text-[10px] text-rose-600">기준은 위 등급보다 커야 하고 적립률은 0보다 커야 합니다.</span>}
+                  <span className="text-[10px] text-slate-400">현재 이 계정: 월 평균 {won(monthlyAvg)} → <b style={{ color: tierStatus.tier.color }}>{tierStatus.tier.name}</b> · 기준값은 실데이터 보정 후 확정 · 변경 이력은 위 포인트 정책 이력에 기록</span>
                 </div>
               </div>
 
