@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { HotelEarnBadge } from './EarnBadge';
+import MarketOnlyTag, { marketOnlyText } from './MarketOnlyTag';
+import { hasMarketOnly } from '../mocks/marketOnlyRates';
 import type { HotelGroup, SearchConditions } from '../types';
 import {
   buildCityResults,
@@ -107,6 +109,8 @@ export default function CreateBookingPage({ prefill, onGroupInquiry }: { prefill
   const [typeSel, setTypeSel] = useState<string[]>([]);
   const [brandSel, setBrandSel] = useState<string[]>([]);
   const [rateMax, setRateMax] = useState<number | null>(null);
+  /** 마켓 전용요금이 있는 호텔만 (docs/plan/feature-market-only-rate-tag.md) */
+  const [marketOnlySel, setMarketOnlySel] = useState(false);
   const [page, setPage] = useState(1);
 
   const setRooms = (n: number) => {
@@ -172,6 +176,7 @@ export default function CreateBookingPage({ prefill, onGroupInquiry }: { prefill
       setTypeSel([]);
       setBrandSel([]);
       setRateMax(null);
+      setMarketOnlySel(false);
       setPage(1);
       setSearching(false);
     }, 1300 + Math.random() * 1200);
@@ -208,6 +213,7 @@ export default function CreateBookingPage({ prefill, onGroupInquiry }: { prefill
     if (typeSel.length > 0) list = list.filter((g) => typeSel.includes(hotelMetaOf(g.hotel_id).propertyType));
     if (brandSel.length > 0) list = list.filter((g) => brandSel.includes(hotelMetaOf(g.hotel_id).chainBrand));
     if (rateMax !== null) list = list.filter((g) => priceOf(g) <= rateMax);
+    if (marketOnlySel) list = list.filter((g) => hasMarketOnly(g.rates));
     switch (sort) {
       case 'starAsc': list.sort((a, b) => a.star_rating - b.star_rating); break;
       case 'starDesc': list.sort((a, b) => b.star_rating - a.star_rating); break;
@@ -222,7 +228,8 @@ export default function CreateBookingPage({ prefill, onGroupInquiry }: { prefill
         break;
     }
     return list;
-  }, [searched, sort, nameFilter, starSel, typeSel, brandSel, rateMax]);
+  }, [searched, sort, nameFilter, starSel, typeSel, brandSel, rateMax, marketOnlySel]);
+  const marketOnlyCount = useMemo(() => (searched ? searched.groups.filter((g) => hasMarketOnly(g.rates)).length : 0), [searched]);
 
   // 필터·정렬 변경 시 1페이지로
   useEffect(() => {
@@ -447,6 +454,20 @@ export default function CreateBookingPage({ prefill, onGroupInquiry }: { prefill
                 className="mt-2 w-full rounded border border-slate-300 px-2.5 py-1.5 text-xs placeholder:italic placeholder:text-slate-400"
               />
               <h4 className="mt-5 text-[13px] font-bold text-slate-800">Filter By</h4>
+              {marketOnlyCount > 0 && (
+                <div className="mt-2 border-b border-dashed border-slate-300 pb-3">
+                  <label className="flex items-center gap-2 text-xs text-slate-600">
+                    <input
+                      type="checkbox"
+                      checked={marketOnlySel}
+                      onChange={(e) => setMarketOnlySel(e.target.checked)}
+                      className="accent-brand-500"
+                    />
+                    <span className="flex-1">{marketOnlyText().filter}</span>
+                    <span className="text-[11px] text-slate-400">{marketOnlyCount}</span>
+                  </label>
+                </div>
+              )}
               <div className="mt-2 border-b border-dashed border-slate-300 pb-3">
                 <p className="text-xs font-semibold text-slate-700">Rate</p>
                 <div className="mt-1 flex justify-between text-[11px] text-slate-500">
@@ -581,6 +602,7 @@ export default function CreateBookingPage({ prefill, onGroupInquiry }: { prefill
                         )}
                         <span>[Hotel Code : {hotelCodeOf(g.hotel_id)}]</span>
                         <HotelEarnBadge hotelId={g.hotel_id} />
+                        {hasMarketOnly(g.rates) && <MarketOnlyTag />}
                         <span className="font-medium text-amber-500">{g.star_rating} Star</span>
                       </p>
                       <h4 className="truncate text-sm font-bold text-slate-900">{g.hotel_name}</h4>

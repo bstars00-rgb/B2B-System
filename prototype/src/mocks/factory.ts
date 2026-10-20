@@ -29,6 +29,8 @@ export interface RateSeed {
   updated_minutes_ago?: number;
   has_booking_token?: boolean;
   warnings?: string[];
+  /** 마켓 전용요금 (mocks/marketOnlyRates.ts) */
+  market_only?: boolean;
 }
 
 let rateSeq = 0;
@@ -114,5 +116,6 @@ export function makeRate(searchId: string, seed: RateSeed): RateResult {
     last_updated_at: minutesAgoIso(seed.updated_minutes_ago ?? 2),
     booking_token: hasToken ? `bk_${searchId}_${rateSeq}` : null,
     warnings: seed.warnings ?? [],
+    ...(seed.market_only ? { market_only: true } : {}),
   };
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { RateResult, SearchConditions } from '../types';
 import { formatDateTime, formatMoney } from '../utils/format';
 import EnhBadge from './EnhBadge';
+import MarketOnlyTag from './MarketOnlyTag';
 
 interface Props {
   rate: RateResult | null;
@@ -182,7 +183,15 @@ export default function CreateBookingModal({ rate, conditions, onClose, onCreate
               }
               valueClass={rate.cancellation_deadline ? 'text-rose-600' : 'font-semibold text-rose-600'}
             />
-            <Row label="Plan Name" value={`[${rate.rate_plan_id}] ${rate.rate_plan_name}`} />
+            <Row
+              label="Plan Name"
+              value={
+                <span className="flex flex-wrap items-center gap-1.5">
+                  {`[${rate.rate_plan_id}] ${rate.rate_plan_name}`}
+                  {rate.market_only && <MarketOnlyTag />}
+                </span>
+              }
+            />
             <Row
               label="Promotion Name"
               value={

@@ -36,6 +36,8 @@ export interface RateResult {
   last_updated_at: string;
   booking_token: string | null;
   warnings: string[];
+  /** 마켓 전용요금 — ELLIS Dotbiz Market 트레이더(300427) Include 대상 (docs/plan/feature-market-only-rate-tag.md) */
+  market_only?: boolean;
 }
 
 /** 자연어에서 추출된 검색 조건 (mock 규칙 기반 파서 출력) */

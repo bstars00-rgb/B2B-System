@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { RoomEarnBadge } from './EarnBadge';
+import MarketOnlyTag from './MarketOnlyTag';
+import { marketOnlyGapPct } from '../mocks/marketOnlyRates';
 import type { HotelGroup, RateResult, SearchConditions } from '../types';
 import { buildCityResults, hotelContentOf } from '../mocks/hotelDb';
 import { nextSearchId } from '../mocks';
@@ -274,6 +276,12 @@ export default function HotelRoomListPage({ group, conditions, onBack, onSelectR
               return (
                 <tr key={r.rate_plan_id} className="border-b border-slate-100 last:border-b-0">
                   <td className="px-4 py-3">
+                    {/* 마켓 전용요금 태그 — 실포털의 프로모션 태그(Special Promotion 등)와 같은 자리, 맨 앞 */}
+                    {r.market_only && (
+                      <p className="mb-1 flex flex-wrap items-center gap-1.5">
+                        <MarketOnlyTag gapPct={marketOnlyGapPct(r, rates)} />
+                      </p>
+                    )}
                     <p className="flex flex-wrap items-center gap-1.5 text-[13px] font-bold text-slate-900">
                       {r.room_type_name}
                       <RoomEarnBadge hotelId={group.hotel_id} roomText={`${r.room_type_name} ${r.rate_plan_name} ${r.rate_plan_id}`} />

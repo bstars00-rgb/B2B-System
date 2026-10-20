@@ -502,6 +502,7 @@ PD 팀(Claire)에 보낸 Phase 2 Q&A 답변 중 프로토타입에 아직 없던
 ## 7. 관련 문서
 
 - [기획서 ① — ELLIS MCP AI 요금 검색](spec-a-ellis-ai-search.md)
+- [마켓 전용요금 태그](feature-market-only-rate-tag.md) — ELLIS Dotbiz Market 트레이더(300427) Include 요금에 "마켓 전용"·"일반 요금보다 N% 낮음" 태그 (2026-10-20 기획)
 - [dotbiz-clone-plan.md](dotbiz-clone-plan.md) — 클론 구축 단계 인벤토리 (34항목)
 - [clone/as-is-ui-notes.md](../clone/as-is-ui-notes.md) — 실사이트 실측 토큰 (폰트·색·컨트롤)
 - OKR 발표자료: `File by OMH/닷비즈_고도화_2026H2_OKR.pptx` (슬라이드 ②가 본 기획 요약)

@@ -1,5 +1,6 @@
 import type { RateResult, SearchConditions } from '../types';
 import { makeRate, resetRateSeq, type RateSeed } from './factory';
+import { withMarketOnly } from './marketOnlyRates';
 
 /**
  * 목적지 인식형 mock 호텔 DB.
@@ -555,7 +556,7 @@ export function buildCityResults(
       plans[0].has_booking_token = false;
       plans[0].warnings = ['조회 시점 기준 재고 소진 — 참고용 요금'];
     }
-    return plans;
+    return withMarketOnly(plans); // 마켓 전용요금 시연 (marketOnlyRates.ts)
   };
 
   const passes = (s: RateSeed): boolean => {
@@ -643,7 +644,7 @@ export function buildCityResults(
         supplier_id: 'SUP-HB-03',
       },
     ];
-    const results = applyFilters(targetSeeds).map((s) => makeRate(searchId, s));
+    const results = applyFilters(withMarketOnly(targetSeeds)).map((s) => makeRate(searchId, s));
 
     // 추천: 동일 도시, 성급 근접 순 — 호텔당 최저가 1건
     const others = city.hotels
