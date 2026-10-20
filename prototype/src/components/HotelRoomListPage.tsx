@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { RoomEarnBadge } from './EarnBadge';
 import MarketOnlyTag from './MarketOnlyTag';
-import { marketOnlyGapPct } from '../mocks/marketOnlyRates';
+import { isBelowRegular } from '../mocks/marketOnlyRates';
 import type { HotelGroup, RateResult, SearchConditions } from '../types';
 import { buildCityResults, hotelContentOf } from '../mocks/hotelDb';
 import { nextSearchId } from '../mocks';
@@ -124,7 +124,9 @@ export default function HotelRoomListPage({ group, conditions, onBack, onSelectR
         ...conds,
         hotel_name: group.hotel_name,
       });
-      setRates(results.length > 0 ? results : group.rates);
+      // 요금은 항상 가격 낮은 순(Billing Sum) — 마켓 전용요금도 따로 올리지 않는다 (2026-10-20 결정)
+      const list = results.length > 0 ? results : group.rates;
+      setRates([...list].sort((x, y) => x.selling_price + x.tax - (y.selling_price + y.tax)));
       setLoadingRates(false);
     }, 1000 + Math.random() * 900);
     return () => window.clearTimeout(t);
@@ -279,7 +281,7 @@ export default function HotelRoomListPage({ group, conditions, onBack, onSelectR
                     {/* 마켓 전용요금 태그 — 실포털의 프로모션 태그(Special Promotion 등)와 같은 자리, 맨 앞 */}
                     {r.market_only && (
                       <p className="mb-1 flex flex-wrap items-center gap-1.5">
-                        <MarketOnlyTag gapPct={marketOnlyGapPct(r, rates)} />
+                        <MarketOnlyTag belowRegular={isBelowRegular(r, rates)} />
                       </p>
                     )}
                     <p className="flex flex-wrap items-center gap-1.5 text-[13px] font-bold text-slate-900">
