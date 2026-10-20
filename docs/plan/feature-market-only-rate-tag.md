@@ -92,6 +92,7 @@ ELLIS의 Dotbiz Market 트레이더(comp code 300427)에 Include로 넣은 레�
 | Create Hotel Booking 모달 | Plan Name 옆 ① | 예약 직전에 한 번 더 확인 |
 | Bookings 목록·상세 | ① (예약 당시 값) | CS·성과 집계용 |
 | 바우처 | 표시하지 않음 | 투숙객용 문서 |
+| OHMY Admin(ELLIS) > 예약 생성 | 이번 작업에서 표시하지 않음 | 고객 화면용 태그. 제안이며 확정 필요(§10) |
 
 요금은 항상 가격 낮은 순(Billing Sum)으로 보여 주고, 전용요금이라고 위로 올리지 않는다(2026-10-20 결정). 호텔 목록 정렬(Recommendation 등)도 그대로 둔다.
 
@@ -100,7 +101,7 @@ ELLIS의 Dotbiz Market 트레이더(comp code 300427)에 Include로 넣은 레�
 | 항목 | 내용 |
 |------|------|
 | 판정 플래그 | ELLIS 가용성 응답의 요금 단위에 `exclusiveChannel: "DOTBIZ_MARKET" \| null` 추가. 이 요금이 트레이더 300427 Include 때문에 노출되면 값이 들어간다. 프로토타입 필드명은 `market_only` |
-| 프로모션 | 프로모션 자체가 Include면 대상. 원 레이트플랜(Origin Plan Code)만 Include인 프로모션은 ELLIS 판매 범위를 따른다(§8 확인 필요) |
+| 프로모션 | 프로모션만 Include면 그 프로모션 요금에만 태그(원 레이트플랜·다른 프로모션은 태그 없음). 레이트플랜 전체가 Include일 때 그 위의 프로모션은 실제 판매 범위를 따른다(§10 Tracy에게 역질문) |
 | 경쟁력 계산 | 같은 응답 안의 요금으로 마켓 화면에서 계산(추가 API 없음). 기준값은 ELLIS 설정을 응답 메타로 받는다 |
 | 예약 저장 | 예약 생성 시 요금 플래그를 예약에 저장(`rateFlags.marketOnly`). 이후 트레이더 규칙이 바뀌어도 예약 당시 값을 유지 |
 | 반영 시점 | 트레이더 저장 후 2~3분(지금과 같음). 이미 띄운 검색 결과는 재검색 때 반영 |
@@ -149,3 +150,11 @@ ELLIS의 Dotbiz Market 트레이더(comp code 300427)에 Include로 넣은 레�
 3. 마켓: Bookings 목록·상세 표시, 지표 로그
 4. SCM 가이드에 "에이전시 화면에 보이는 태그" 슬라이드 추가
 5. 10월 말 사용량 점검 결과를 기준선으로 도입 후 효과 비교
+
+## 10. PD 질의응답 (2026-10-20, Tracy)
+
+| # | Tracy 질문 | 회신 |
+|---|-----------|------|
+| 1 | 태그는 ohmyhotel.biz 검색 결과·객실 목록에만인가, OHMY Admin > 예약 생성에도인가 | ohmyhotel.biz만: 검색 결과(호텔 카드·필터), 객실 목록, 예약 확인 팝업, Bookings. OHMY Admin 예약 생성은 이번 작업에서 제외(제안, 확정 필요) |
+| 2 | 프로모션만 Include일 때 그 프로모션 가격에만 표시하나 | 그렇다. 원 레이트플랜과 다른 프로모션에는 태그 없음. 역질문: 레이트플랜 전체가 Include일 때 그 위 프로모션(같은 Origin Plan Code)도 B2C·API에서 숨겨지는가. 숨겨지면 태그, B2C에 팔리면 태그 없음 |
+| 3 | 라벨이 "Dotbiz Market"인가 다른 것인가 | "Market Only"(포털 언어별 번역은 §3.4). 같은 조건 일반 요금보다 3% 이상 싸면 "Lower than regular rate" 추가, 수치·최저가 표현 없음 |
