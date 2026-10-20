@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { RoomEarnBadge } from './EarnBadge';
 import MarketOnlyTag from './MarketOnlyTag';
-import { isBelowRegular } from '../mocks/marketOnlyRates';
 import type { HotelGroup, RateResult, SearchConditions } from '../types';
 import { buildCityResults, hotelContentOf } from '../mocks/hotelDb';
 import { nextSearchId } from '../mocks';
@@ -281,7 +280,7 @@ export default function HotelRoomListPage({ group, conditions, onBack, onSelectR
                     {/* 마켓 전용요금 태그 — 실포털의 프로모션 태그(Special Promotion 등)와 같은 자리, 맨 앞 */}
                     {r.market_only && (
                       <p className="mb-1 flex flex-wrap items-center gap-1.5">
-                        <MarketOnlyTag belowRegular={isBelowRegular(r, rates)} />
+                        <MarketOnlyTag />
                       </p>
                     )}
                     <p className="flex flex-wrap items-center gap-1.5 text-[13px] font-bold text-slate-900">
