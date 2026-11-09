@@ -1,6 +1,6 @@
 # 기능 기획 — 랜딩 페이지 호텔 광고 (스크롤 기반 인터랙티브 애니메이션)
 
-> **작성일**: 2026-11-09 · **트랙**: B (Marketplace 고도화) · **차수**: 미정 · **상태**: 영문 명세서 v1.0 작성(Tracy 재발송용)
+> **작성일**: 2026-11-09 · **트랙**: B (Marketplace 고도화) · **차수**: 미정 · **상태**: 영문 명세서 v1.0 + 프로토타입(2026-11-09, `97b47a5`)
 > **요청 출처**: 현업(2026-11-09, Aiden). 랜딩 페이지(ohmyhotel.biz 로그인 화면)에는 대부분 호텔 광고를 넣는다. 광고는 객실을 차례로 보여 주고 마지막에 호텔 외관으로 끝나는 스크롤 기반 인터랙티브 애니메이션으로 고도화한다.
 > **대체 범위**: 1차 전달본(handoff v1, 2026-07-17)의 **F-1.1 광고판**. F-1.2 로그인 패널·F-1.3 약관은 그대로.
 > **영문 명세서**: `Landing_Page_Hotel_Ads_Spec_EN_v1.0_20261109.docx` (Downloads) · 생성기 [specgen/make_landing_hotel_ads_spec.js](specgen/make_landing_hotel_ads_spec.js)
@@ -53,7 +53,16 @@
 
 콘텐츠 규칙(문구 길이, 허용/금지 표현, 이미지 규격·용량, 사진 사용권) · 데이터 모델(캠페인·장면) · ELLIS 관리(목록·작성·승인·일정·리포트, 배포 불필요) · 추적 이벤트 7종(노출~예약 기여 7일) · 성능·접근성(로그인 패널 우선 로드, LCP 2.5초, reduced-motion) · 인수 조건 10개 · 미결 7개.
 
-## 6. 미결
+## 6. 프로토타입 (2026-11-09)
+
+| 항목 | 내용 |
+|------|------|
+| 주소 | https://bstars00-rgb.github.io/B2B-System/?ad=ginza · `?ad=uehonmachi`(Market Only 태그) · `?ad=brand` (로그아웃 상태에서 스크롤) |
+| 소재 | 실사진 대신 SVG 일러스트. 가구가 위에서 내려앉고 외관은 층이 아래부터 올라간다. `image`에 사진 URL을 넣으면 사진으로 바뀜 |
+| 동작 | 장면 sticky · 크로스페이드·줌·문구·배경 톤 · 역재생 · 점 클릭 · 외관이 다 지어진 뒤 큰 CTA · CTA → 로그인 패널 안내 → 로그인 후 Create Booking 호텔 프리필 · 모바일 세로 목록 · reduced-motion · 추적 이벤트(window.__omhAdEvents) |
+| 코드 | `components/HotelAdStory.tsx` · `components/HotelAdArt.tsx` · `mocks/hotelAdCampaigns.ts` · `LoginPage.tsx` · `AiSearchPage.tsx`(프리필 인계) |
+
+## 7. 미결
 
 | # | 항목 |
 |---|------|

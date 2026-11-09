@@ -91,7 +91,8 @@ push(kv([
   ['Version / date', 'v1.0 · 2026-11-09'],
   ['Replaces', '**F-1.1 Billboard** in Handoff v1 (Gateway / Login renewal, sent 2026-07-17). F-1.2 Sign-in panel and F-1.3 Legal documents are unchanged.'],
   ['Prepared for', 'Tracy — PD (Product Development) team'],
-  ['Status', 'New enhancement. Not in the prototype yet; this document and the reference video define the behaviour.'],
+  ['Status', 'New enhancement. A working prototype with two sample hotel ads (illustrations instead of photos) is live; see Live demo.'],
+  ['Live demo', 'https://bstars00-rgb.github.io/B2B-System/?ad=ginza (Tokyo sample) · ?ad=uehonmachi (Osaka sample, shows the Market Only tag) · ?ad=brand (brand campaign). Open it signed out (or log out first) and scroll the page. The "Next ad (prototype)" button switches samples; it is a review tool, not part of the product.'],
   ['Decision', 'Aiden, 2026-11-09: the landing page will mostly carry hotel ads, and each hotel ad is a scroll-based interactive animation that shows the rooms and ends on the hotel exterior.'],
   ['Reference', 'A design reel by NoirPixel Agency (concept website "LOOP"): scrolling builds the product layer by layer. Aiden shares the reel link together with this document.'],
 ]));
@@ -299,8 +300,11 @@ push(table([{ h: 'Scene', w: 800 }, { h: 'Kind', w: 2300, boldCol: true }, { h: 
 ]));
 push(h1('Appendix B — Code references'));
 push(table([{ h: 'File (prototype/src/…)', w: 3300 }, { h: 'Content', w: TW - 3300 }], [
-  ['components/LoginPage.tsx', 'Current landing page: billboard (F-1.1) and sign-in panel (F-1.2)'],
-  ['mocks/loginCampaigns.ts', 'Current brand campaigns (v1 data model) and the 8 s rotation that this spec replaces'],
+  ['components/LoginPage.tsx', 'Landing page: campaign selection per visit, hotel ad or brand billboard, sign-in panel (F-1.2), CTA notice'],
+  ['components/HotelAdStory.tsx', 'Hotel ad: sticky stage, scroll progress, scene transitions, dots, CTA (desktop) and the vertical list (mobile)'],
+  ['components/HotelAdArt.tsx', 'Sample scene illustrations (SVG) whose layers build with the scroll; replaced by photos in production'],
+  ['mocks/hotelAdCampaigns.ts', 'Campaign and scene data (sample), weighted selection, CTA target, tracking events'],
+  ['mocks/loginCampaigns.ts', 'Brand campaigns (v1 data model); still used when a brand campaign is selected'],
   ['components/CreateBookingPage.tsx', 'Hotel pre-fill used as the CTA target after sign-in'],
 ]));
 push(new Paragraph({ spacing: { before: 240 }, children: [new TextRun({ text: '— Aiden', font: FONT, bold: true, color: GREY })] }));
