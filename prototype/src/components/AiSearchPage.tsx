@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Booking } from '../types';
+import { AD_TARGET_KEY, trackAd } from '../mocks/hotelAdCampaigns';
 import AccountMenu from './AccountMenu';
 import EnhBadge from './EnhBadge';
 import SupportCenter from './SupportCenter';
@@ -183,6 +184,21 @@ export default function AiSearchPage({ onLogout }: AiSearchPageProps) {
     },
     [navigate],
   );
+  /** 랜딩 호텔 광고 CTA → 로그인 직후 Create Booking에 그 호텔 프리필 (docs/plan/feature-landing-hotel-ads.md) */
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(AD_TARGET_KEY);
+      if (!raw) return;
+      sessionStorage.removeItem(AD_TARGET_KEY);
+      const t = JSON.parse(raw) as { code?: string; destination?: string; hotelName?: string; campaignId?: string };
+      if (t.code && t.hotelName) {
+        bookHotelFromRanking({ code: t.code, destination: t.destination ?? '', hotelName: t.hotelName });
+        trackAd('ad_hotel_open', { campaignId: t.campaignId });
+      }
+    } catch {
+      // 무시
+    }
+  }, [bookHotelFromRanking]);
   const closeTab = useCallback(
     (v: PortalView) => {
       setOpenTabs((prev) => {

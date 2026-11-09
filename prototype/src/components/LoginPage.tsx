@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { loadPortalLang, savePortalLang, PORTAL_LANGS, type PortalLang } from '../utils/portalLang';
 import { applyDark, loadDark, saveDark } from '../utils/theme';
 import { CAMPAIGN_INTERVAL_MS, LOGIN_CAMPAIGNS } from '../mocks/loginCampaigns';
 import LegalModal from './LegalModal';
 import { MVillageLoginPromo } from './MVillagePavilion';
+import { HotelAdMobile, HotelAdStory } from './HotelAdStory';
+import { AD_TARGET_KEY, bookingTargetOf, nextCampaign, pickCampaign, trackAd, type AdCampaign, type HotelAdCampaign } from '../mocks/hotelAdCampaigns';
 
 interface Props {
   /** stay = Remember me 체크 여부 (localStorage 로그인 유지) */
@@ -12,7 +14,8 @@ interface Props {
 
 /**
  * 마켓플레이스 대문 (로그인) — 트렌드형 리뉴얼 시안 구현.
- * 좌측: "우리는 누구인가/무엇을 하는가" 광고판 (loginCampaigns 주기 교체·로테이션)
+ * 좌측: 광고 영역 — 방문마다 캠페인 1개(가중치). 대부분 호텔 광고 = 스크롤 기반 인터랙티브 애니메이션(HotelAdStory,
+ *   객실 → 마지막 외관 + CTA, 2026-11-09). 브랜드 캠페인이 뽑히면 기존 "우리는 누구인가/무엇을 하는가" 광고판(8초 로테이션).
  * 우측: Welcome back 로그인 패널 (다크모드 토글 · 약관/개인정보 모달은 로그인 밖에서 열람 가능)
  * Mock — 아무 값이나 입력해도 로그인되며, 자격증명은 자리표시자로 채워져 있다.
  */
@@ -28,7 +31,26 @@ export default function LoginPage({ onLogin }: Props) {
   /** 다크모드 — 전역 설정(omh_dark). 로그인에서 켠 값이 로그인 후 포털로 이어진다 */
   const [dark, setDark] = useState(loadDark);
 
-  /** 광고판 캠페인 로테이션 */
+  /** 랜딩 광고 — 방문당 1개 (호텔 광고 위주 · ?ad= 로 고정 가능) */
+  const [ad, setAd] = useState<AdCampaign>(pickCampaign);
+  const [adNotice, setAdNotice] = useState<string | null>(null);
+  const [flash, setFlash] = useState(false);
+  const emailRef = useRef<HTMLInputElement>(null);
+  /** 광고 CTA — 로그인 패널로 안내, 로그인 후 Create Booking에 호텔 프리필 */
+  const onAdCta = (c: HotelAdCampaign) => {
+    try {
+      sessionStorage.setItem(AD_TARGET_KEY, JSON.stringify({ ...bookingTargetOf(c), campaignId: c.id }));
+    } catch {
+      // 무시
+    }
+    setAdNotice(c.hotelName);
+    setFlash(true);
+    window.setTimeout(() => setFlash(false), 1600);
+    if (window.innerWidth < 1024) window.scrollTo({ top: 0, behavior: 'smooth' });
+    emailRef.current?.focus({ preventScroll: true });
+  };
+
+  /** 광고판 캠페인 로테이션 (브랜드 캠페인) */
   const [slide, setSlide] = useState(0);
   useEffect(() => {
     const t = window.setInterval(() => setSlide((s) => (s + 1) % LOGIN_CAMPAIGNS.length), CAMPAIGN_INTERVAL_MS);
@@ -55,6 +77,7 @@ export default function LoginPage({ onLogin }: Props) {
       setError('서비스 이용약관과 개인정보처리방침에 동의해 주세요.');
       return;
     }
+    if (adNotice && ad.type === 'hotel') trackAd('ad_signin', { campaignId: ad.id });
     onLogin(stay);
   };
 
@@ -68,9 +91,16 @@ export default function LoginPage({ onLogin }: Props) {
   }`;
 
   return (
-    <div className="flex min-h-screen text-slate-900">
-      {/* ── 좌측 광고판 — 주기 교체형 캠페인 (우리는 누구인가 / 무엇을 하는가) · AI 시대 무드 ── */}
-      <div className="relative hidden flex-1 flex-col overflow-hidden bg-[#0B1330] px-20 py-12 lg:flex">
+    <div className="min-h-screen text-slate-900 lg:flex lg:items-start">
+      {/* ── 좌측 호텔 광고 — 스크롤 기반 인터랙티브 애니메이션 ── */}
+      {ad.type === 'hotel' && (
+        <div className="relative hidden min-w-0 flex-1 lg:block">
+          <HotelAdStory c={ad} lang={lang} onCta={onAdCta} onNext={() => setAd(nextCampaign(ad))} />
+        </div>
+      )}
+      {/* ── 좌측 광고판 — 브랜드 캠페인 (우리는 누구인가 / 무엇을 하는가) · AI 시대 무드 ── */}
+      {ad.type === 'brand' && (
+      <div className="relative hidden h-screen flex-1 flex-col overflow-hidden bg-[#0B1330] px-20 py-12 lg:sticky lg:top-0 lg:flex">
         {/* 배경 레이어: 그라데이션 + 도트 그리드 + 글로우 + 뉴럴 네트워크 */}
         <div className="absolute inset-0 bg-gradient-to-br from-[#0A1128] via-[#111D44] to-[#1A2C5E]" aria-hidden />
         <div
@@ -167,15 +197,27 @@ export default function LoginPage({ onLogin }: Props) {
               />
             ))}
           </div>
-          <span className="flex items-center gap-2 text-[12px] text-slate-400">
+          <span className="flex items-center gap-3 text-[12px] text-slate-400">
+            <button
+              type="button"
+              onClick={() => setAd(nextCampaign(ad))}
+              className="rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-semibold text-slate-200 hover:bg-white/20"
+            >
+              ↻ {lang === 'ko' ? '다음 광고 (프로토타입)' : 'Next ad (prototype)'}
+            </button>
             <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" aria-hidden />
             AI Rate Engine — Online
           </span>
         </div>
       </div>
+      )}
 
       {/* ── 우측 로그인 패널 ── */}
-      <div className={`flex w-full flex-col px-8 py-6 transition-colors lg:w-[480px] ${panelBg}`}>
+      <div
+        className={`flex w-full flex-col px-8 py-6 transition-all lg:sticky lg:top-0 lg:h-screen lg:w-[480px] lg:shrink-0 lg:overflow-y-auto ${panelBg} ${
+          flash ? 'ring-4 ring-inset ring-brand-400' : ''
+        }`}
+      >
         {/* 상단 바: 언어 · 다크모드 */}
         <div className="flex items-center justify-between">
           <span className={`flex items-center gap-1 text-[12px] ${subText}`}>
@@ -209,6 +251,11 @@ export default function LoginPage({ onLogin }: Props) {
 
         {/* 폼 */}
         <form onSubmit={submit} className="mx-auto mt-24 w-full max-w-[360px] flex-1">
+          {adNotice && (
+            <p className="mb-5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-[12px] font-medium text-brand-700">
+              {lang === 'ko' ? `${adNotice} 요금은 로그인 후 확인할 수 있습니다.` : `Sign in to see rates for ${adNotice}.`}
+            </p>
+          )}
           <h2 className="text-2xl font-bold">Welcome back</h2>
           <p className={`mt-1 text-[13px] ${subText}`}>Sign in to your Marketplace account</p>
 
@@ -218,6 +265,7 @@ export default function LoginPage({ onLogin }: Props) {
           <div className="relative mt-1.5">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden>✉</span>
             <input
+              ref={emailRef}
               type="email"
               value={email}
               onChange={(e) => {
@@ -325,6 +373,13 @@ export default function LoginPage({ onLogin }: Props) {
 
         <p className={`pt-4 text-center text-[11px] ${subText}`}>© 2026 OhMyHotel&amp;Co. All rights reserved.</p>
       </div>
+
+      {/* 모바일 — 로그인 패널 아래 호텔 광고 (세로 목록) */}
+      {ad.type === 'hotel' && (
+        <div className="lg:hidden">
+          <HotelAdMobile c={ad} lang={lang} onCta={onAdCta} />
+        </div>
+      )}
 
       {/* 약관·개인정보 모달 (로그인 밖 열람) */}
       {legal && <LegalModal doc={legal} onClose={() => setLegal(null)} />}
