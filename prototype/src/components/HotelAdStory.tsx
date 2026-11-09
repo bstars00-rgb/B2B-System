@@ -17,15 +17,61 @@ const SCENE_VH = 100;
 const TAIL_VH = 40;
 
 const UI = {
-  en: { featured: 'Featured hotel', cta: 'View rooms & rates', scroll: 'Scroll to explore', note: 'Rates are shown after sign-in', sample: 'Sample ad · illustrations', next: 'Next ad (prototype)' },
-  ko: { featured: '추천 호텔', cta: '객실·요금 보기', scroll: '스크롤해서 둘러보기', note: '요금은 로그인 후 확인할 수 있습니다', sample: '샘플 광고 · 일러스트', next: '다음 광고 (프로토타입)' },
+  en: { featured: 'Featured hotel', cta: 'View rooms & rates', scroll: 'Scroll to explore', note: 'Rates are shown after sign-in', sample: 'Sample ad · illustrations', photos: 'Prototype ad · hotel photos', next: 'Next ad (prototype)' },
+  ko: { featured: '추천 호텔', cta: '객실·요금 보기', scroll: '스크롤해서 둘러보기', note: '요금은 로그인 후 확인할 수 있습니다', sample: '샘플 광고 · 일러스트', photos: '프로토타입 광고 · 호텔 사진', next: '다음 광고 (프로토타입)' },
 };
 const uiOf = (lang: PortalLang) => (lang === 'ko' ? UI.ko : UI.en);
 const textOf = (s: AdScene, lang: PortalLang) => (lang === 'ko' ? s.ko : s.en);
 const stars = (n: number) => '★'.repeat(n);
 
-function Visual({ c, s, q }: { c: HotelAdCampaign; s: AdScene; q: (j: number) => number }) {
-  if (s.image) return <img src={s.image} alt={textOf(s, 'en').h} className="h-full w-full rounded-2xl object-cover" />;
+/** 사진 장면: 가로 띠 6장이 아래에서부터 한 겹씩 맞춰진다(객실은 위에서 내려앉고, 외관은 아래에서 올라옴) + 보조 사진 */
+const STRIPS = 6;
+export const photoLayerCount = (s: AdScene) => 1 + STRIPS + (s.inset ? 1 : 0);
+
+function PhotoScene({ s, q, lang }: { s: AdScene; q: (j: number) => number; lang: PortalLang }) {
+  const rise = s.kind === 'exterior';
+  const qs = Array.from({ length: STRIPS }, (_, k) => q(1 + (STRIPS - 1 - k))); // k=0 맨 위 띠 · 맨 아래 띠가 먼저
+  const done = qs.every((v) => v >= 1);
+  const img = (alt: string) => (
+    <img src={s.image} alt={alt} draggable={false} className="h-full w-full object-cover" style={{ objectPosition: s.focus ?? 'center' }} />
+  );
+  const iq = s.inset ? q(STRIPS + 1) : 0;
+  return (
+    <div className="relative h-full w-full overflow-hidden bg-black/5">
+      {done
+        ? img(textOf(s, lang).h)
+        : qs.map((v, k) =>
+            v <= 0 ? null : (
+              <div
+                key={k}
+                className="absolute inset-0"
+                style={{
+                  clipPath: `inset(${((k / STRIPS) * 100).toFixed(3)}% 0 ${(100 - ((k + 1) / STRIPS) * 100).toFixed(3)}% 0)`,
+                  opacity: v,
+                  transform: `translateY(${((1 - v) * (rise ? 46 : -46)).toFixed(1)}px)`,
+                }}
+              >
+                {img(k === 0 ? textOf(s, lang).h : '')}
+              </div>
+            ),
+          )}
+      {s.inset && iq > 0 && (
+        <figure
+          className="absolute bottom-4 left-4 w-[27%] overflow-hidden rounded-xl border-4 border-white shadow-2xl"
+          style={{ opacity: iq, transform: `translateY(${((1 - iq) * 30).toFixed(1)}px) rotate(-2deg)` }}
+        >
+          <img src={s.inset.image} alt={lang === 'ko' ? s.inset.ko : s.inset.en} className="aspect-[3/4] w-full object-cover" draggable={false} />
+          <figcaption className="absolute inset-x-0 bottom-0 bg-black/55 px-2 py-1 text-[11px] font-semibold text-white">
+            {lang === 'ko' ? s.inset.ko : s.inset.en}
+          </figcaption>
+        </figure>
+      )}
+    </div>
+  );
+}
+
+function Visual({ c, s, q, lang }: { c: HotelAdCampaign; s: AdScene; q: (j: number) => number; lang: PortalLang }) {
+  if (s.image) return <PhotoScene s={s} q={q} lang={lang} />;
   return <SceneArt kind={s.kind} p={c.palette} q={q} sign={c.sign} />;
 }
 
@@ -101,7 +147,8 @@ export function HotelAdStory({
   const layerQ = (i: number) => (j: number) => {
     if (i > idx) return 0;
     if (reduce || j === 0) return 1;
-    const n = LAYER_COUNT[c.scenes[i].kind];
+    const sc = c.scenes[i];
+    const n = sc.image ? photoLayerCount(sc) : LAYER_COUNT[sc.kind];
     const start = 0.04 + 0.62 * (j / n);
     return clamp((sceneLocal(i) - start) / 0.16);
   };
@@ -146,7 +193,7 @@ export function HotelAdStory({
             </span>
           </span>
           <span className="flex items-center gap-2">
-            <span className={`rounded-full border px-2.5 py-1 text-[10px] ${dark ? 'border-white/30 text-slate-300' : 'border-slate-300 text-slate-500'}`}>{t.sample}</span>
+            <span className={`rounded-full border px-2.5 py-1 text-[10px] ${dark ? 'border-white/30 text-slate-300' : 'border-slate-300 text-slate-500'}`}>{c.source === 'photos' ? t.photos : t.sample}</span>
             <button
               type="button"
               onClick={onNext}
@@ -194,7 +241,7 @@ export function HotelAdStory({
               return (
                 <div key={i} className="absolute inset-0" style={{ opacity: o, transform: `scale(${scale.toFixed(4)})` }}>
                   <div className={`h-full w-full overflow-hidden rounded-[28px] ${s.dark ? '' : 'shadow-2xl shadow-slate-900/10'}`}>
-                    <Visual c={c} s={s} q={layerQ(i)} />
+                    <Visual c={c} s={s} q={layerQ(i)} lang={lang} />
                   </div>
                 </div>
               );
@@ -269,7 +316,7 @@ export function HotelAdMobile({ c, lang, onCta }: { c: HotelAdCampaign; lang: Po
         <FadeIn key={i}>
           <div className="overflow-hidden rounded-2xl" style={{ background: s.tone }}>
             <div className="aspect-[4/3]">
-              <Visual c={c} s={s} q={() => 1} />
+              <Visual c={c} s={s} q={() => 1} lang={lang} />
             </div>
             <div className="px-4 py-3">
               <p className={`font-serif text-xl font-bold uppercase ${s.dark ? 'text-white' : 'text-slate-900'}`}>{textOf(s, lang).h}</p>

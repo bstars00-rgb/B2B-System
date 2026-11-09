@@ -7,7 +7,7 @@ import type { AdPalette, SceneKind } from '../mocks/hotelAdCampaigns';
  * 객실 가구는 위에서 내려앉고, 외관은 층이 아래에서부터 올라간다.
  */
 
-export const LAYER_COUNT: Record<SceneKind, number> = { double: 8, twin: 7, view: 7, exterior: 12 };
+export const LAYER_COUNT: Record<SceneKind, number> = { double: 8, twin: 7, view: 7, facility: 1, exterior: 12 };
 
 type Q = (j: number) => number;
 

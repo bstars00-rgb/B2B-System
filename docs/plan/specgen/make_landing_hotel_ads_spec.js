@@ -91,8 +91,8 @@ push(kv([
   ['Version / date', 'v1.0 · 2026-11-09'],
   ['Replaces', '**F-1.1 Billboard** in Handoff v1 (Gateway / Login renewal, sent 2026-07-17). F-1.2 Sign-in panel and F-1.3 Legal documents are unchanged.'],
   ['Prepared for', 'Tracy — PD (Product Development) team'],
-  ['Status', 'New enhancement. A working prototype with two sample hotel ads (illustrations instead of photos) is live; see Live demo.'],
-  ['Live demo', 'https://bstars00-rgb.github.io/B2B-System/?ad=ginza (Tokyo sample) · ?ad=uehonmachi (Osaka sample, shows the Market Only tag) · ?ad=brand (brand campaign). Open it signed out (or log out first) and scroll the page. The "Next ad (prototype)" button switches samples; it is a review tool, not part of the product.'],
+  ['Status', 'New enhancement. A working prototype is live: one hotel ad with real hotel photos (each photo assembles in horizontal strips as you scroll) and two illustrated samples; see Live demo.'],
+  ['Live demo', 'https://bstars00-rgb.github.io/B2B-System/?ad=grand-fresa-namba (real photos: Sotetsu Grand Fresa Osaka-Namba — double, twin, deluxe twin (triple), breakfast, lobby, exterior) · ?ad=ginza and ?ad=uehonmachi (illustrated samples; Uehonmachi shows the Market Only tag) · ?ad=brand (brand campaign). Open it signed out (or log out first) and scroll the page. The "Next ad (prototype)" button switches samples; it is a review tool, not part of the product.'],
   ['Decision', 'Aiden, 2026-11-09: the landing page will mostly carry hotel ads, and each hotel ad is a scroll-based interactive animation that shows the rooms and ends on the hotel exterior.'],
   ['Reference', 'A design reel by NoirPixel Agency (concept website "LOOP"): scrolling builds the product layer by layer. Aiden shares the reel link together with this document.'],
 ]));

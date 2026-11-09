@@ -1,4 +1,12 @@
 import { cityOfHotel, hotelCodeOf } from './hotelDb';
+// 소테츠 그랜드 프레사 오사카 난바 — 호텔 공식 사이트(sotetsu-hotels.com/grand-fresa/namba) 사진 + 사용자 제공 사진 (2026-11-09)
+import gfnDouble from '../assets/ads/grand-fresa-namba/double.webp';
+import gfnTwin from '../assets/ads/grand-fresa-namba/twin.webp';
+import gfnDeluxeTwin from '../assets/ads/grand-fresa-namba/deluxe-twin-triple.webp';
+import gfnBreakfast from '../assets/ads/grand-fresa-namba/breakfast.webp';
+import gfnLobby from '../assets/ads/grand-fresa-namba/lobby.webp';
+import gfnEntrance from '../assets/ads/grand-fresa-namba/entrance.webp';
+import gfnNight from '../assets/ads/grand-fresa-namba/night.webp';
 import { MARKET_ONLY_RULES } from './marketOnlyRates';
 
 /**
@@ -9,7 +17,7 @@ import { MARKET_ONLY_RULES } from './marketOnlyRates';
  * **프로토타입 · 폐기 가능.**
  */
 
-export type SceneKind = 'double' | 'twin' | 'view' | 'exterior';
+export type SceneKind = 'double' | 'twin' | 'view' | 'facility' | 'exterior';
 type Text = { h: string; s: string };
 
 export interface AdScene {
@@ -20,8 +28,12 @@ export interface AdScene {
   dark?: boolean;
   en: Text;
   ko: Text;
-  /** 실사진 URL (있으면 일러스트 대신) */
+  /** 실사진 URL (있으면 일러스트 대신) — 사진은 가로 띠로 나뉘어 한 겹씩 맞춰진다 */
   image?: string;
+  /** 사진 초점 (object-position) */
+  focus?: string;
+  /** 외관 장면의 작은 보조 사진 (예: 야경) */
+  inset?: { image: string; en: string; ko: string };
 }
 
 export interface AdPalette {
@@ -46,6 +58,8 @@ export interface HotelAdCampaign {
   stars: number;
   weight: number;
   palette: AdPalette;
+  /** 소재 종류 — 화면 라벨용 */
+  source: 'illustration' | 'photos';
   scenes: AdScene[];
 }
 
@@ -59,6 +73,32 @@ export type AdCampaign = HotelAdCampaign | BrandCampaignSlot;
 
 export const AD_CAMPAIGNS: AdCampaign[] = [
   {
+    // 실사진 광고 — 객실 3 → 조식 → 로비 → 외관(입구 + 야경). 문구는 공식 사이트·사진에서 확인되는 사실만
+    id: 'grand-fresa-namba',
+    type: 'hotel',
+    hotelId: 'HTL-OSA-08',
+    hotelName: 'Sotetsu Grand Fresa Osaka-Namba',
+    sign: 'GRAND FRESA',
+    cityEn: 'Namba, Osaka',
+    cityKo: '오사카 난바',
+    stars: 3,
+    weight: 60,
+    source: 'photos',
+    palette: { wall: '#F4EBDD', floor: '#C9A27E', wood: '#8A5A3C', linen: '#FFFFFF', accent: '#F2B705', sky: '#BFE3F2', skyline: '#7FA6B8' },
+    scenes: [
+      { kind: 'double', tone: '#FBF3D9', image: gfnDouble, en: { h: 'Double, in color', s: 'Double room · yellow accent wall' }, ko: { h: '컬러로 꾸민 더블', s: '더블룸 · 노란 포인트 벽' } },
+      { kind: 'twin', tone: '#F3EFE2', image: gfnTwin, focus: '38% 50%', en: { h: 'Twin, side by side', s: 'Twin room · two beds' }, ko: { h: '나란히, 트윈', s: '트윈룸 · 침대 두 개' } },
+      { kind: 'twin', tone: '#EEF0E8', image: gfnDeluxeTwin, en: { h: 'Room for three', s: 'Deluxe Twin (Triple)' }, ko: { h: '셋이서 한 방', s: '디럭스 트윈(트리플)' } },
+      { kind: 'facility', tone: '#F6EBDD', image: gfnBreakfast, en: { h: 'Start with breakfast', s: 'Breakfast restaurant in the hotel' }, ko: { h: '아침은 호텔에서', s: '호텔 안 조식 레스토랑' } },
+      { kind: 'facility', tone: '#ECEEF1', image: gfnLobby, en: { h: 'Check in, quickly', s: 'Self check-in kiosks in the lobby' }, ko: { h: '빠른 체크인', s: '로비의 셀프 체크인 기기' } },
+      {
+        kind: 'exterior', tone: '#141A2E', dark: true, image: gfnEntrance, focus: '72% 50%',
+        inset: { image: gfnNight, en: 'At night', ko: '야경' },
+        en: { h: 'Grand Fresa, Namba', s: '2 minutes on foot from Nippombashi Station' }, ko: { h: '난바의 그랜드 프레사', s: '닛폰바시역에서 걸어서 2분' },
+      },
+    ],
+  },
+  {
     id: 'ginza',
     type: 'hotel',
     hotelId: 'HTL-TYO-09',
@@ -67,7 +107,8 @@ export const AD_CAMPAIGNS: AdCampaign[] = [
     cityEn: 'Ginza, Tokyo',
     cityKo: '도쿄 긴자',
     stars: 3,
-    weight: 45,
+    weight: 15,
+    source: 'illustration',
     palette: { wall: '#F4EBDD', floor: '#C9A27E', wood: '#8A5A3C', linen: '#FFFFFF', accent: '#059FAE', sky: '#BFE3F2', skyline: '#7FA6B8' },
     scenes: [
       { kind: 'double', tone: '#F6EEE3', en: { h: 'Start with a double', s: 'A calm room for one or two' }, ko: { h: '더블룸에서 시작', s: '한두 명이 편히 쉬는 객실' } },
@@ -85,7 +126,8 @@ export const AD_CAMPAIGNS: AdCampaign[] = [
     cityEn: 'Uehonmachi, Osaka',
     cityKo: '오사카 우에혼마치',
     stars: 3,
-    weight: 35,
+    weight: 10,
+    source: 'illustration',
     palette: { wall: '#EEF0F5', floor: '#A9B4C6', wood: '#5B4636', linen: '#FFFFFF', accent: '#1E3A8A', sky: '#F8D9B8', skyline: '#9C8FA8' },
     scenes: [
       { kind: 'double', tone: '#EEF1F7', en: { h: 'Rest well in Osaka', s: 'A double room for a quiet night' }, ko: { h: '오사카에서 푹 쉬기', s: '조용한 밤을 위한 더블룸' } },
@@ -93,14 +135,14 @@ export const AD_CAMPAIGNS: AdCampaign[] = [
       { kind: 'exterior', tone: '#22213A', dark: true, en: { h: 'Near Uehonmachi', s: 'A base for exploring Osaka' }, ko: { h: '우에혼마치 가까이', s: '오사카 여행의 출발점' } },
     ],
   },
-  { id: 'brand', type: 'brand', weight: 20 },
+  { id: 'brand', type: 'brand', weight: 15 },
 ];
 
 const LAST_KEY = 'omh_ad_last';
 
 /**
  * 방문당 광고 1개 — 가중치 추첨, 같은 브라우저에서 직전 광고는 건너뜀.
- * 프로토타입: ?ad=ginza|uehonmachi|brand 로 고정 가능.
+ * 프로토타입: ?ad=grand-fresa-namba|ginza|uehonmachi|brand 로 고정 가능.
  */
 export function pickCampaign(): AdCampaign {
   try {

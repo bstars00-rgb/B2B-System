@@ -57,7 +57,8 @@
 
 | 항목 | 내용 |
 |------|------|
-| 주소 | https://bstars00-rgb.github.io/B2B-System/?ad=ginza · `?ad=uehonmachi`(Market Only 태그) · `?ad=brand` (로그아웃 상태에서 스크롤) |
+| 주소 | **실사진**: https://bstars00-rgb.github.io/B2B-System/?ad=grand-fresa-namba (소테츠 그랜드 프레사 오사카 난바) · 일러스트 샘플: `?ad=ginza` · `?ad=uehonmachi`(Market Only 태그) · `?ad=brand` (로그아웃 상태에서 스크롤) |
+| 실사진 광고 구성 | 더블 → 트윈 → 디럭스 트윈(트리플) → 조식 레스토랑 → 로비(셀프 체크인) → 외관(입구 + 야경 보조 사진). 사진은 가로 띠 6장이 아래부터 한 겹씩 맞춰짐(객실은 내려앉고 외관은 올라옴). 사진 출처: 호텔 공식 사이트(sotetsu-hotels.com/grand-fresa/namba) + 사용자 제공 5장, 2026-11-09. 문구는 공식 사이트·사진에서 확인되는 사실만(객실명, 닛폰바시역 도보 2분) |
 | 소재 | 실사진 대신 SVG 일러스트. 가구가 위에서 내려앉고 외관은 층이 아래부터 올라간다. `image`에 사진 URL을 넣으면 사진으로 바뀜 |
 | 동작 | 장면 sticky · 크로스페이드·줌·문구·배경 톤 · 역재생 · 점 클릭 · 외관이 다 지어진 뒤 큰 CTA · CTA → 로그인 패널 안내 → 로그인 후 Create Booking 호텔 프리필 · 모바일 세로 목록 · reduced-motion · 추적 이벤트(window.__omhAdEvents) |
 | 코드 | `components/HotelAdStory.tsx` · `components/HotelAdArt.tsx` · `mocks/hotelAdCampaigns.ts` · `LoginPage.tsx` · `AiSearchPage.tsx`(프리필 인계) |
