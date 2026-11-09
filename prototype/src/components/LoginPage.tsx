@@ -91,7 +91,8 @@ export default function LoginPage({ onLogin }: Props) {
   }`;
 
   return (
-    <div className="min-h-screen text-slate-900 lg:flex lg:items-start">
+    // break-keep: 한글은 어절 단위로 줄바꿈 (단어 중간에서 끊기지 않게 — 광고 헤드라인 "시/작" 문제)
+    <div className="min-h-screen break-keep text-slate-900 lg:flex lg:items-start">
       {/* ── 좌측 호텔 광고 — 스크롤 기반 인터랙티브 애니메이션 ── */}
       {ad.type === 'hotel' && (
         <div className="relative hidden min-w-0 flex-1 lg:block">

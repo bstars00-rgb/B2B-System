@@ -178,7 +178,7 @@ export function HotelAdStory({
     <div ref={ref} className="relative" style={{ height: `${N * SCENE_VH + TAIL_VH}vh` }}>
       <section
         aria-label={`${t.featured}: ${c.hotelName}`}
-        className="sticky top-0 flex h-screen flex-col overflow-hidden px-14 py-9 transition-colors duration-500"
+        className="sticky top-0 flex h-screen flex-col overflow-hidden px-10 py-9 transition-colors duration-500 xl:px-14"
         style={{ background: scene.tone }}
       >
         {/* 상단 바 */}
@@ -205,7 +205,7 @@ export function HotelAdStory({
         </div>
 
         {/* 본문: 왼쪽 문구 · 오른쪽 장면 */}
-        <div className="relative grid flex-1 grid-cols-[minmax(0,5fr)_minmax(0,7fr)] items-center gap-6">
+        <div className="relative grid flex-1 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-center gap-6 xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
           <div className="relative z-10">
             <p className={`flex flex-wrap items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.22em] ${dark ? 'text-brand-300' : 'text-brand-600'}`}>
               {t.featured} · {lang === 'ko' ? c.cityKo : c.cityEn} · <span className="tracking-normal">{stars(c.stars)}</span>
@@ -213,7 +213,7 @@ export function HotelAdStory({
             </p>
             <p className={`mt-3 text-[15px] font-semibold ${sub}`}>{c.hotelName}</p>
             <div style={{ opacity: tq, transform: `translateY(${((1 - tq) * 24).toFixed(1)}px)` }}>
-              <h2 className={`mt-4 font-serif text-[52px] font-bold uppercase leading-[1.02] tracking-tight xl:text-[64px] ${ink}`}>
+              <h2 className={`mt-4 font-serif text-[clamp(34px,3.6vw,64px)] font-bold uppercase leading-[1.02] tracking-tight ${ink}`}>
                 {textOf(scene, lang).h}
               </h2>
               <p className={`mt-5 text-lg ${sub}`}>{textOf(scene, lang).s}</p>
