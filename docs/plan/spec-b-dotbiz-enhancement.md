@@ -502,6 +502,7 @@ PD 팀(Claire)에 보낸 Phase 2 Q&A 답변 중 프로토타입에 아직 없던
 ## 7. 관련 문서
 
 - [기획서 ① — ELLIS MCP AI 요금 검색](spec-a-ellis-ai-search.md)
+- [랜딩 페이지 호텔 광고](feature-landing-hotel-ads.md) — 로그인 광고판(F-1.1)을 호텔 광고 위주 · 스크롤 기반 인터랙티브 애니메이션(객실 → 마지막 외관)으로 (2026-11-09, 영문 명세 v1.0)
 - [마켓 전용요금 태그](feature-market-only-rate-tag.md) — ELLIS Dotbiz Market 트레이더(300427) Include 요금에 "Market Only"·"일반 요금보다 저렴" 태그 (2026-10-20 기획 · 번외 작업)
 - [dotbiz-clone-plan.md](dotbiz-clone-plan.md) — 클론 구축 단계 인벤토리 (34항목)
 - [clone/as-is-ui-notes.md](../clone/as-is-ui-notes.md) — 실사이트 실측 토큰 (폰트·색·컨트롤)
