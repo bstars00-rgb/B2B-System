@@ -1,6 +1,8 @@
 # 기능 기획 — 마켓플레이스 가입 자동 안내 메일 (사업자등록증 요청 · 계정 오픈 안내)
 
-> **작성일**: 2026-11-19 · **트랙**: B (Marketplace 고도화) · **차수**: 미정 · **상태**: 기획 초안
+> **작성일**: 2026-11-19 · **트랙**: B (Marketplace 고도화) · **차수**: 미정 · **상태**: 기획 초안 + 프로토타입(`67f109b`) + 영문 명세 v1.0
+> **영문 명세서**: `Signup_Onboarding_Emails_Spec_EN_v1.0_20261119.docx` (Downloads) · 생성기 [specgen/make_signup_onboarding_spec.js](specgen/make_signup_onboarding_spec.js)
+> **프로토타입**: https://bstars00-rgb.github.io/B2B-System/ → Create Account · GSM 화면 https://bstars00-rgb.github.io/B2B-System/?ellis=signups
 > **요청 출처**: 현업(2026-11-19, Aiden). 콤파스프리가 마켓플레이스에서 직접 가입했고, GSM(Grace)이 계정 오픈·안내 메일·매뉴얼 첨부·사업자등록증 요청을 모두 손으로 처리했다. 가입 후 안내를 자동으로 보내고 싶다.
 
 ---
