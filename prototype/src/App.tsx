@@ -2,12 +2,17 @@ import { useEffect, useState } from 'react';
 import AiSearchPage from './components/AiSearchPage';
 import HotelRoomTab from './components/HotelRoomTab';
 import LoginPage from './components/LoginPage';
+import SignupDocUpload from './components/SignupDocUpload';
+import EllisSignupAdmin from './components/EllisSignupAdmin';
 import { AUTH_KEY } from './utils/bookingStore';
 import { applyDark, loadDark } from './utils/theme';
 
 /** ?hotel=<코드> 쿼리로 열리면 호텔 룸리스트 전용 탭 (실사이트: Select 시 새 창) */
 const urlParams = new URLSearchParams(window.location.search);
 const hotelParam = urlParams.get('hotel');
+/** 가입 자동 안내 메일 시연 — 메일 ①의 업로드 링크 / ELLIS 신규 가입 관리(GSM) (docs/plan/feature-agency-signup-onboarding.md) */
+const signupToken = urlParams.get('signup-upload');
+const ellisView = urlParams.get('ellis');
 
 export default function App() {
   // 고도화 표기 배지 표시 여부 — 저장된 설정을 body 클래스로 적용 (새 탭 포함)
@@ -49,6 +54,8 @@ export default function App() {
     setLoggedIn(false);
   };
 
+  if (signupToken) return <SignupDocUpload token={signupToken} />;
+  if (ellisView === 'signups') return <EllisSignupAdmin />;
   if (!loggedIn) return <LoginPage onLogin={handleLogin} />;
   if (hotelParam) return <HotelRoomTab code={hotelParam} params={urlParams} />;
   return <AiSearchPage onLogout={handleLogout} />;

@@ -5,6 +5,8 @@ import { CAMPAIGN_INTERVAL_MS, LOGIN_CAMPAIGNS } from '../mocks/loginCampaigns';
 import LegalModal from './LegalModal';
 import { MVillageLoginPromo } from './MVillagePavilion';
 import { HotelAdMobile, HotelAdStory } from './HotelAdStory';
+import SignupWizard from './SignupWizard';
+import { ellisLink, findByLogin } from '../mocks/signupStore';
 import { AD_TARGET_KEY, bookingTargetOf, nextCampaign, pickCampaign, trackAd, type AdCampaign, type HotelAdCampaign } from '../mocks/hotelAdCampaigns';
 
 interface Props {
@@ -50,6 +52,9 @@ export default function LoginPage({ onLogin }: Props) {
     emailRef.current?.focus({ preventScroll: true });
   };
 
+  /** Create Account → 가입 화면 (실사이트 /join 4단계 시연) */
+  const [signup, setSignup] = useState(false);
+
   /** 광고판 캠페인 로테이션 (브랜드 캠페인) */
   const [slide, setSlide] = useState(0);
   useEffect(() => {
@@ -77,6 +82,20 @@ export default function LoginPage({ onLogin }: Props) {
       setError('서비스 이용약관과 개인정보처리방침에 동의해 주세요.');
       return;
     }
+    // 가입 신청 후 아직 Active가 아닌 계정은 로그인 불가 (가입 자동 안내 메일 시연)
+    const app = findByLogin(email);
+    if (app && app.status !== 'active') {
+      setError(
+        lang === 'ko'
+          ? app.status === 'expired'
+            ? '가입 신청이 만료되었습니다. 담당 영업팀에 문의해 주세요.'
+            : '가입 신청을 확인하고 있습니다. 메일로 보내 드린 링크로 사업자등록증을 올려 주세요.'
+          : app.status === 'expired'
+            ? 'Your application has expired. Please contact our sales team.'
+            : 'We are reviewing your application. Please upload your business registration certificate with the link we emailed you.',
+      );
+      return;
+    }
     if (adNotice && ad.type === 'hotel') trackAd('ad_signin', { campaignId: ad.id });
     onLogin(stay);
   };
@@ -89,6 +108,8 @@ export default function LoginPage({ onLogin }: Props) {
       ? 'border-slate-700 bg-slate-800 text-slate-100 placeholder:text-slate-500'
       : 'border-slate-200 bg-sky-50/60 focus:bg-white'
   }`;
+
+  if (signup) return <SignupWizard onBack={() => setSignup(false)} />;
 
   return (
     // break-keep: 한글은 어절 단위로 줄바꿈 (단어 중간에서 끊기지 않게 — 광고 헤드라인 "시/작" 문제)
@@ -362,6 +383,7 @@ export default function LoginPage({ onLogin }: Props) {
 
           <button
             type="button"
+            onClick={() => setSignup(true)}
             className="mt-4 w-full rounded-xl border border-brand-400 py-2.5 text-sm font-semibold text-brand-500 hover:bg-brand-50"
           >
             Create Account
@@ -369,6 +391,12 @@ export default function LoginPage({ onLogin }: Props) {
 
           <p className={`mt-6 text-center text-[10px] ${subText}`}>
             프로토타입 — 아무 값이나 입력하고 약관 동의 후 Sign In 하면 포털로 진입합니다. (실제 인증 없음)
+          </p>
+          <p className={`mt-1 text-center text-[10px] ${subText}`}>
+            가입 자동 안내 메일 시연: Create Account →{' '}
+            <a href={ellisLink()} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-brand-500">
+              ELLIS 신규 가입 관리(GSM)
+            </a>
           </p>
         </form>
 
