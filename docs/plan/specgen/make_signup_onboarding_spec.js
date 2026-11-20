@@ -219,6 +219,7 @@ push(table([{ h: 'Function', w: 2300, boldCol: true }, { h: 'Content', w: TW - 2
   ['Attach emailed document', 'Upload a file received by email; sets Document received.'],
   ['Notices', 'To the assigned GSM by email: new sign-up · document received · D+14 without document · expired · email bounced. Teams in a later phase.'],
   ['GSM table', 'Country → GSM. Countries not in the table go to a shared Global Sales owner.'],
+  ['Screen language', 'Korean and English (switch in the header). Status names, notices and the event history follow the switch; email subjects and bodies stay in the language they were sent in.'],
 ]));
 
 // ───────────── 7. Activation ─────────────
@@ -305,7 +306,7 @@ push(table([{ h: 'Step', w: 600 }, { h: 'Where', w: 3200 }, { h: 'What to check'
   ['2', 'Completed screen → "view the email"', 'Email ① with the upload button, in the portal language (EN or KO).'],
   ['3', 'Log in with the new admin ID', 'Sign-in is refused with the review message.'],
   ['4', 'Completed screen → open the upload link', 'Upload a PDF, JPG or PNG; status becomes Document received.'],
-  ['5', `${DEMO}?ellis=signups`, 'New sign-up list, GSM notices, document list, email log and event history.'],
+  ['5', `${DEMO}?ellis=signups`, 'New sign-up list, GSM notices, document list, email log and event history. KO / EN switch at the top right.'],
   ['6', 'Approve', 'Email ② with the manual attached; event "300427 rules applied"; sign-in now works.'],
   ['7', 'Sample "Lotus Lane Tours" → Reject', 'Email ③ in English with the reason.'],
   ['8', 'Sample "Blue Harbor Travel" → +3 / +7 / +30 days', 'Reminders, D+14 notice and expiry.'],

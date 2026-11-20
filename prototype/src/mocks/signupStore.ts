@@ -45,7 +45,10 @@ export interface SignupEvent {
   day: number;
   at: string;
   actor: 'system' | 'agency' | 'gsm';
+  /** 한국어 */
   text: string;
+  /** 영어 (ELLIS 화면 영문 전환용) */
+  en?: string;
 }
 
 export interface CompanyInfo {
@@ -90,7 +93,7 @@ export interface SignupApplication {
   docs: SignupDoc[];
   mails: SentMail[];
   events: SignupEvent[];
-  alerts: { day: number; at: string; text: string }[];
+  alerts: { day: number; at: string; text: string; en?: string }[];
   flags: { r3?: boolean; r7?: boolean; a14?: boolean };
   sample?: boolean;
 }
@@ -123,7 +126,7 @@ export const REJECT_REASONS: Record<RejectReason, { ko: string; en: string }> = 
   other: { ko: '기타', en: 'Other' },
 };
 
-const KEY = 'omh_signups_v1';
+const KEY = 'omh_signups_v2'; // v2: 처리 기록·알림을 한/영 두 언어로 저장
 const EVENT = 'omh-signups';
 
 const nowIso = () => new Date().toISOString();
@@ -203,6 +206,31 @@ export function buildMail(kind: MailKind, a: SignupApplication, extra: { reason?
   return { id: rid(), kind, lang: l, day: a.ageDays, at: nowIso(), from: SENDER, replyTo: a.gsm, to, cc: [a.gsm], subject, body: body.filter(Boolean), attachments, link };
 }
 
+// ───────────── 처리 기록·알림 문구 (한/영) ─────────────
+type Bi = { text: string; en: string };
+const T = {
+  signedUp: { text: '가입 완료 (ohmyhotel.biz/join)', en: 'Signed up (ohmyhotel.biz/join)' } as Bi,
+  mail1: (l: string): Bi => ({ text: `메일 ① 가입 접수·서류 요청 발송 (${l})`, en: `Email ① sent: application received, document request (${l})` }),
+  reminder: (d: number): Bi => ({ text: `리마인드 D+${d} 발송`, en: `Reminder D+${d} sent` }),
+  uploaded: (f: string): Bi => ({ text: `서류 업로드 (${f})`, en: `Document uploaded (${f})` }),
+  gsmAttached: (f: string): Bi => ({ text: `GSM이 메일 회신 서류 첨부 (${f})`, en: `GSM attached a document received by email (${f})` }),
+  approved: (term: PaymentTerm, later?: string): Bi => ({
+    text: `승인 · Trade Status Pending → Active · 결제 조건 ${term === 'prepaid' ? '선불' : '후불'}${later ? ` · 서류 나중에 받기(${later})` : ''}`,
+    en: `Approved · Trade Status Pending → Active · Payment ${term}${later ? ` · Document later (${later})` : ''}`,
+  }),
+  rules: { text: 'Dotbiz Market 트레이더(300427) Include/Exclude 규칙 적용', en: 'Dotbiz Market trader (300427) Include/Exclude rules applied' } as Bi,
+  mail2: { text: '메일 ② 계정 오픈 안내 발송 (매뉴얼 첨부)', en: 'Email ② sent: account open (manual attached)' } as Bi,
+  rejected: (ko: string, en: string): Bi => ({ text: `반려 · ${ko}`, en: `Rejected · ${en}` }),
+  mail3: { text: '메일 ③ 서류 재제출 요청 발송', en: 'Email ③ sent: please resubmit' } as Bi,
+  expired: (d: number): Bi => ({ text: `D+${d} 만료`, en: `Expired at D+${d}` }),
+};
+const A = {
+  newSignup: { text: '신규 가입', en: 'New sign-up' } as Bi,
+  docReceived: { text: '서류 접수', en: 'Document received' } as Bi,
+  d14: { text: 'D+14 서류 미제출 — 직접 연락 검토', en: 'D+14 no document, consider contacting' } as Bi,
+  expired: { text: '만료', en: 'Expired' } as Bi,
+};
+
 // ───────────── 저장소 ─────────────
 function seed(): SignupApplication[] {
   type Over = Omit<Partial<SignupApplication>, 'company' | 'admin'> & { company: Partial<CompanyInfo>; admin: Partial<AdminInfo> };
@@ -214,24 +242,24 @@ function seed(): SignupApplication[] {
       gsm: gsmFor(company.country), docs: [], mails: [], events: [], alerts: [], flags: {}, sample: true, ...rest, company, admin,
     };
   };
-  const a1 = base({ company: { name: 'Blue Harbor Travel (샘플)', country: 'KR', address: 'Seoul', phone: '0200000000', repName: 'Sample Kim', repEmail: 'owner@blueharbor.example', regNo: '123-45-67890' }, admin: { name: 'Sample Kim', userId: 'ops@blueharbor.example', email: 'ops@blueharbor.example', mobile: '01000000000' } });
+  const a1 = base({ company: { name: 'Blue Harbor Travel (sample)', country: 'KR', address: 'Seoul', phone: '0200000000', repName: 'Sample Kim', repEmail: 'owner@blueharbor.example', regNo: '123-45-67890' }, admin: { name: 'Sample Kim', userId: 'ops@blueharbor.example', email: 'ops@blueharbor.example', mobile: '01000000000' } });
   a1.mails.push(buildMail('request', a1));
-  a1.events.push({ day: 0, at: nowIso(), actor: 'agency', text: '가입 완료 (ohmyhotel.biz/join)' }, { day: 0, at: nowIso(), actor: 'system', text: '메일 ① 가입 접수·서류 요청 발송' });
-  a1.alerts.push({ day: 0, at: nowIso(), text: '신규 가입' });
+  a1.events.push({ day: 0, at: nowIso(), actor: 'agency', ...T.signedUp }, { day: 0, at: nowIso(), actor: 'system', ...T.mail1('KO') });
+  a1.alerts.push({ day: 0, at: nowIso(), ...A.newSignup });
   a1.ageDays = 4;
   a1.flags.r3 = true;
   a1.mails.push({ ...buildMail('reminder', a1), day: 3 });
-  a1.events.push({ day: 3, at: nowIso(), actor: 'system', text: '리마인드 D+3 발송' });
+  a1.events.push({ day: 3, at: nowIso(), actor: 'system', ...T.reminder(3) });
   a1.linkIssuedDay = 3;
 
   const a2 = base({ lang: 'en', company: { name: 'Lotus Lane Tours (sample)', country: 'VN', address: 'Ho Chi Minh City', phone: '0280000000', repName: 'Sample Tran', repEmail: 'info@lotuslane.example', regNo: '0312345678' }, admin: { name: 'Sample Tran', userId: 'booking@lotuslane.example', email: 'booking@lotuslane.example', mobile: '0900000000' } });
   a2.mails.push(buildMail('request', a2));
-  a2.events.push({ day: 0, at: nowIso(), actor: 'agency', text: '가입 완료 (ohmyhotel.biz/join)' }, { day: 0, at: nowIso(), actor: 'system', text: '메일 ① 가입 접수·서류 요청 발송' });
+  a2.events.push({ day: 0, at: nowIso(), actor: 'agency', ...T.signedUp }, { day: 0, at: nowIso(), actor: 'system', ...T.mail1('EN') });
   a2.ageDays = 1;
   a2.docs.push({ name: 'business-license.pdf', size: 482113, type: 'application/pdf', day: 1, via: 'upload' });
   a2.status = 'docs_received';
-  a2.events.push({ day: 1, at: nowIso(), actor: 'agency', text: '서류 업로드 (business-license.pdf)' });
-  a2.alerts.push({ day: 0, at: nowIso(), text: '신규 가입' }, { day: 1, at: nowIso(), text: '서류 접수' });
+  a2.events.push({ day: 1, at: nowIso(), actor: 'agency', ...T.uploaded('business-license.pdf') });
+  a2.alerts.push({ day: 0, at: nowIso(), ...A.newSignup }, { day: 1, at: nowIso(), ...A.docReceived });
   return [a2, a1];
 }
 
@@ -293,8 +321,8 @@ function mutate(id: string, fn: (a: SignupApplication) => void): SignupApplicati
   return a;
 }
 
-const ev = (a: SignupApplication, actor: SignupEvent['actor'], text: string) => a.events.push({ day: a.ageDays, at: nowIso(), actor, text });
-const alert = (a: SignupApplication, text: string) => a.alerts.push({ day: a.ageDays, at: nowIso(), text });
+const ev = (a: SignupApplication, actor: SignupEvent['actor'], t: Bi) => a.events.push({ day: a.ageDays, at: nowIso(), actor, ...t });
+const alert = (a: SignupApplication, t: Bi) => a.alerts.push({ day: a.ageDays, at: nowIso(), ...t });
 
 // ───────────── 동작 ─────────────
 export function isRegNoTaken(regNo: string): boolean {
@@ -322,10 +350,10 @@ export function createApplication(company: CompanyInfo, admin: AdminInfo): Signu
     lang: portal === 'ko' ? 'ko' : 'en', company, admin, status: 'pending_docs', gsm: gsmFor(company.country),
     docs: [], mails: [], events: [], alerts: [], flags: {},
   };
-  ev(a, 'agency', '가입 완료 (ohmyhotel.biz/join)');
+  ev(a, 'agency', T.signedUp);
   a.mails.push(buildMail('request', a));
-  ev(a, 'system', `메일 ① 가입 접수·서류 요청 발송 (${a.lang.toUpperCase()})`);
-  alert(a, '신규 가입');
+  ev(a, 'system', T.mail1(a.lang.toUpperCase()));
+  alert(a, A.newSignup);
   const list = loadSignups();
   list.unshift(a);
   saveSignups(list);
@@ -336,8 +364,9 @@ export function uploadDocs(token: string, files: { name: string; size: number; t
   return mutate(token, (a) => {
     files.forEach((f) => a.docs.push({ ...f, day: a.ageDays, via }));
     if (a.status !== 'active') a.status = 'docs_received';
-    ev(a, via === 'upload' ? 'agency' : 'gsm', `${via === 'upload' ? '서류 업로드' : 'GSM이 메일 회신 서류 첨부'} (${files.map((f) => f.name).join(', ')})`);
-    if (via === 'upload') alert(a, '서류 접수');
+    const names = files.map((f) => f.name).join(', ');
+    ev(a, via === 'upload' ? 'agency' : 'gsm', via === 'upload' ? T.uploaded(names) : T.gsmAttached(names));
+    if (via === 'upload') alert(a, A.docReceived);
   });
 }
 
@@ -346,22 +375,23 @@ export function approve(id: string, paymentTerm: PaymentTerm, docsLaterReason?: 
     a.status = 'active';
     a.paymentTerm = paymentTerm;
     a.docsLaterReason = docsLaterReason?.trim() || undefined;
-    ev(a, 'gsm', `승인 · Trade Status Pending → Active · 결제 조건 ${paymentTerm === 'prepaid' ? '선불' : '후불'}${a.docsLaterReason ? ` · 서류 나중에 받기(${a.docsLaterReason})` : ''}`);
-    ev(a, 'system', 'Dotbiz Market 트레이더(300427) Include/Exclude 규칙 적용');
+    ev(a, 'gsm', T.approved(paymentTerm, a.docsLaterReason));
+    ev(a, 'system', T.rules);
     a.mails.push(buildMail('welcome', a));
-    ev(a, 'system', '메일 ② 계정 오픈 안내 발송 (매뉴얼 첨부)');
+    ev(a, 'system', T.mail2);
   });
 }
 
 export function reject(id: string, reason: RejectReason, note: string) {
   return mutate(id, (a) => {
-    const r = REJECT_REASONS[reason][a.lang] + (note.trim() ? ` · ${note.trim()}` : '');
+    const tail = note.trim() ? ` · ${note.trim()}` : '';
+    const r = REJECT_REASONS[reason][a.lang] + tail;
     a.status = 'rejected';
     a.rejectReason = r;
     a.linkIssuedDay = a.ageDays;
-    ev(a, 'gsm', `반려 · ${r}`);
+    ev(a, 'gsm', T.rejected(REJECT_REASONS[reason].ko + tail, REJECT_REASONS[reason].en + tail));
     a.mails.push(buildMail('resubmit', a, { reason: r }));
-    ev(a, 'system', '메일 ③ 서류 재제출 요청 발송');
+    ev(a, 'system', T.mail3);
   });
 }
 
@@ -375,39 +405,60 @@ export function advanceDays(id: string, n: number) {
         a.flags.r3 = true;
         a.linkIssuedDay = a.ageDays;
         a.mails.push(buildMail('reminder', a));
-        ev(a, 'system', '리마인드 D+3 발송');
+        ev(a, 'system', T.reminder(3));
       }
       if (a.ageDays >= 7 && !a.flags.r7) {
         a.flags.r7 = true;
         a.linkIssuedDay = a.ageDays;
         a.mails.push(buildMail('reminder', a));
-        ev(a, 'system', '리마인드 D+7 발송');
+        ev(a, 'system', T.reminder(7));
       }
       if (a.ageDays >= 14 && !a.flags.a14) {
         a.flags.a14 = true;
-        alert(a, 'D+14 서류 미제출 — 직접 연락 검토');
+        alert(a, A.d14);
       }
       if (a.ageDays >= EXPIRE_DAYS) {
         a.status = 'expired';
-        ev(a, 'system', `D+${EXPIRE_DAYS} 만료`);
-        alert(a, '만료');
+        ev(a, 'system', T.expired(EXPIRE_DAYS));
+        alert(a, A.expired);
         break;
       }
     }
   });
 }
 
-export const STATUS_LABEL: Record<SignupStatus, { ko: string; cls: string }> = {
-  pending_docs: { ko: '가입 접수 · 서류 대기', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
-  docs_received: { ko: '서류 접수 · 확인 대기', cls: 'bg-sky-50 text-sky-700 border-sky-200' },
-  active: { ko: '활성 (Active)', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  rejected: { ko: '반려 · 재제출 대기', cls: 'bg-rose-50 text-rose-700 border-rose-200' },
-  expired: { ko: '만료', cls: 'bg-slate-100 text-slate-500 border-slate-200' },
+export const STATUS_LABEL: Record<SignupStatus, { ko: string; en: string; cls: string }> = {
+  pending_docs: { ko: '가입 접수 · 서류 대기', en: 'Application received · Waiting for document', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+  docs_received: { ko: '서류 접수 · 확인 대기', en: 'Document received · To check', cls: 'bg-sky-50 text-sky-700 border-sky-200' },
+  active: { ko: '활성 (Active)', en: 'Active', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  rejected: { ko: '반려 · 재제출 대기', en: 'Rejected · Waiting for resubmission', cls: 'bg-rose-50 text-rose-700 border-rose-200' },
+  expired: { ko: '만료', en: 'Expired', cls: 'bg-slate-100 text-slate-500 border-slate-200' },
 };
 
-export const MAIL_LABEL: Record<MailKind, string> = {
-  request: '① 가입 접수 · 서류 요청',
-  reminder: '리마인드',
-  welcome: '② 계정 오픈 안내',
-  resubmit: '③ 서류 재제출 요청',
+export const MAIL_LABEL: Record<MailKind, { ko: string; en: string }> = {
+  request: { ko: '① 가입 접수 · 서류 요청', en: '① Application received · Document request' },
+  reminder: { ko: '리마인드', en: 'Reminder' },
+  welcome: { ko: '② 계정 오픈 안내', en: '② Account open' },
+  resubmit: { ko: '③ 서류 재제출 요청', en: '③ Please resubmit' },
 };
+
+/** ELLIS 화면 언어 (KO/EN) — 기본은 포털 언어(한국어면 KO, 그 외 EN) */
+export type UiLang = 'ko' | 'en';
+const UI_KEY = 'omh_ellis_lang';
+export function loadUiLang(): UiLang {
+  try {
+    const v = localStorage.getItem(UI_KEY);
+    if (v === 'ko' || v === 'en') return v;
+  } catch {
+    // 무시
+  }
+  return loadPortalLang() === 'ko' ? 'ko' : 'en';
+}
+export function saveUiLang(l: UiLang) {
+  try {
+    localStorage.setItem(UI_KEY, l);
+  } catch {
+    // 무시
+  }
+}
+export const textIn = (x: { text: string; en?: string }, l: UiLang) => (l === 'en' ? x.en ?? x.text : x.text);
